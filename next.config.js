@@ -1,11 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'export',
-  eslint: {
-    ignoreDuringBuilds: true,
+  images: {
+    unoptimized: true,
   },
-  images: { unoptimized: true },
-  trailingSlash: true,  // Add trailing slashes to improve compatibility with static hosting
-};
+  // This ensures that Next.js correctly handles routes in static exports
+  trailingSlash: true,
+}
 
-module.exports = nextConfig;
+module.exports = nextConfig

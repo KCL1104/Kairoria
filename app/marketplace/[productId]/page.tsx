@@ -1,4 +1,3 @@
-import { type Metadata } from 'next'
 import { ArrowLeft, Calendar, Heart, MapPin, MessageSquare, Share2, Star } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -9,36 +8,59 @@ import { ProductReviews } from "@/components/marketplace/product-reviews"
 import { OwnerCard } from "@/components/marketplace/owner-card"
 import { ProductDatePicker } from "@/components/marketplace/product-date-picker"
 import { RelatedProducts } from "@/components/marketplace/related-products"
-import { mockProducts } from "../../page"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Metadata } from "next"
+import { notFound } from "next/navigation"
 
+// Import mockProducts from the product-grid component where they are defined
+import { mockProducts } from "@/components/marketplace/product-grid"
+
+// Function to generate static paths for all products during build time
 export function generateStaticParams() {
   return mockProducts.map((product) => ({
     productId: product.id,
   }))
 }
 
-export const generateMetadata = ({ params }: { params: { productId: string } }): Metadata => {
-  const product = mockProducts.find(p => p.id === params.productId) || { title: 'Product Details' }
+// Generate metadata for SEO
+export function generateMetadata({ params }: { params: { productId: string } }): Metadata {
+  const product = mockProducts.find((p) => p.id === params.productId)
+  
+  if (!product) {
+    return {
+      title: "Product Not Found",
+      description: "The requested product could not be found.",
+    }
+  }
   
   return {
-    title: `${product.title} | Kairoria`,
-    description: `Rent ${product.title} on Kairoria. View details, pricing, and availability.`,
+    title: `${product.title} | Kairoria Marketplace`,
+    description: `Rent ${product.title} in ${product.location}. Rating: ${product.rating}/5 from ${product.reviews} reviews.`,
+    openGraph: {
+      images: [{ url: product.imageSrc }],
+    },
   }
 }
 
 export default function ProductPage({ params }: { params: { productId: string } }) {
-  // Find the product with the matching ID from mockProducts, or use fallback data
-  const productData = mockProducts.find((p) => p.id === params.productId)
+  // Find the product from our mock data
+  const productFromMock = mockProducts.find((product) => product.id === params.productId)
   
-  // Merge with detailed product data or use fallback
-  const product = productData ? {
-    ...productData,
+  // If product not found, use a fallback or show 404
+  if (!productFromMock) {
+    notFound()
+  }
+  
+  // For this example, we'll enhance the mock product with additional details
+  const product = {
+    ...productFromMock,
+    description: "High-end item perfect for professional use. Includes all necessary accessories and is in excellent condition. This product is known for its exceptional quality and versatility in various conditions.",
     features: [
-      "High-quality item in excellent condition",
-      "Available for daily, weekly, or monthly rental",
-      "Pickup available in " + productData.location,
-      "Insurance options available",
+      "Premium quality construction",
+      "Easy to use interface",
+      "Includes full warranty",
+      "Energy efficient operation",
+      "Compact storage design",
+      "Built-in safety features",
     ],
     owner: {
       name: "David Chen",
@@ -49,19 +71,6 @@ export default function ProductPage({ params }: { params: { productId: string } 
       memberSince: "Aug 2022",
       avatarSrc: "https://images.pexels.com/photos/614810/pexels-photo-614810.jpeg?auto=compress&cs=tinysrgb&w=300",
     }
-  } : {
-    id: params.productId,
-    title: "Product Not Found",
-    category: "Unknown",
-    description: "This product could not be found or has been removed.",
-    price: 0,
-    period: "day",
-    location: "Unknown",
-    rating: 0,
-    reviews: 0,
-    imageSrc: "https://images.pexels.com/photos/51383/photo-camera-subject-photographer-51383.jpeg",
-    features: ["Product information unavailable"],
-    isAvailable: false
   }
   
   return (
@@ -74,7 +83,7 @@ export default function ProductPage({ params }: { params: { productId: string } 
       
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-8">
         <div>
-          {/* Product Gallery */}
+          {/* Product Gallery - Using imageSrc instead of images array */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
             <div className="md:col-span-2">
               <img 
@@ -83,6 +92,7 @@ export default function ProductPage({ params }: { params: { productId: string } 
                 className="w-full h-[400px] object-cover rounded-lg"
               />
             </div>
+            {/* Use placeholder images for additional views */}
             <img 
               src="https://images.pexels.com/photos/243757/pexels-photo-243757.jpeg" 
               alt={`${product.title} - view 2`} 
@@ -131,17 +141,13 @@ export default function ProductPage({ params }: { params: { productId: string } 
                 <TabsTrigger value="reviews">Reviews</TabsTrigger>
               </TabsList>
               <TabsContent value="description" className="text-muted-foreground">
-                <p>{product.description || `This ${product.category.toLowerCase()} is available for rent in ${product.location}. Contact the owner for more details.`}</p>
+                <p>{product.description}</p>
               </TabsContent>
               <TabsContent value="features">
                 <ul className="list-disc pl-5 text-muted-foreground space-y-1">
-                  {'features' in product && Array.isArray(product.features) ? (
-                    product.features.map((feature, index) => (
-                      <li key={index}>{feature}</li>
-                    ))
-                  ) : (
-                    <li>High quality item available for rent</li>
-                  )}
+                  {product.features.map((feature, index) => (
+                    <li key={index}>{feature}</li>
+                  ))}
                 </ul>
               </TabsContent>
               <TabsContent value="reviews">
@@ -179,28 +185,7 @@ export default function ProductPage({ params }: { params: { productId: string } 
           </div>
           
           {/* Owner Card */}
-          {'owner' in product ? (
-            <OwnerCard owner={product.owner} />
-          ) : (
-            <div className="border rounded-lg p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <Avatar>
-                  <AvatarFallback>OW</AvatarFallback>
-                </Avatar>
-                <div>
-                  <h3 className="font-medium">Item Owner</h3>
-                  <div className="flex items-center mt-1">
-                    <Star className="h-3.5 w-3.5 fill-primary text-primary" />
-                    <span className="text-sm ml-1">4.8 • 32 reviews</span>
-                  </div>
-                </div>
-              </div>
-              <Button variant="outline" className="w-full">
-                <MessageSquare className="mr-2 h-4 w-4" />
-                Contact Owner
-              </Button>
-            </div>
-          )}
+          <OwnerCard owner={product.owner} />
         </div>
       </div>
     </div>
