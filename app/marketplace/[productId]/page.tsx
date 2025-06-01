@@ -1,5 +1,6 @@
-import { ArrowLeft, Calendar, Heart, MapPin, MessageSquare, Share2, Star } from "lucide-react"
+import Image from "next/image"
 import Link from "next/link"
+import { ArrowLeft, Calendar, Heart, MapPin, MessageSquare, Star } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
@@ -9,9 +10,8 @@ import { OwnerCard } from "@/components/marketplace/owner-card"
 import { ProductDatePicker } from "@/components/marketplace/product-date-picker"
 import { RelatedProducts } from "@/components/marketplace/related-products"
 
-
 // This fixes the build issue by making it a dynamic route
-export const dynamic = 'force-dynamic';
+export const dynamic = 'force-dynamic'
 
 export default function ProductPage({ params }: { params: { productId: string } }) {
   // In a real application, we would fetch the product data based on the productId
@@ -95,9 +95,6 @@ export default function ProductPage({ params }: { params: { productId: string } 
               <div className="flex gap-2">
                 <Button variant="outline" size="icon">
                   <Heart className="h-5 w-5" />
-                </Button>
-                <Button variant="outline" size="icon">
-                  <Share2 className="h-5 w-5" />
                 </Button>
               </div>
             </div>

@@ -14,19 +14,10 @@ import { cn } from "@/lib/utils"
 import { DateRange } from "react-day-picker"
 
 export function ProductDatePicker() {
-  const [date, setDate] = useState<DateRange>({
+  const [date, setDate] = useState<DateRange | undefined>({
     from: new Date(),
     to: addDays(new Date(), 3),
   })
-
-  // Create a handler that properly handles undefined values
-  const handleDateSelect = (range: DateRange | undefined) => {
-    if (range) {
-      setDate(range)
-    }
-    // Optionally, you can handle the undefined case differently
-    // For example, reset to default or keep the current selection
-  }
 
   return (
     <div>
@@ -61,7 +52,7 @@ export function ProductDatePicker() {
               mode="range"
               defaultMonth={date?.from}
               selected={date}
-              onSelect={handleDateSelect}  // Use the handler instead
+              onSelect={setDate}
               numberOfMonths={2}
             />
           </PopoverContent>
