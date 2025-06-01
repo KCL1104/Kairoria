@@ -189,7 +189,7 @@ export default function ContactPage() {
                   {isLoading ? (
                     <span className="flex items-center">
                       <span className="animate-spin mr-2">
-                        <svg className="h-5 w-5" viewBox="0 0 24 24">
+                        <svg className="h-5 w-5\" viewBox="0 0 24 24">
                           <circle
                             className="opacity-25"
                             cx="12"

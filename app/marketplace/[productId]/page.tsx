@@ -9,8 +9,18 @@ import { OwnerCard } from "@/components/marketplace/owner-card"
 import { ProductDatePicker } from "@/components/marketplace/product-date-picker"
 import { RelatedProducts } from "@/components/marketplace/related-products"
 
+// Import mockProducts from the product-grid component
+import { mockProducts } from "@/components/marketplace/product-grid"
+
 // This fixes the build issue by making it a dynamic route
 export const dynamic = 'force-dynamic'
+
+// Add generateStaticParams function to pre-render all product pages at build time
+export async function generateStaticParams() {
+  return mockProducts.map(product => ({
+    productId: product.id,
+  }))
+}
 
 export default function ProductPage({ params }: { params: { productId: string } }) {
   // In a real application, we would fetch the product data based on the productId
