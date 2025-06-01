@@ -1,5 +1,7 @@
 import Link from "next/link"
-import { ArrowLeft, Calendar, Heart, MapPin, MessageSquare, Star, Share2 } from "lucide-react"
+import { ArrowLeft, Calendar, Heart, MapPin, MessageSquare, Star } from "lucide-react"
+// Import Share2 separately to avoid possible bundling issues
+import { Share2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
@@ -12,20 +14,17 @@ import { RelatedProducts } from "@/components/marketplace/related-products"
 // Import mockProducts from the product-grid component
 import { mockProducts } from "@/components/marketplace/product-grid"
 
-// This fixes the build issue by making it a dynamic route
-export const dynamic = 'force-dynamic'
-
-// Add generateStaticParams function to pre-render all product pages at build time
-export async function generateStaticParams() {
+// Ensure proper handling for static site generation with dynamic routes
+export function generateStaticParams() {
   return mockProducts.map(product => ({
     productId: product.id,
   }))
 }
 
 export default function ProductPage({ params }: { params: { productId: string } }) {
-  // In a real application, we would fetch the product data based on the productId
-  // For this example, we're using mock data
-  const product = {
+  // Find the product from our mock data based on the productId
+  // Fallback to a default product if not found
+  const product = mockProducts.find(p => p.id === params.productId) || {
     id: params.productId,
     title: "Professional DSLR Camera - Canon EOS 5D Mark IV",
     category: "Electronics",
@@ -57,7 +56,7 @@ export default function ProductPage({ params }: { params: { productId: string } 
       memberSince: "Aug 2022",
       avatarSrc: "https://images.pexels.com/photos/614810/pexels-photo-614810.jpeg?auto=compress&cs=tinysrgb&w=300",
     }
-  }
+  };
   
   return (
     <div className="container py-8">
@@ -73,18 +72,18 @@ export default function ProductPage({ params }: { params: { productId: string } 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
             <div className="md:col-span-2">
               <img 
-                src={product.images[0]} 
+                src={product.images?.[0] || "https://images.pexels.com/photos/51383/photo-camera-subject-photographer-51383.jpeg"} 
                 alt={product.title} 
                 className="w-full h-[400px] object-cover rounded-lg"
               />
             </div>
             <img 
-              src={product.images[1]} 
+              src={product.images?.[1] || "https://images.pexels.com/photos/243757/pexels-photo-243757.jpeg"} 
               alt={`${product.title} - view 2`} 
               className="w-full h-48 object-cover rounded-lg"
             />
             <img 
-              src={product.images[2]} 
+              src={product.images?.[2] || "https://images.pexels.com/photos/1787235/pexels-photo-1787235.jpeg"} 
               alt={`${product.title} - view 3`} 
               className="w-full h-48 object-cover rounded-lg"
             />
@@ -130,7 +129,7 @@ export default function ProductPage({ params }: { params: { productId: string } 
               </TabsContent>
               <TabsContent value="features">
                 <ul className="list-disc pl-5 text-muted-foreground space-y-1">
-                  {product.features.map((feature, index) => (
+                  {product.features?.map((feature, index) => (
                     <li key={index}>{feature}</li>
                   ))}
                 </ul>
