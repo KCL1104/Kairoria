@@ -11,8 +11,8 @@ import { RelatedProducts } from "@/components/marketplace/related-products"
 import { Metadata } from "next"
 import { notFound } from "next/navigation"
 
-// Import mockProducts from the product-grid component where they are defined
-import { mockProducts } from "@/components/marketplace/product-grid"
+// Import mockProducts from our data file
+import { mockProducts } from "@/lib/data"
 
 // Function to generate static paths for all products during build time
 export function generateStaticParams() {
@@ -45,7 +45,7 @@ export default function ProductPage({ params }: { params: { productId: string } 
   // Find the product from our mock data
   const productFromMock = mockProducts.find((product) => product.id === params.productId)
   
-  // If product not found, use a fallback or show 404
+  // If product not found, show 404
   if (!productFromMock) {
     notFound()
   }

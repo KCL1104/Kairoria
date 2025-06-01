@@ -2,22 +2,15 @@
 
 import { useState } from "react"
 import { cn } from "@/lib/utils"
-
-interface Category {
-  id: string
-  name: string
-  icon?: string
-}
+import { categories } from "@/lib/data"
 
 interface CategoryFilterProps {
-  categories: Category[]
   selectedCategory?: string
   onSelectCategory?: (id: string) => void
   className?: string
 }
 
 export function CategoryFilter({
-  categories,
   selectedCategory = "all",
   onSelectCategory,
   className
