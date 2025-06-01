@@ -8,7 +8,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ProductCard } from "@/components/marketplace/product-card"
 
 // Mock data for products - in a real app, this would come from an API
-const mockProducts = [
+export const mockProducts = [
   {
     id: "product-1",
     title: "Professional DSLR Camera",

@@ -10,6 +10,7 @@ import { OwnerCard } from "@/components/marketplace/owner-card"
 import { ProductDatePicker } from "@/components/marketplace/product-date-picker"
 import { RelatedProducts } from "@/components/marketplace/related-products"
 import { mockProducts } from "../../page"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 
 export function generateStaticParams() {
   return mockProducts.map((product) => ({
@@ -17,31 +18,27 @@ export function generateStaticParams() {
   }))
 }
 
-export const metadata: Metadata = {
-  title: 'Product Details | Kairoria',
-  description: 'View product details and book your rental.',
+export const generateMetadata = ({ params }: { params: { productId: string } }): Metadata => {
+  const product = mockProducts.find(p => p.id === params.productId) || { title: 'Product Details' }
+  
+  return {
+    title: `${product.title} | Kairoria`,
+    description: `Rent ${product.title} on Kairoria. View details, pricing, and availability.`,
+  }
 }
 
 export default function ProductPage({ params }: { params: { productId: string } }) {
-  // Find the product with the matching ID from mockProducts
-  const product = mockProducts.find((p) => p.id === params.productId) || {
-    id: params.productId,
-    title: "Professional DSLR Camera - Canon EOS 5D Mark IV",
-    category: "Electronics",
-    description: "High-end DSLR camera perfect for professional photography. Includes two lenses, a battery grip, and extra batteries. The Canon EOS 5D Mark IV is known for its exceptional image quality and versatility in various shooting conditions.",
-    price: 35,
-    period: "day",
-    location: "San Francisco, CA",
-    rating: 4.9,
-    reviews: 28,
-    imageSrc: "https://images.pexels.com/photos/51383/photo-camera-subject-photographer-51383.jpeg",
+  // Find the product with the matching ID from mockProducts, or use fallback data
+  const productData = mockProducts.find((p) => p.id === params.productId)
+  
+  // Merge with detailed product data or use fallback
+  const product = productData ? {
+    ...productData,
     features: [
-      "30.4 MP full-frame CMOS sensor",
-      "ISO range 100-32000",
-      "7 fps continuous shooting",
-      "4K video recording",
-      "3.2-inch touchscreen LCD",
-      "Built-in Wi-Fi and GPS",
+      "High-quality item in excellent condition",
+      "Available for daily, weekly, or monthly rental",
+      "Pickup available in " + productData.location,
+      "Insurance options available",
     ],
     owner: {
       name: "David Chen",
@@ -52,6 +49,19 @@ export default function ProductPage({ params }: { params: { productId: string } 
       memberSince: "Aug 2022",
       avatarSrc: "https://images.pexels.com/photos/614810/pexels-photo-614810.jpeg?auto=compress&cs=tinysrgb&w=300",
     }
+  } : {
+    id: params.productId,
+    title: "Product Not Found",
+    category: "Unknown",
+    description: "This product could not be found or has been removed.",
+    price: 0,
+    period: "day",
+    location: "Unknown",
+    rating: 0,
+    reviews: 0,
+    imageSrc: "https://images.pexels.com/photos/51383/photo-camera-subject-photographer-51383.jpeg",
+    features: ["Product information unavailable"],
+    isAvailable: false
   }
   
   return (
@@ -121,11 +131,11 @@ export default function ProductPage({ params }: { params: { productId: string } 
                 <TabsTrigger value="reviews">Reviews</TabsTrigger>
               </TabsList>
               <TabsContent value="description" className="text-muted-foreground">
-                <p>{product.description}</p>
+                <p>{product.description || `This ${product.category.toLowerCase()} is available for rent in ${product.location}. Contact the owner for more details.`}</p>
               </TabsContent>
               <TabsContent value="features">
                 <ul className="list-disc pl-5 text-muted-foreground space-y-1">
-                  {'features' in product && product.features ? (
+                  {'features' in product && Array.isArray(product.features) ? (
                     product.features.map((feature, index) => (
                       <li key={index}>{feature}</li>
                     ))
