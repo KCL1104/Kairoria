@@ -1,6 +1,5 @@
-import Image from "next/image"
 import Link from "next/link"
-import { ArrowLeft, Calendar, Heart, MapPin, MessageSquare, Star } from "lucide-react"
+import { ArrowLeft, Calendar, Heart, MapPin, MessageSquare, Star, Share2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
@@ -95,6 +94,9 @@ export default function ProductPage({ params }: { params: { productId: string } 
               <div className="flex gap-2">
                 <Button variant="outline" size="icon">
                   <Heart className="h-5 w-5" />
+                </Button>
+                <Button variant="outline" size="icon">
+                  <Share2 className="h-5 w-5" />
                 </Button>
               </div>
             </div>
