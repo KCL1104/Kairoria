@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, ShoppingBag, CheckCircle, Lock, AlertCircle } from "lucide-react"
+import { ArrowLeft, ShoppingBag, CheckCircle, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -16,14 +16,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
-// This generates a static page with a placeholder token at build time
-export function generateStaticParams() {
-  // Return a placeholder token that would never be used in real scenarios
-  // The actual token validation will happen client-side
-  return [{ token: "placeholder-token" }]
-}
-
-export default function ResetPasswordPage({
+export default function ResetPasswordTokenPage({
   params,
 }: {
   params: { token: string }
@@ -39,21 +32,19 @@ export default function ResetPasswordPage({
   // Validate token on component mount
   useEffect(() => {
     const validateToken = async () => {
-      // For placeholder tokens, mark as invalid to show error
-      if (params.token === "placeholder-token") {
+      // In a real app, validate the token here with an API call
+      // For demo purposes, we'll simulate token validation
+      if (params.token === "invalid-token") {
         setIsValidToken(false)
-        return
+      } else {
+        setIsValidToken(true)
       }
-      
-      // In a real app, validate the token here
-      // For demo, we'll treat all non-placeholder tokens as valid
-      setIsValidToken(true)
     }
     
     validateToken()
   }, [params.token])
   
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
     
@@ -70,9 +61,22 @@ export default function ResetPasswordPage({
     
     setIsLoading(true)
     
-    // In a real application, this would call the password reset API
-    // with the token from params.token and the new password
-    setTimeout(() => {
+    try {
+      // In a real application, this would call the password reset API
+      // const response = await fetch('/api/auth/reset-password', {
+      //   method: 'POST',
+      //   headers: {
+      //     'Content-Type': 'application/json',
+      //   },
+      //   body: JSON.stringify({
+      //     token: params.token,
+      //     password,
+      //   }),
+      // });
+      
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1500))
+      
       setIsLoading(false)
       setIsSuccess(true)
       
@@ -80,7 +84,10 @@ export default function ResetPasswordPage({
       setTimeout(() => {
         router.push("/auth/login")
       }, 2000)
-    }, 1500)
+    } catch (error) {
+      setIsLoading(false)
+      setError("Failed to reset password. Please try again.")
+    }
   }
   
   return (
