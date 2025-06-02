@@ -2,7 +2,9 @@
 
 import Link from "next/link"
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { ArrowLeft, ShoppingBag } from "lucide-react"
+import { useAuth } from "@/contexts/AuthContext"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -19,18 +21,28 @@ import { Separator } from "@/components/ui/separator"
 export default function LoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [error, setError] = useState("")
+  const { login } = useAuth()
+  const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+    setError("")
     setIsLoading(true)
     
-    // In a real application, this would call an authentication service
-    setTimeout(() => {
+    try {
+      const success = await login(email, password)
+      if (success) {
+        router.push("/")
+      } else {
+        setError("Invalid email or password")
+      }
+    } catch (error) {
+      setError("Login failed. Please try again.")
+    } finally {
       setIsLoading(false)
-      window.location.href = "/"
-    }, 1500)
+    }
   }
   
   return (
@@ -87,6 +99,13 @@ export default function LoginPage() {
                 required
               />
             </div>
+            
+            {error && (
+              <div className="text-sm text-destructive text-center">
+                {error}
+              </div>
+            )}
+            
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? "Signing in..." : "Sign In"}
             </Button>
