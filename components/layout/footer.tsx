@@ -7,7 +7,7 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div className="flex flex-col gap-2">
             <Link href="/" className="flex items-center gap-2 font-semibold text-lg">
-              <img src="/kairoria-logo.svg" alt="Kairoria" className="h-6 w-6" />
+              <img src="/Kairoria_logo.svg" alt="Kairoria" className="h-6 w-6" />
               <span>Kairoria</span>
             </Link>
             <p className="text-muted-foreground text-sm mt-2">
