@@ -12,6 +12,11 @@ const inter = Inter({ subsets: ['latin'] })
 export const metadata: Metadata = {
   title: 'Kairoria | Marketplace',
   description: 'Find high-quality products to rent or list your own items to earn passive income',
+  icons: {
+    icon: '/Kairoria_logo.svg',
+    shortcut: '/Kairoria_logo.svg',
+    apple: '/Kairoria_logo.svg',
+  },
 }
 
 export default function RootLayout({

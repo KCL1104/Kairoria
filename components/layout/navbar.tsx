@@ -27,7 +27,6 @@ export default function Navbar() {
       <div className="container flex h-16 items-center justify-between">
         <div className="flex items-center gap-6">
           <Link href="/" className="flex items-center gap-2 font-semibold text-xl">
-            <img src="/Kairoria_logo.svg" alt="Kairoria" className="h-8 w-8" />
             <span>Kairoria</span>
           </Link>
         </div>
