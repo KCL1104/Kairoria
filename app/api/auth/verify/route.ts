@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic'
+
 // Handler for GET requests to verify email with a token
 export async function GET(request: Request) {
   try {

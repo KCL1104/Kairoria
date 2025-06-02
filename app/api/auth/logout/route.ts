@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic'
+
 // Handler for POST requests to the logout endpoint
 export async function POST() {
   try {
