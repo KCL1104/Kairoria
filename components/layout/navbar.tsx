@@ -3,9 +3,8 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useState } from "react"
-import { Menu, X, MessageSquare, User, Sun, Moon, LogOut } from "lucide-react"
+import { Menu, X, MessageSquare, User, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { useTheme } from "next-themes"
 import { useAuth } from "@/contexts/AuthContext"
 import {
   DropdownMenu,
@@ -19,7 +18,6 @@ import { cn } from "@/lib/utils"
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const pathname = usePathname()
-  const { setTheme } = useTheme()
   const { user, logout, isAuthenticated } = useAuth()
 
   return (
@@ -31,42 +29,59 @@ export default function Navbar() {
           </Link>
         </div>
 
+        {/* Desktop Navigation */}
         <div className="hidden md:flex items-center gap-4">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="icon">
-                <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-                <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-                <span className="sr-only">Toggle theme</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => setTheme("light")}>
-                Light
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setTheme("dark")}>
-                Dark
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setTheme("system")}>
-                System
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <nav className="flex items-center gap-6">
+            <Link 
+              href="/marketplace" 
+              className={cn(
+                "text-sm font-medium transition-colors hover:text-primary",
+                pathname === "/marketplace" ? "text-foreground" : "text-muted-foreground"
+              )}
+            >
+              Marketplace
+            </Link>
+            <Link 
+              href="/how-it-works"
+              className={cn(
+                "text-sm font-medium transition-colors hover:text-primary",
+                pathname === "/how-it-works" ? "text-foreground" : "text-muted-foreground"
+              )}
+            >
+              How It Works
+            </Link>
+            <Link 
+              href="/about"
+              className={cn(
+                "text-sm font-medium transition-colors hover:text-primary",
+                pathname === "/about" ? "text-foreground" : "text-muted-foreground"
+              )}
+            >
+              About
+            </Link>
+            <Link 
+              href="/contact"
+              className={cn(
+                "text-sm font-medium transition-colors hover:text-primary",
+                pathname === "/contact" ? "text-foreground" : "text-muted-foreground"
+              )}
+            >
+              Contact
+            </Link>
+          </nav>
 
           {isAuthenticated ? (
-            <>
+            <div className="flex items-center gap-4">
               <Link href="/messages">
                 <Button variant="ghost" size="icon">
-                  <MessageSquare className="h-5 w-5" />
-                  <span className="sr-only">Messages</span>
+                  <MessageSquare className="h-4 w-4" />
                 </Button>
               </Link>
-
+              
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon">
-                    <User className="h-5 w-5" />
-                    <span className="sr-only">Profile menu</span>
+                    <User className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
@@ -77,63 +92,129 @@ export default function Navbar() {
                     <Link href="/profile/listings">My Listings</Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
-                    <Link href="/profile?tab=rentals">My Rentals</Link>
+                    <Link href="/profile/listings/new">List New Item</Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={logout}>
                     <LogOut className="mr-2 h-4 w-4" />
-                    Logout
+                    Sign Out
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-            </>
+            </div>
           ) : (
-            <Link href="/auth/login">
-              <Button>Sign In</Button>
-            </Link>
+            <div className="flex items-center gap-4">
+              <Link href="/auth/login">
+                <Button variant="outline">Sign In</Button>
+              </Link>
+              <Link href="/auth/register">
+                <Button>Get Started</Button>
+              </Link>
+            </div>
           )}
         </div>
 
-        <Button
-          variant="ghost"
+        {/* Mobile Menu Button */}
+        <button
           className="md:hidden"
-          size="icon"
           onClick={() => setIsMenuOpen(!isMenuOpen)}
         >
-          {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-          <span className="sr-only">Toggle menu</span>
-        </Button>
+          {isMenuOpen ? (
+            <X className="h-6 w-6" />
+          ) : (
+            <Menu className="h-6 w-6" />
+          )}
+        </button>
       </div>
 
       {/* Mobile Menu */}
       {isMenuOpen && (
         <div className="container md:hidden py-4 pb-6">
           <nav className="flex flex-col gap-4">
+            <Link
+              href="/marketplace"
+              className="text-sm font-medium"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              Marketplace
+            </Link>
+            <Link
+              href="/how-it-works"
+              className="text-sm font-medium"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              How It Works
+            </Link>
+            <Link
+              href="/about"
+              className="text-sm font-medium"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              About
+            </Link>
+            <Link
+              href="/contact"
+              className="text-sm font-medium"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              Contact
+            </Link>
             <div className="h-px bg-border my-2" />
-            <Link
-              href="/messages"
-              className="flex items-center gap-2 text-sm font-medium"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              <MessageSquare className="h-4 w-4" />
-              Messages
-            </Link>
-            <Link
-              href="/profile"
-              className="flex items-center gap-2 text-sm font-medium"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              <User className="h-4 w-4" />
-              Profile
-            </Link>
-            <Link href="/auth/login" onClick={() => setIsMenuOpen(false)}>
-              <Button className="w-full mt-2">Sign In</Button>
-            </Link>
-            <div className="flex items-center gap-2 mt-2">
-              <span className="text-sm">Theme:</span>
-              <Button variant="outline" size="sm" onClick={() => setTheme("light")}>Light</Button>
-              <Button variant="outline" size="sm" onClick={() => setTheme("dark")}>Dark</Button>
-            </div>
+            
+            {isAuthenticated ? (
+              <>
+                <Link
+                  href="/messages"
+                  className="flex items-center gap-2 text-sm font-medium"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <MessageSquare className="h-4 w-4" />
+                  Messages
+                </Link>
+                <Link
+                  href="/profile"
+                  className="flex items-center gap-2 text-sm font-medium"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <User className="h-4 w-4" />
+                  Profile
+                </Link>
+                <Link
+                  href="/profile/listings"
+                  className="text-sm font-medium"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  My Listings
+                </Link>
+                <Link
+                  href="/profile/listings/new"
+                  className="text-sm font-medium"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  List New Item
+                </Link>
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    logout()
+                    setIsMenuOpen(false)
+                  }}
+                  className="justify-start"
+                >
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Sign Out
+                </Button>
+              </>
+            ) : (
+              <>
+                <Link href="/auth/login" onClick={() => setIsMenuOpen(false)}>
+                  <Button variant="outline" className="w-full">Sign In</Button>
+                </Link>
+                <Link href="/auth/register" onClick={() => setIsMenuOpen(false)}>
+                  <Button className="w-full">Get Started</Button>
+                </Link>
+              </>
+            )}
           </nav>
         </div>
       )}
