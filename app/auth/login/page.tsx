@@ -158,13 +158,13 @@ export default function LoginPage() {
             {error && (
               <div className="text-sm text-destructive text-center">
                 {error}
-                {error.includes('OAuth') && (
+                {(error.includes('OAuth') || error.includes('redirect_uri')) && (
                   <div className="mt-2">
                     <Link 
-                      href="/auth/oauth-config" 
+                      href="/auth/google-oauth-fix" 
                       className="text-xs text-primary underline"
                     >
-                      Need help with OAuth setup?
+                      Fix Google OAuth redirect_uri_mismatch error →
                     </Link>
                   </div>
                 )}
