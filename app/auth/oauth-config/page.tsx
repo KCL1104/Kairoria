@@ -33,10 +33,10 @@ export default function OAuthConfigPage() {
 
   const extractProjectRef = (url: string) => {
     const match = url.match(/https:\/\/([^.]+)\.supabase\.co/)
-    return match ? match[1] : 'YOUR_PROJECT_REF'
+    return match ? match[1] : 'ubykuxexphcowvjvdvuo'
   }
 
-  const projectRef = supabaseUrl ? extractProjectRef(supabaseUrl) : 'YOUR_PROJECT_REF'
+  const projectRef = supabaseUrl ? extractProjectRef(supabaseUrl) : 'ubykuxexphcowvjvdvuo'
   const supabaseOAuthRedirect = `https://${projectRef}.supabase.co/auth/v1/callback`
 
   return (
