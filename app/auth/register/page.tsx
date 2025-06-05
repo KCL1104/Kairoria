@@ -157,11 +157,11 @@ export default function RegisterPage() {
             </Button>
 
             <div className="space-y-2">
-              <WalletMultiButton className="!w-full !bg-primary !text-primary-foreground hover:!bg-primary/90" />
+              <WalletMultiButton className="!w-full !bg-white !text-black !border !border-gray-300 hover:!bg-gray-50" />
               {connected && (
                 <Button 
                   variant="outline" 
-                  className="w-full" 
+                  className="w-full bg-white text-black border-gray-300 hover:bg-gray-50" 
                   onClick={handleSolanaSignUp}
                 >
                   Sign up with Connected Wallet
