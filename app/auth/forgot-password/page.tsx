@@ -1,7 +1,9 @@
 "use client"
 
 import Link from "next/link"
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { useAuth } from "@/contexts/SupabaseAuthContext"
 import { ArrowLeft, CheckCircle, Mail } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -19,6 +21,29 @@ export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
+  const { isAuthenticated, isLoading: authLoading } = useAuth()
+  const router = useRouter()
+
+  // Redirect authenticated users to home page
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      router.replace('/')
+    }
+  }, [isAuthenticated, authLoading, router])
+
+  // Show loading while checking auth status
+  if (authLoading) {
+    return (
+      <div className="container max-w-lg py-10">
+        <div className="flex justify-center items-center min-h-[400px]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+            <p className="mt-2 text-muted-foreground">Loading...</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
   
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()

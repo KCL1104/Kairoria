@@ -24,11 +24,18 @@ export default function LoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
-  const { signIn, signInWithGoogle, signInWithTwitter, signInWithSolana } = useAuth()
+  const { signIn, signInWithGoogle, signInWithTwitter, signInWithSolana, isAuthenticated, isLoading: authLoading } = useAuth()
   const { connected } = useWallet()
   const router = useRouter()
   const searchParams = useSearchParams()
   const [isLoading, setIsLoading] = useState(false)
+
+  // Redirect authenticated users to home page
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      router.replace('/')
+    }
+  }, [isAuthenticated, authLoading, router])
 
   // Handle OAuth errors from URL parameters
   useEffect(() => {
@@ -37,6 +44,20 @@ export default function LoginPage() {
       setError(decodeURIComponent(oauthError))
     }
   }, [searchParams])
+
+  // Show loading while checking auth status
+  if (authLoading) {
+    return (
+      <div className="container max-w-lg py-10">
+        <div className="flex justify-center items-center min-h-[400px]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+            <p className="mt-2 text-muted-foreground">Loading...</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
   
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()

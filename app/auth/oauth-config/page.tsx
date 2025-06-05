@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { useAuth } from '@/contexts/SupabaseAuthContext'
 import { ArrowLeft, Copy, CheckCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -10,6 +12,15 @@ export default function OAuthConfigPage() {
   const [currentDomain, setCurrentDomain] = useState('')
   const [supabaseUrl, setSupabaseUrl] = useState('')
   const [copied, setCopied] = useState<string | null>(null)
+  const { isAuthenticated, isLoading: authLoading } = useAuth()
+  const router = useRouter()
+
+  // Redirect authenticated users to home page
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      router.replace('/')
+    }
+  }, [isAuthenticated, authLoading, router])
 
   useEffect(() => {
     setCurrentDomain(window.location.origin)

@@ -26,10 +26,17 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const { signUp, signInWithGoogle, signInWithTwitter, signInWithSolana } = useAuth()
+  const { signUp, signInWithGoogle, signInWithTwitter, signInWithSolana, isAuthenticated, isLoading: authLoading } = useAuth()
   const { connected } = useWallet()
   const router = useRouter()
   const searchParams = useSearchParams()
+
+  // Redirect authenticated users to home page
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      router.replace('/')
+    }
+  }, [isAuthenticated, authLoading, router])
 
   // Handle OAuth errors from URL parameters
   useEffect(() => {
@@ -38,6 +45,20 @@ export default function RegisterPage() {
       setError(decodeURIComponent(oauthError))
     }
   }, [searchParams])
+
+  // Show loading while checking auth status
+  if (authLoading) {
+    return (
+      <div className="container max-w-lg py-10">
+        <div className="flex justify-center items-center min-h-[400px]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+            <p className="mt-2 text-muted-foreground">Loading...</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
   
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()

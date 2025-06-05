@@ -1,6 +1,9 @@
 "use client"
 
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { useAuth } from '@/contexts/SupabaseAuthContext'
+import { useEffect } from 'react'
 import { ArrowLeft, Copy, CheckCircle, AlertCircle, ExternalLink } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -9,6 +12,15 @@ import { useState } from 'react'
 
 export default function GoogleOAuthFixPage() {
   const [copied, setCopied] = useState<string | null>(null)
+  const { isAuthenticated, isLoading: authLoading } = useAuth()
+  const router = useRouter()
+
+  // Redirect authenticated users to home page
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      router.replace('/')
+    }
+  }, [isAuthenticated, authLoading, router])
 
   const copyToClipboard = async (text: string, label: string) => {
     try {

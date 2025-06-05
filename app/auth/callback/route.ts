@@ -43,9 +43,8 @@ export async function GET(request: Request) {
         return NextResponse.redirect(`${requestUrl.origin}/auth/login?error=exchange_failed`)
       }
 
-      // Check if there's a redirect URL in the query params or cookies
-      const redirectTo = requestUrl.searchParams.get('redirect_to') || '/'
-      return NextResponse.redirect(`${requestUrl.origin}${redirectTo}`)
+      // Always redirect to home page after successful authentication
+      return NextResponse.redirect(`${requestUrl.origin}/`)
       
     } catch (error) {
       console.error('Callback error:', error)
