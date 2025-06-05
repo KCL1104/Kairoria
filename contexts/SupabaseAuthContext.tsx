@@ -28,11 +28,14 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
   const [profile, setProfile] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
   
-  // Check if environment variables are available
+  // Check if environment variables are available - handle both naming conventions
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_DATABASE_URL
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  
   const hasSupabaseConfig = 
     typeof window !== 'undefined' && 
-    process.env.NEXT_PUBLIC_SUPABASE_URL && 
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    supabaseUrl && 
+    supabaseAnonKey
 
   // Only create Supabase client if we have the required config
   const supabase = hasSupabaseConfig ? createClientComponentClient() : null
