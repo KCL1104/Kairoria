@@ -7,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import { useAuth } from '@/contexts/SupabaseAuthContext'
 import { supabase } from '@/lib/supabase-client'
-import { PRODUCT_CONDITIONS, SUPPORTED_CURRENCIES, convertToStorageAmount } from '@/lib/data'
+import { PRODUCT_CONDITIONS, SUPPORTED_CURRENCIES, convertToStorageAmount, getCategoryIcon } from '@/lib/data'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -57,6 +57,26 @@ interface Category {
   parent_id?: number
 }
 
+// Basic categories as fallback if API fails
+const BASIC_CATEGORIES: Category[] = [
+  { id: 1, name: 'Electronics' },
+  { id: 2, name: 'Tools' },
+  { id: 3, name: 'Outdoor Gear' },
+  { id: 4, name: 'Home Goods' },
+  { id: 5, name: 'Sports' },
+  { id: 6, name: 'Vehicles' },
+  { id: 7, name: 'Clothing' },
+  { id: 8, name: 'Musical Instruments' },
+  { id: 9, name: 'Garden' },
+  { id: 10, name: 'Photography' },
+  { id: 11, name: 'Books' },
+  { id: 12, name: 'Toys & Games' },
+  { id: 13, name: 'Art & Crafts' },
+  { id: 14, name: 'Kitchen' },
+  { id: 15, name: 'Fitness' },
+  { id: 16, name: 'Party & Celebration' },
+]
+
 interface UploadedImage {
   file: File
   preview: string
@@ -100,21 +120,17 @@ export default function NewListingPage() {
       try {
         const response = await fetch('/api/categories')
         const data = await response.json()
-        if (response.ok) {
+        if (response.ok && data.categories && data.categories.length > 0) {
           setCategories(data.categories)
         } else {
-          toast({
-            variant: 'destructive',
-            title: 'Error',
-            description: 'Failed to load categories'
-          })
+          // Use basic categories as fallback
+          setCategories(BASIC_CATEGORIES)
+          console.log('Using fallback categories')
         }
       } catch (error) {
-        toast({
-          variant: 'destructive',
-          title: 'Error',
-          description: 'Failed to load categories'
-        })
+        // Use basic categories as fallback
+        setCategories(BASIC_CATEGORIES)
+        console.log('Error fetching categories, using fallback:', error)
       }
     }
 
@@ -383,13 +399,13 @@ export default function NewListingPage() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-              {/* Title */}
+              {/* Product Name */}
               <div className="space-y-2">
-                <Label htmlFor="title">Title *</Label>
+                <Label htmlFor="title">Product Name *</Label>
                 <Input
                   id="title"
                   {...register('title')}
-                  placeholder="Enter product title"
+                  placeholder="Enter your product name"
                 />
                 {errors.title && (
                   <p className="text-sm text-destructive">{errors.title.message}</p>
@@ -416,12 +432,15 @@ export default function NewListingPage() {
                   <Label htmlFor="category_id">Category *</Label>
                   <Select onValueChange={(value) => setValue('category_id', value)}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select category" />
+                      <SelectValue placeholder="Select a category" />
                     </SelectTrigger>
                     <SelectContent>
                       {categories.map((category) => (
                         <SelectItem key={category.id} value={category.id.toString()}>
-                          {category.name}
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg">{getCategoryIcon(category.name)}</span>
+                            <span>{category.name}</span>
+                          </div>
                         </SelectItem>
                       ))}
                     </SelectContent>
