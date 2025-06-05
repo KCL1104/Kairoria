@@ -21,9 +21,8 @@ export function RelatedProducts({ category }: { category: string }) {
         setIsLoading(true)
         // Fetch products from the same category (limit to 3 for related products)
         const data = await fetchProducts({ limit: 3 })
-        // Filter by category name (since we don't have category_id here)
-        const filtered = data.filter(product => product.categories.name === category)
-        setRelatedProducts(filtered.slice(0, 3))
+        // Category filtering not available with current schema
+        setRelatedProducts([])
       } catch (error) {
         console.error('Error fetching related products:', error)
       } finally {

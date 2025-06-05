@@ -118,8 +118,12 @@ export default function NewListingPage() {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const response = await fetch('/api/categories')
-        const data = await response.json()
+              const response = await fetch('/api/categories', {
+        headers: {
+          'Accept': 'application/json',
+        },
+      })
+      const data = await response.json()
         if (response.ok && data.categories && data.categories.length > 0) {
           setCategories(data.categories)
         } else {
@@ -200,6 +204,7 @@ export default function NewListingPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
           'Authorization': `Bearer ${session?.access_token}`,
         },
         body: JSON.stringify({
@@ -238,6 +243,7 @@ export default function NewListingPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
           'Authorization': `Bearer ${session.access_token}`,
         },
         body: JSON.stringify(data),
@@ -313,6 +319,7 @@ export default function NewListingPage() {
       const response = await fetch(`/api/products/${productId}/publish`, {
         method: 'PUT',
         headers: {
+          'Accept': 'application/json',
           'Authorization': `Bearer ${session.access_token}`,
         },
       })

@@ -16,7 +16,7 @@ import { fetchProductById } from '@/lib/supabase-client'
 import { Product, ProductImage, Category, Profile, convertFromStorageAmount } from '@/lib/data'
 
 type ProductWithRelations = Product & {
-  categories: Category
+  categories: { id: number; name: string }
   profiles: Profile
   product_images: ProductImage[]
 }
@@ -37,7 +37,7 @@ export default function ProductPage({ params }: { params: { productId: string } 
           return
         }
 
-        const data = await fetchProductById(productId)
+        const data = await fetchProductById(productId.toString())
         setProduct(data)
         setError(null)
       } catch (err) {
@@ -87,13 +87,13 @@ export default function ProductPage({ params }: { params: { productId: string } 
   ]
 
   const owner = {
-    name: product.profiles.display_name || product.profiles.username,
+    name: product.profiles.display_name || product.profiles.username || product.profiles.full_name || "Anonymous",
     rating: 4.8, // Could be calculated from reviews
     reviews: 42, // Could be counted from reviews table
     responseRate: 98,
     responseTime: "within an hour",
     memberSince: "Aug 2022", // Could be derived from created_at
-    avatarSrc: product.profiles.profile_image_url || "https://images.pexels.com/photos/614810/pexels-photo-614810.jpeg?auto=compress&cs=tinysrgb&w=300",
+    avatarSrc: product.profiles.profile_image_url || product.profiles.avatar_url || "https://images.pexels.com/photos/614810/pexels-photo-614810.jpeg?auto=compress&cs=tinysrgb&w=300",
   }
   
   return (

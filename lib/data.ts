@@ -3,16 +3,37 @@ export interface Product {
   id: string // UUID
   title: string
   description: string
-  price: number // DECIMAL(10,2)
-  period: 'hour' | 'day' | 'week' | 'month'
-  category: string
+  price_per_day: string // BIGINT stored as string
+  price_per_hour?: string // BIGINT stored as string, nullable
+  daily_cap_hours?: number // INTEGER, nullable
+  security_deposit: string // BIGINT stored as string
+  category_id: number
+  brand?: string
+  condition: 'new' | 'like_new' | 'good' | 'used'
   location: string
-  images: string[] // TEXT[]
+  currency: 'usdc' | 'usdt'
   owner_id: string // UUID
-  is_available: boolean
-  rating: number // DECIMAL(3,2)
+  status: 'pending' | 'listed' | 'unlisted'
+  average_rating: number // DECIMAL(3,2)
   review_count: number
-  features: string[] // TEXT[]
+  created_at: string
+  updated_at: string
+}
+
+export interface ProductImage {
+  id: string // UUID
+  product_id: string // UUID
+  image_url: string
+  display_order: number
+  is_cover: boolean
+  created_at: string
+}
+
+export interface Category {
+  id: number
+  name: string
+  parent_id?: number
+  icon?: string
   created_at: string
   updated_at: string
 }
@@ -20,8 +41,11 @@ export interface Product {
 export interface Profile {
   id: string // UUID - references auth.users(id)
   full_name?: string
+  username?: string
+  display_name?: string
   email: string
   avatar_url?: string
+  profile_image_url?: string
   phone?: string
   bio?: string
   location?: string
@@ -115,3 +139,51 @@ export const DEFAULT_CATEGORY_ICONS: Record<string, string> = {
 export function getCategoryIcon(categoryName: string): string {
   return DEFAULT_CATEGORY_ICONS[categoryName] || '📦'
 }
+
+// Product condition options
+export const PRODUCT_CONDITIONS = [
+  { value: 'new', label: 'New' },
+  { value: 'like_new', label: 'Like New' },
+  { value: 'good', label: 'Good' },
+  { value: 'used', label: 'Used' },
+] as const
+
+// Supported currencies
+export const SUPPORTED_CURRENCIES = [
+  { value: 'usdc', label: 'USDC' },
+  { value: 'usdt', label: 'USDT' },
+] as const
+
+// Storage amount conversion functions (for handling decimal to bigint conversion)
+const STORAGE_DECIMALS = 6 // 6 decimal places
+
+export function convertToStorageAmount(decimalAmount: number): string {
+  return Math.floor(decimalAmount * Math.pow(10, STORAGE_DECIMALS)).toString()
+}
+
+export function convertFromStorageAmount(storageAmount: string | number): number {
+  const amount = typeof storageAmount === 'string' ? parseInt(storageAmount) : storageAmount
+  return amount / Math.pow(10, STORAGE_DECIMALS)
+}
+
+// Categories for filtering
+export const categories = [
+  { id: "all", name: "All Categories", icon: "🏷️" },
+  { id: "electronics", name: "Electronics", icon: "📱" },
+  { id: "tools", name: "Tools", icon: "🔧" },
+  { id: "outdoor", name: "Outdoor Gear", icon: "⛺" },
+  { id: "home", name: "Home Goods", icon: "🪑" },
+  { id: "sports", name: "Sports", icon: "⚽" },
+  { id: "vehicles", name: "Vehicles", icon: "🚗" },
+  { id: "clothing", name: "Clothing", icon: "👕" },
+  { id: "music", name: "Musical Instruments", icon: "🎸" },
+  { id: "garden", name: "Garden", icon: "🌷" },
+  { id: "photography", name: "Photography", icon: "📷" },
+  { id: "events", name: "Events", icon: "🎭" },
+  { id: "books", name: "Books", icon: "📚" },
+  { id: "toys", name: "Toys & Games", icon: "🎮" },
+  { id: "art", name: "Art & Crafts", icon: "🎨" },
+  { id: "kitchen", name: "Kitchen", icon: "🍳" },
+  { id: "fitness", name: "Fitness", icon: "💪" },
+  { id: "party", name: "Party & Celebration", icon: "🎉" },
+]

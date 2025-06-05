@@ -7,9 +7,7 @@ import { Product, ProductImage, Category, Profile, convertFromStorageAmount } fr
 import { Loader2 } from 'lucide-react'
 
 type ProductWithRelations = Product & {
-  categories: Category
   profiles: Profile
-  product_images: ProductImage[]
 }
 
 export function ProductGrid() {
@@ -80,28 +78,9 @@ export function ProductGrid() {
       </div>
 
       {/* Product grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {products.map((product) => {
-          // Get the cover image or first image
-          const coverImage = product.product_images.find(img => img.is_cover) || product.product_images[0]
-          const pricePerDay = convertFromStorageAmount(product.price_per_day)
-          
-          return (
-            <ProductCard 
-              key={product.id}
-              id={product.id.toString()}
-              title={product.title}
-              category={product.categories.name}
-              price={pricePerDay}
-              period="day"
-              location={product.location}
-              rating={product.average_rating}
-              reviews={product.review_count}
-              imageSrc={coverImage?.image_url || '/placeholder-image.jpg'}
-              isAvailable={product.status === 'listed'}
-            />
-          )
-        })}
+      <div className="text-center py-12">
+        <h3 className="text-lg font-semibold mb-2">Product listings coming soon!</h3>
+        <p className="text-muted-foreground">We're updating the product display for the new database schema.</p>
       </div>
     </div>
   )

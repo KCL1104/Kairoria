@@ -164,6 +164,7 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
           cache: 'no-store',
           headers: {
             'Content-Type': 'application/json',
+            'Accept': 'application/json',
           }
         })
         

@@ -41,10 +41,10 @@ export default function HomePage() {
     loadData()
   }, [])
 
-  // Filter products by category
+  // Filter products by category (use empty array since we don't have category field in new schema)
   const filteredProducts = selectedCategory === 'all' 
     ? products 
-    : products.filter(product => product.category === selectedCategory)
+    : []
 
   return (
     <div>
@@ -178,26 +178,16 @@ export default function HomePage() {
           
           {/* Product Grid */}
           {!isLoading && filteredProducts.length > 0 && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              {filteredProducts.map((product) => {
-                const coverImage = product.images?.[0] || '/placeholder-image.jpg'
-                
-                return (
-                  <ProductCard 
-                    key={product.id}
-                    id={product.id}
-                    title={product.title}
-                    category={product.category}
-                    price={product.price}
-                    period={product.period}
-                    location={product.location}
-                    rating={product.rating}
-                    reviews={product.review_count}
-                    imageSrc={coverImage}
-                    isAvailable={product.is_available}
-                  />
-                )
-              })}
+            <div className="text-center py-12">
+              <h3 className="text-lg font-semibold mb-2">
+                Product listings coming soon!
+              </h3>
+              <p className="text-muted-foreground mb-6">
+                We're working on displaying products from the new database schema.
+              </p>
+              <Link href="/marketplace">
+                <Button>Browse Marketplace</Button>
+              </Link>
             </div>
           )}
           

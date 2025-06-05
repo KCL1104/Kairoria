@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { Product, Profile } from './data'
+import { Product, Profile, ProductImage } from './data'
 
 // Check if environment variables are available - handle both naming conventions
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_DATABASE_URL
@@ -56,14 +56,18 @@ export async function fetchProductById(id: string) {
     .from('products')
     .select(`
       *,
-      profiles(id, full_name, avatar_url, location, is_verified)
+      categories(id, name),
+      profiles(id, full_name, username, display_name, avatar_url, profile_image_url, location, is_verified),
+      product_images(id, image_url, display_order, is_cover)
     `)
     .eq('id', id)
     .single()
 
   if (error) throw error
   return data as Product & {
+    categories: { id: number; name: string }
     profiles: Profile
+    product_images: ProductImage[]
   }
 }
 
@@ -78,7 +82,8 @@ export async function fetchUniqueCategories() {
   if (error) throw error
   
   // Get unique categories
-  const uniqueCategories = [...new Set(data.map(item => item.category))]
+  const categorySet = new Set(data.map(item => item.category))
+  const uniqueCategories = Array.from(categorySet)
   return uniqueCategories.filter(Boolean) // Remove any null/undefined values
 }
 
