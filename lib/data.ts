@@ -1,84 +1,93 @@
 // Product types based on database schema
 export interface Product {
-  id: number
-  owner_id: string
-  category_id: number
+  id: string // UUID
   title: string
   description: string
-  brand?: string
-  condition: 'new' | 'like_new' | 'good' | 'used'
+  price: number // DECIMAL(10,2)
+  period: 'hour' | 'day' | 'week' | 'month'
+  category: string
   location: string
-  currency: 'usdc' | 'usdt'
-  price_per_hour?: number
-  price_per_day: number
-  daily_cap_hours?: number
-  security_deposit: number
-  status: 'pending' | 'listed' | 'unlisted' | 'rented'
-  average_rating: number
+  images: string[] // TEXT[]
+  owner_id: string // UUID
+  is_available: boolean
+  rating: number // DECIMAL(3,2)
   review_count: number
+  features: string[] // TEXT[]
   created_at: string
   updated_at: string
 }
 
-export interface ProductImage {
-  id: number
-  product_id: number
-  image_url: string
-  display_order: number
-  is_cover: boolean
-}
-
-export interface Category {
-  id: number
-  name: string
-  parent_id?: number
-}
-
 export interface Profile {
-  id: string
-  username: string
-  display_name: string
+  id: string // UUID - references auth.users(id)
+  full_name?: string
+  email: string
+  avatar_url?: string
+  phone?: string
   bio?: string
-  profile_image_url?: string
   location?: string
-  phone_number?: string
-  email_verified: boolean
-  phone_verified: boolean
-  identity_status: 'unverified' | 'pending' | 'verified'
+  is_verified: boolean
+  created_at: string
   updated_at: string
 }
 
-// Currency conversion utilities
-export const CURRENCY_DECIMALS = 6 // USDC/USDT have 6 decimal places
-
-export function convertToStorageAmount(decimalAmount: number): number {
-  return Math.round(decimalAmount * Math.pow(10, CURRENCY_DECIMALS))
+export interface Booking {
+  id: string // UUID
+  product_id: string // UUID
+  renter_id: string // UUID
+  owner_id: string // UUID
+  start_date: string // TIMESTAMP WITH TIME ZONE
+  end_date: string // TIMESTAMP WITH TIME ZONE
+  total_price: number // DECIMAL(10,2)
+  status: 'pending' | 'confirmed' | 'completed' | 'cancelled'
+  payment_intent_id?: string
+  created_at: string
+  updated_at: string
 }
 
-export function convertFromStorageAmount(storageAmount: number): number {
-  return storageAmount / Math.pow(10, CURRENCY_DECIMALS)
+export interface Review {
+  id: string // UUID
+  product_id: string // UUID
+  booking_id: string // UUID
+  reviewer_id: string // UUID
+  rating: number // INTEGER 1-5
+  comment?: string
+  created_at: string
 }
 
-// Product conditions
-export const PRODUCT_CONDITIONS = [
-  { value: 'new', label: 'New' },
-  { value: 'like_new', label: 'Like New' },
-  { value: 'good', label: 'Good' },
-  { value: 'used', label: 'Used' },
+export interface Message {
+  id: string // UUID
+  conversation_id: string // UUID
+  sender_id: string // UUID
+  recipient_id: string // UUID
+  product_id?: string // UUID (nullable)
+  content: string
+  is_read: boolean
+  created_at: string
+}
+
+export interface Conversation {
+  id: string // UUID
+  participant_1: string // UUID
+  participant_2: string // UUID
+  product_id?: string // UUID (nullable)
+  last_message_at: string
+  created_at: string
+}
+
+// Product period options
+export const PRODUCT_PERIODS = [
+  { value: 'hour', label: 'Hour' },
+  { value: 'day', label: 'Day' },
+  { value: 'week', label: 'Week' },
+  { value: 'month', label: 'Month' },
 ] as const
 
-// Supported currencies
-export const SUPPORTED_CURRENCIES = [
-  { value: 'usdc', label: 'USDC' },
-  { value: 'usdt', label: 'USDT' },
-] as const
-
-// Product status options
-export const PRODUCT_STATUSES = [
+// Booking status options
+export const BOOKING_STATUSES = [
   { value: 'pending', label: 'Pending' },
-  { value: 'listed', label: 'Listed' },
-  { value: 'unlisted', label: 'Unlisted' },
-  { value: 'rented', label: 'Rented' },
+  { value: 'confirmed', label: 'Confirmed' },
+  { value: 'completed', label: 'Completed' },
+  { value: 'cancelled', label: 'Cancelled' },
 ] as const
 
 // Default categories with icons for UI display

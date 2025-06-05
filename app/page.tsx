@@ -8,18 +8,16 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ProductCard } from "@/components/marketplace/product-card"
-import { fetchProducts, fetchCategories } from '@/lib/supabase-client'
-import { Product, ProductImage, Category, Profile, convertFromStorageAmount, getCategoryIcon } from '@/lib/data'
+import { fetchProducts, fetchUniqueCategories } from '@/lib/supabase-client'
+import { Product, Profile, getCategoryIcon } from '@/lib/data'
 
 type ProductWithRelations = Product & {
-  categories: Category
   profiles: Profile
-  product_images: ProductImage[]
 }
 
 export default function HomePage() {
   const [products, setProducts] = useState<ProductWithRelations[]>([])
-  const [categories, setCategories] = useState<Category[]>([])
+  const [categories, setCategories] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
 
@@ -29,7 +27,7 @@ export default function HomePage() {
         setIsLoading(true)
         const [productsData, categoriesData] = await Promise.all([
           fetchProducts({ limit: 12 }),
-          fetchCategories()
+          fetchUniqueCategories()
         ])
         setProducts(productsData)
         setCategories(categoriesData)
@@ -46,7 +44,7 @@ export default function HomePage() {
   // Filter products by category
   const filteredProducts = selectedCategory === 'all' 
     ? products 
-    : products.filter(product => product.category_id.toString() === selectedCategory)
+    : products.filter(product => product.category === selectedCategory)
 
   return (
     <div>
@@ -109,12 +107,12 @@ export default function HomePage() {
                   </TabsTrigger>
                   {categories.map((category) => (
                     <TabsTrigger 
-                      key={category.id}
-                      value={category.id.toString()}
+                      key={category}
+                      value={category}
                       className="flex flex-col items-center justify-center rounded-lg px-3 py-2 data-[state=active]:bg-background data-[state=active]:shadow-sm"
                     >
-                      <span className="text-2xl">{getCategoryIcon(category.name)}</span>
-                      <span className="mt-1 text-xs font-medium">{category.name}</span>
+                      <span className="text-2xl">{getCategoryIcon(category)}</span>
+                      <span className="mt-1 text-xs font-medium">{category}</span>
                     </TabsTrigger>
                   ))}
                 </div>
@@ -182,22 +180,21 @@ export default function HomePage() {
           {!isLoading && filteredProducts.length > 0 && (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
               {filteredProducts.map((product) => {
-                const coverImage = product.product_images.find(img => img.is_cover) || product.product_images[0]
-                const pricePerDay = convertFromStorageAmount(product.price_per_day)
+                const coverImage = product.images?.[0] || '/placeholder-image.jpg'
                 
                 return (
                   <ProductCard 
                     key={product.id}
-                    id={product.id.toString()}
+                    id={product.id}
                     title={product.title}
-                    category={product.categories.name}
-                    price={pricePerDay}
-                    period="day"
+                    category={product.category}
+                    price={product.price}
+                    period={product.period}
                     location={product.location}
-                    rating={product.average_rating}
+                    rating={product.rating}
                     reviews={product.review_count}
-                    imageSrc={coverImage?.image_url || '/placeholder-image.jpg'}
-                    isAvailable={product.status === 'listed'}
+                    imageSrc={coverImage}
+                    isAvailable={product.is_available}
                   />
                 )
               })}
