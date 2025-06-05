@@ -1,7 +1,7 @@
 "use client"
 
 import { createContext, useContext, useEffect, useState } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { createClient } from '@supabase/supabase-js'
 import { User, Session } from '@supabase/supabase-js'
 import { useWallet } from '@solana/wallet-adapter-react'
 
@@ -38,7 +38,7 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
     supabaseAnonKey
 
   // Only create Supabase client if we have the required config
-  const supabase = hasSupabaseConfig ? createClientComponentClient() : null
+  const supabase = hasSupabaseConfig ? createClient(supabaseUrl!, supabaseAnonKey!) : null
   const { publicKey, signMessage } = useWallet()
 
   useEffect(() => {
@@ -71,7 +71,7 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      async (event: any, session: Session | null) => {
         setSession(session)
         setUser(session?.user ?? null)
         if (session?.user) {

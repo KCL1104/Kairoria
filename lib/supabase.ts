@@ -29,7 +29,12 @@ export const supabaseAdmin = supabaseUrl && supabaseServiceRoleKey
 // Server component client (uses cookies for auth)
 export const createServerSupabaseClient = () => {
   try {
-    return createServerComponentClient({ cookies })
+    if (supabaseUrl && supabaseAnonKey) {
+      return createServerComponentClient({ cookies })
+    } else {
+      console.warn('Supabase environment variables not configured')
+      return null
+    }
   } catch (error) {
     console.warn('Supabase environment variables not configured')
     return null

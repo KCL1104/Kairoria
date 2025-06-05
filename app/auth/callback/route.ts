@@ -1,5 +1,4 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
-import { cookies } from 'next/headers'
+import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 
 // Force dynamic rendering for this route
@@ -19,7 +18,16 @@ export async function GET(request: Request) {
 
   if (code) {
     try {
-      const supabase = createRouteHandlerClient({ cookies })
+      // Get Supabase URL and key with flexible naming
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_DATABASE_URL
+      const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+      
+      if (!supabaseUrl || !supabaseAnonKey) {
+        console.error('Missing Supabase environment variables')
+        return NextResponse.redirect(`${requestUrl.origin}/auth/login?error=config_error`)
+      }
+
+      const supabase = createClient(supabaseUrl, supabaseAnonKey)
       const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
       
       if (exchangeError) {
