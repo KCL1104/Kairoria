@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { useState } from "react"
 import { Menu, X, MessageSquare, User, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -15,11 +15,39 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
+import { useToast } from "@/hooks/use-toast"
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const pathname = usePathname()
   const { user, profile, signOut, isAuthenticated } = useAuth()
+  const router = useRouter()
+  const { toast } = useToast()
+
+  const handleSignOut = async () => {
+    try {
+      // Show loading toast
+      toast({
+        title: "Signing out...",
+        description: "Please wait while we sign you out",
+      })
+      
+      // Close mobile menu if open
+      setIsMenuOpen(false)
+      
+      // Call the signOut function from auth context
+      await signOut()
+      
+      // Success toast will be shown after redirect
+    } catch (error) {
+      console.error("Sign out failed:", error)
+      toast({
+        variant: "destructive",
+        title: "Sign out failed",
+        description: "Please try again or reload the page"
+      })
+    }
+  }
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -104,7 +132,7 @@ export default function Navbar() {
                     <Link href="/profile/listings/new">List New Item</Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={signOut}>
+                  <DropdownMenuItem onClick={handleSignOut}>
                     <LogOut className="mr-2 h-4 w-4" />
                     Sign Out
                   </DropdownMenuItem>
@@ -204,10 +232,7 @@ export default function Navbar() {
                 </Link>
                 <Button 
                   variant="outline" 
-                  onClick={() => {
-                    signOut()
-                    setIsMenuOpen(false)
-                  }}
+                  onClick={handleSignOut}
                   className="justify-start"
                 >
                   <LogOut className="mr-2 h-4 w-4" />

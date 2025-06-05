@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useState } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import { User, Session } from '@supabase/supabase-js'
 import { useWallet } from '@solana/wallet-adapter-react'
+import { useRouter } from 'next/navigation'
 
 interface AuthContextType {
   user: User | null
@@ -27,6 +28,7 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const router = useRouter()
   
   // Check if environment variables are available - handle both naming conventions
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_DATABASE_URL
@@ -147,10 +149,69 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
     if (!supabase) return
 
     try {
-      await supabase.auth.signOut()
+      // First clear local Supabase session
+      const { error } = await supabase.auth.signOut()
+      if (error) {
+        console.error('Supabase sign out error:', error)
+        throw error
+      }
+      
+      // Reset local state
+      setUser(null)
+      setSession(null)
       setProfile(null)
+      
+      // Clear any auth-related items from local storage
+      if (typeof window !== 'undefined') {
+        // Clear specific Supabase items
+        const keysToRemove = []
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i)
+          if (key && (
+              key.startsWith('supabase') || 
+              key.startsWith('sb-') || 
+              key.includes('auth') ||
+              key.includes('token')
+          )) {
+            keysToRemove.push(key)
+          }
+        }
+        
+        // Remove collected keys (doing it separately to avoid issues with changing array during iteration)
+        keysToRemove.forEach(key => localStorage.removeItem(key))
+        
+        // Also clear session storage
+        sessionStorage.clear()
+      }
+      
+      // Call backend logout endpoint (non-blocking)
+      try {
+        fetch('/api/auth/logout', { 
+          method: 'POST',
+          credentials: 'include',
+          cache: 'no-store'
+        }).catch(e => console.error('Logout API error:', e))
+      } catch (apiError) {
+        console.error('Error calling logout API:', apiError)
+        // Continue with client-side logout even if API call fails
+      }
+      
+      // Redirect to home page
+      router.push('/')
+      
+      // Force reload to ensure all state is cleared in case any components haven't updated
+      if (typeof window !== 'undefined') {
+        // Timeout gives router.push a chance to start navigating before reload
+        setTimeout(() => window.location.reload(), 100)
+      }
+      
     } catch (error) {
       console.error('Error signing out:', error)
+      // Even if there's an error, we should still clear local state and redirect
+      setUser(null)
+      setSession(null)
+      setProfile(null)
+      router.push('/')
     }
   }
 
@@ -281,4 +342,4 @@ export function useAuth() {
     throw new Error('useAuth must be used within a SupabaseAuthProvider')
   }
   return context
-} 
+}
