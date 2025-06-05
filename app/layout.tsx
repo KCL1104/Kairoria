@@ -2,7 +2,8 @@ import './globals.css'
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import { ThemeProvider } from '@/components/theme-provider'
-import { AuthProvider } from '@/contexts/AuthContext'
+import { SupabaseAuthProvider } from '@/contexts/SupabaseAuthContext'
+import { SolanaWalletProvider } from '@/contexts/SolanaWalletProvider'
 import { Toaster } from '@/components/ui/toaster'
 import Navbar from '@/components/layout/navbar'
 import Footer from '@/components/layout/footer'
@@ -33,12 +34,14 @@ export default function RootLayout({
           forcedTheme="light"
           disableTransitionOnChange
         >
-          <AuthProvider>
-            <Navbar />
-            <main className="flex-1">{children}</main>
-            <Footer />
-            <Toaster />
-          </AuthProvider>
+          <SolanaWalletProvider>
+            <SupabaseAuthProvider>
+              <Navbar />
+              <main className="flex-1">{children}</main>
+              <Footer />
+              <Toaster />
+            </SupabaseAuthProvider>
+          </SolanaWalletProvider>
         </ThemeProvider>
       </body>
     </html>

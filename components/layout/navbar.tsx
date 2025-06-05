@@ -5,7 +5,8 @@ import { usePathname } from "next/navigation"
 import { useState } from "react"
 import { Menu, X, MessageSquare, User, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { useAuth } from "@/contexts/AuthContext"
+import { useAuth } from "@/contexts/SupabaseAuthContext"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,7 +19,7 @@ import { cn } from "@/lib/utils"
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const pathname = usePathname()
-  const { user, logout, isAuthenticated } = useAuth()
+  const { user, profile, signOut, isAuthenticated } = useAuth()
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -80,8 +81,16 @@ export default function Navbar() {
               
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon">
-                    <User className="h-4 w-4" />
+                  <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage 
+                        src={profile?.avatar_url || user?.user_metadata?.avatar_url} 
+                        alt={profile?.full_name || user?.user_metadata?.full_name || "User"} 
+                      />
+                      <AvatarFallback>
+                        {profile?.full_name?.charAt(0) || user?.user_metadata?.full_name?.charAt(0) || user?.email?.charAt(0)?.toUpperCase() || "U"}
+                      </AvatarFallback>
+                    </Avatar>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
@@ -95,7 +104,7 @@ export default function Navbar() {
                     <Link href="/profile/listings/new">List New Item</Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={logout}>
+                  <DropdownMenuItem onClick={signOut}>
                     <LogOut className="mr-2 h-4 w-4" />
                     Sign Out
                   </DropdownMenuItem>
@@ -196,7 +205,7 @@ export default function Navbar() {
                 <Button 
                   variant="outline" 
                   onClick={() => {
-                    logout()
+                    signOut()
                     setIsMenuOpen(false)
                   }}
                   className="justify-start"
