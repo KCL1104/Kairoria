@@ -158,6 +158,16 @@ export default function LoginPage() {
             {error && (
               <div className="text-sm text-destructive text-center">
                 {error}
+                {error.includes('OAuth') && (
+                  <div className="mt-2">
+                    <Link 
+                      href="/auth/oauth-config" 
+                      className="text-xs text-primary underline"
+                    >
+                      Need help with OAuth setup?
+                    </Link>
+                  </div>
+                )}
               </div>
             )}
             
