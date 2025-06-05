@@ -27,7 +27,7 @@ export default function Navbar() {
   const handleSignOut = async () => {
     try {
       // Show loading toast
-      toast({
+      const loadingToast = toast({
         title: "Signing out...",
         description: "Please wait while we sign you out",
       })
@@ -38,7 +38,7 @@ export default function Navbar() {
       // Call the signOut function from auth context
       await signOut()
       
-      // Success toast will be shown after redirect
+      // The signOut function handles navigation and state cleanup
     } catch (error) {
       console.error("Sign out failed:", error)
       toast({

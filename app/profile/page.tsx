@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { Edit, MapPin, Star } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -11,9 +11,50 @@ import { Badge } from "@/components/ui/badge"
 import { ProfileListings } from "@/components/profile/profile-listings"
 import { ProfileRentals } from "@/components/profile/profile-rentals"
 import { ProfileReviews } from "@/components/profile/profile-reviews"
+import { useProtectedRoute } from "@/hooks/use-protected-route"
+import { useToast } from "@/hooks/use-toast"
 
 export default function ProfilePage() {
+  // Protect this route - redirect to login if not authenticated
+  const { isLoading: authLoading } = useProtectedRoute();
+  
   const [activeTab, setActiveTab] = useState("listings")
+  const { toast } = useToast();
+  
+  // Check for sign-out success message in URL
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const signOutSuccess = urlParams.get('signout');
+      
+      if (signOutSuccess === 'success') {
+        toast({
+          variant: "success",
+          title: "Successfully signed out",
+          description: "You have been securely signed out of your account"
+        });
+        
+        // Clean up the URL parameter
+        const url = new URL(window.location.href);
+        url.searchParams.delete('signout');
+        window.history.replaceState({}, document.title, url);
+      }
+    }
+  }, [toast]);
+  
+  // Show loading state while checking authentication
+  if (authLoading) {
+    return (
+      <div className="container py-10">
+        <div className="flex justify-center items-center min-h-[500px]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+            <p className="mt-2 text-muted-foreground">Loading your profile...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
   
   // Mock user data - in a real app, this would come from the authentication provider
   const user = {

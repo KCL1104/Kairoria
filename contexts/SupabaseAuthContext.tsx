@@ -149,21 +149,62 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
     if (!supabase) return
 
     try {
-      // First clear local Supabase session
-      const { error } = await supabase.auth.signOut()
+      // 1. First invalidate the session server-side
+      const { error } = await supabase.auth.signOut({ scope: 'global' })
       if (error) {
         console.error('Supabase sign out error:', error)
         throw error
       }
       
-      // Reset local state
+      // 2. Call backend logout API to handle server-side cleanup
+      try {
+        const response = await fetch('/api/auth/logout', { 
+          method: 'POST',
+          credentials: 'include',
+          cache: 'no-store',
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        })
+        
+        if (!response.ok) {
+          console.warn('Server logout API returned an error', await response.text())
+        }
+      } catch (apiError) {
+        console.error('Error calling logout API:', apiError)
+        // Continue with client-side logout even if API call fails
+      }
+      
+      // 3. Reset all local state
       setUser(null)
       setSession(null)
       setProfile(null)
       
-      // Clear any auth-related items from local storage
+      // 4. Clear ALL authentication-related items from storage
       if (typeof window !== 'undefined') {
-        // Clear specific Supabase items
+        // Clear specific Supabase auth items
+        const authItemsToRemove = [
+          'supabase.auth.token',
+          'supabase-auth-token',
+          'sb-access-token',
+          'sb-refresh-token',
+          'supabase-auth-state',
+          'sb-provider-token',
+          'supabase.auth.refreshToken',
+          'supabase.auth.accessToken',
+          'auth-token',
+          'sb-auth-token',
+          'sb-user-token',
+          'sb-provider-token',
+        ]
+        
+        // Remove specific auth keys
+        authItemsToRemove.forEach(key => {
+          localStorage.removeItem(key)
+          sessionStorage.removeItem(key)
+        })
+        
+        // Also scan for any other items that might be auth-related
         const keysToRemove = []
         for (let i = 0; i < localStorage.length; i++) {
           const key = localStorage.key(i)
@@ -177,41 +218,39 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
           }
         }
         
-        // Remove collected keys (doing it separately to avoid issues with changing array during iteration)
+        // Remove collected keys
         keysToRemove.forEach(key => localStorage.removeItem(key))
         
-        // Also clear session storage
+        // Clear all session storage as an extra precaution
         sessionStorage.clear()
+        
+        // Clear cookies related to authentication
+        document.cookie.split(';').forEach(cookie => {
+          const [name] = cookie.trim().split('=')
+          if (name && (name.includes('supabase') || name.includes('sb-') || name.includes('auth'))) {
+            document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`
+          }
+        })
       }
       
-      // Call backend logout endpoint (non-blocking)
-      try {
-        fetch('/api/auth/logout', { 
-          method: 'POST',
-          credentials: 'include',
-          cache: 'no-store'
-        }).catch(e => console.error('Logout API error:', e))
-      } catch (apiError) {
-        console.error('Error calling logout API:', apiError)
-        // Continue with client-side logout even if API call fails
-      }
-      
-      // Redirect to home page
+      // 5. Redirect to home page
       router.push('/')
       
-      // Force reload to ensure all state is cleared in case any components haven't updated
+      // 6. Optional: Force page reload after a small delay to ensure all state is cleared
       if (typeof window !== 'undefined') {
-        // Timeout gives router.push a chance to start navigating before reload
+        // Small timeout to allow navigation to start before reload
         setTimeout(() => window.location.reload(), 100)
       }
-      
     } catch (error) {
       console.error('Error signing out:', error)
-      // Even if there's an error, we should still clear local state and redirect
+      
+      // Even if there's an error, attempt to clear state and redirect
       setUser(null)
       setSession(null)
       setProfile(null)
-      router.push('/')
+      
+      // Navigate to login page with error parameter
+      router.push('/auth/login?error=signout_failed')
     }
   }
 
