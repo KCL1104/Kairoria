@@ -2,15 +2,6 @@ import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
 import ResetPasswordForm from "./ResetPasswordForm"
 
-// Required for static export with dynamic routes
-export async function generateStaticParams() {
-  // Return a placeholder parameter for static generation
-  // Real tokens will be validated client-side
-  return [
-    { token: 'placeholder-token' }
-  ]
-}
-
 interface ResetPasswordTokenPageProps {
   params: { token: string }
 }
