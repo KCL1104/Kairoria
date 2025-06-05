@@ -28,10 +28,22 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
   const [profile, setProfile] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
   
-  const supabase = createClientComponentClient()
+  // Check if environment variables are available
+  const hasSupabaseConfig = 
+    typeof window !== 'undefined' && 
+    process.env.NEXT_PUBLIC_SUPABASE_URL && 
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+  // Only create Supabase client if we have the required config
+  const supabase = hasSupabaseConfig ? createClientComponentClient() : null
   const { publicKey, signMessage } = useWallet()
 
   useEffect(() => {
+    if (!supabase) {
+      setIsLoading(false)
+      return
+    }
+
     // Get initial session
     const getSession = async () => {
       try {
@@ -69,9 +81,11 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
     )
 
     return () => subscription.unsubscribe()
-  }, [supabase.auth])
+  }, [supabase])
 
   const fetchProfile = async (userId: string) => {
+    if (!supabase) return
+    
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -90,6 +104,10 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
   }
 
   const signUp = async (email: string, password: string, fullName: string) => {
+    if (!supabase) {
+      return { error: new Error('Supabase client not available') }
+    }
+
     try {
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -107,6 +125,10 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
   }
 
   const signIn = async (email: string, password: string) => {
+    if (!supabase) {
+      return { error: new Error('Supabase client not available') }
+    }
+
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -119,6 +141,8 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
   }
 
   const signOut = async () => {
+    if (!supabase) return
+
     try {
       await supabase.auth.signOut()
       setProfile(null)
@@ -128,6 +152,10 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
   }
 
   const signInWithGoogle = async () => {
+    if (!supabase) {
+      return { error: new Error('Supabase client not available') }
+    }
+
     try {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -142,6 +170,10 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
   }
 
   const signInWithTwitter = async () => {
+    if (!supabase) {
+      return { error: new Error('Supabase client not available') }
+    }
+
     try {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'twitter',
@@ -156,6 +188,10 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
   }
 
   const signInWithSolana = async () => {
+    if (!supabase) {
+      return { error: new Error('Supabase client not available') }
+    }
+
     try {
       if (!publicKey || !signMessage) {
         return { error: new Error('Wallet not connected') }
@@ -200,6 +236,10 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
   }
 
   const resetPassword = async (email: string) => {
+    if (!supabase) {
+      return { error: new Error('Supabase client not available') }
+    }
+
     try {
       const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/auth/reset-password`,
