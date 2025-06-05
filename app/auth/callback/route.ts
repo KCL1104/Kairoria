@@ -13,7 +13,15 @@ export async function GET(request: Request) {
   // Handle OAuth errors
   if (error) {
     console.error('OAuth error:', error, errorDescription)
-    return NextResponse.redirect(`${requestUrl.origin}/auth/login?error=${error}`)
+    
+    // Handle specific error types
+    if (error === 'access_denied') {
+      return NextResponse.redirect(`${requestUrl.origin}/auth/login?error=User denied access`)
+    } else if (error === 'redirect_uri_mismatch') {
+      return NextResponse.redirect(`${requestUrl.origin}/auth/login?error=OAuth configuration error. Please contact support.`)
+    }
+    
+    return NextResponse.redirect(`${requestUrl.origin}/auth/login?error=${errorDescription || error}`)
   }
 
   if (code) {

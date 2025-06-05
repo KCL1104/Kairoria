@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { useSearchParams, useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
-import { ShoppingBag, CheckCircle, XCircle, Loader2 } from "lucide-react"
+import { CheckCircle, XCircle, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -62,10 +62,9 @@ export default function VerifyPage() {
   }, [token, router])
   
   return (
-    <div className="container max-w-md py-10">
+    <div className="container max-w-lg py-10">
       <div className="flex justify-center mb-6">
         <Link href="/" className="flex items-center gap-2 font-semibold text-xl">
-          <ShoppingBag className="h-6 w-6 text-primary" />
           <span>Kairoria</span>
         </Link>
       </div>

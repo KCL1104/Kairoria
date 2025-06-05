@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { ArrowLeft, ShoppingBag } from "lucide-react"
+import { ArrowLeft } from "lucide-react"
 import ResetPasswordForm from "./ResetPasswordForm"
 
 // Required for static export with dynamic routes
@@ -19,7 +19,7 @@ export default function ResetPasswordTokenPage({
   params,
 }: ResetPasswordTokenPageProps) {
   return (
-    <div className="container max-w-md py-10">
+    <div className="container max-w-lg py-10">
       <div className="mb-6">
         <Link href="/auth/login" className="text-sm text-muted-foreground flex items-center">
           <ArrowLeft className="mr-2 h-4 w-4" />
@@ -29,7 +29,6 @@ export default function ResetPasswordTokenPage({
       
       <div className="flex justify-center mb-6">
         <Link href="/" className="flex items-center gap-2 font-semibold text-xl">
-          <ShoppingBag className="h-6 w-6 text-primary" />
           <span>Kairoria</span>
         </Link>
       </div>

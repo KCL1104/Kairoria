@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { useState, useEffect } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
-import { ArrowLeft, ShoppingBag, CheckCircle, Lock, AlertCircle } from "lucide-react"
+import { ArrowLeft, CheckCircle, Lock, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -29,7 +29,7 @@ export default function ResetPasswordPage() {
   }, [token, router])
   
   return (
-    <div className="container max-w-md py-10">
+    <div className="container max-w-lg py-10">
       <div className="mb-6">
         <Link href="/auth/login" className="text-sm text-muted-foreground flex items-center">
           <ArrowLeft className="mr-2 h-4 w-4" />
@@ -39,7 +39,6 @@ export default function ResetPasswordPage() {
       
       <div className="flex justify-center mb-6">
         <Link href="/" className="flex items-center gap-2 font-semibold text-xl">
-          <ShoppingBag className="h-6 w-6 text-primary" />
           <span>Kairoria</span>
         </Link>
       </div>

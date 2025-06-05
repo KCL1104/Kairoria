@@ -1,9 +1,9 @@
 "use client"
 
 import Link from "next/link"
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { ArrowLeft, ShoppingBag } from "lucide-react"
+import { useState, useEffect } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
+import { ArrowLeft } from "lucide-react"
 import { useAuth } from "@/contexts/SupabaseAuthContext"
 import { useWallet } from "@solana/wallet-adapter-react"
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui"
@@ -27,7 +27,16 @@ export default function LoginPage() {
   const { signIn, signInWithGoogle, signInWithTwitter, signInWithSolana } = useAuth()
   const { connected } = useWallet()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [isLoading, setIsLoading] = useState(false)
+
+  // Handle OAuth errors from URL parameters
+  useEffect(() => {
+    const oauthError = searchParams.get('error')
+    if (oauthError) {
+      setError(decodeURIComponent(oauthError))
+    }
+  }, [searchParams])
   
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -92,7 +101,7 @@ export default function LoginPage() {
   }
   
   return (
-    <div className="container max-w-md py-10">
+    <div className="container max-w-lg py-10">
       <div className="mb-6">
         <Link href="/" className="text-sm text-muted-foreground flex items-center">
           <ArrowLeft className="mr-2 h-4 w-4" />
@@ -102,7 +111,6 @@ export default function LoginPage() {
       
       <div className="flex justify-center mb-6">
         <Link href="/" className="flex items-center gap-2 font-semibold text-xl">
-          <ShoppingBag className="h-6 w-6 text-primary" />
           <span>Kairoria</span>
         </Link>
       </div>
