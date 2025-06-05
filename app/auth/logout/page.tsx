@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/SupabaseAuthContext'
 import { CheckCircle, AlertCircle } from 'lucide-react'
@@ -13,46 +13,46 @@ export default function LogoutPage() {
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')
   const [message, setMessage] = useState<string>('Signing you out...')
 
-  useEffect(() => {
-    const performLogout = async () => {
-      if (isLoading) return; // Wait until auth state is determined
-      
-      if (isAuthenticated) {
-        try {
-          setStatus('loading')
-          setMessage('Securely signing you out...')
-          
-          // Perform signOut
-          await signOut()
-          
-          // The signOut function already handles redirection, but in case
-          // we get here (maybe redirect failed), show success state
-          setStatus('success')
-          setMessage('You have been successfully signed out.')
-          
-          // Redirect after a short delay
-          setTimeout(() => {
-            router.push('/')
-          }, 1500)
-        } catch (error) {
-          console.error('Failed to sign out:', error)
-          setStatus('error')
-          setMessage('There was a problem signing you out. Please try again.')
-        }
-      } else {
-        // Already signed out
-        setStatus('success')
-        setMessage('You are already signed out.')
+  const performLogout = useCallback(async () => {
+    if (isLoading) return; // Wait until auth state is determined
+    
+    if (isAuthenticated) {
+      try {
+        setStatus('loading')
+        setMessage('Securely signing you out...')
         
-        // Redirect to home page after a brief delay
+        // Perform signOut
+        await signOut()
+        
+        // The signOut function already handles redirection, but in case
+        // we get here (maybe redirect failed), show success state
+        setStatus('success')
+        setMessage('You have been successfully signed out.')
+        
+        // Redirect after a short delay
         setTimeout(() => {
           router.push('/')
         }, 1500)
+      } catch (error) {
+        console.error('Failed to sign out:', error)
+        setStatus('error')
+        setMessage('There was a problem signing you out. Please try again.')
       }
+    } else {
+      // Already signed out
+      setStatus('success')
+      setMessage('You are already signed out.')
+      
+      // Redirect to home page after a brief delay
+      setTimeout(() => {
+        router.push('/')
+      }, 1500)
     }
+  }, [isLoading, isAuthenticated, signOut, router])
 
+  useEffect(() => {
     performLogout()
-  }, [signOut, router, isAuthenticated, isLoading])
+  }, [signOut, router, isAuthenticated, isLoading, performLogout])
 
   return (
     <div className="container max-w-lg py-10">

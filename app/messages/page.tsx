@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Send, Image, Smile, MoreHorizontal, Search, Phone, Video } from "lucide-react"
+import { Send, Image as ImageIcon, Smile, MoreHorizontal, Search, Phone, Video } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -137,8 +137,8 @@ export default function MessagesPage() {
             {/* Message Input */}
             <div className="p-4 border-t">
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="icon">
-                  <Image className="h-5 w-5" />
+                <Button variant="outline" size="icon" aria-label="Attach image">
+                  <ImageIcon className="h-5 w-5" />
                 </Button>
                 <Button variant="outline" size="icon">
                   <Smile className="h-5 w-5" />
