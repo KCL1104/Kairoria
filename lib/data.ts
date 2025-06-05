@@ -1,175 +1,108 @@
-// Mock data for products - in a real app, this would come from an API
-export const mockProducts = [
-  {
-    id: "product-1",
-    title: "Professional DSLR Camera",
-    category: "Electronics",
-    price: 35,
-    period: "day",
-    location: "San Francisco",
-    distance: 2.4,
-    rating: 4.9,
-    reviews: 28,
-    imageSrc: "https://images.pexels.com/photos/51383/photo-camera-subject-photographer-51383.jpeg",
-    isAvailable: true,
-  },
-  {
-    id: "product-2",
-    title: "Mountain Bike - Trek",
-    category: "Outdoor",
-    price: 25,
-    period: "day",
-    location: "Boulder",
-    distance: 1.8,
-    rating: 4.7,
-    reviews: 43,
-    imageSrc: "https://images.pexels.com/photos/100582/pexels-photo-100582.jpeg",
-    isAvailable: true,
-  },
-  {
-    id: "product-3",
-    title: "Portable Projector",
-    category: "Electronics",
-    price: 15,
-    period: "day",
-    location: "New York",
-    distance: 0.5,
-    rating: 4.8,
-    reviews: 19,
-    imageSrc: "https://images.pexels.com/photos/1117132/pexels-photo-1117132.jpeg",
-    isAvailable: true,
-  },
-  {
-    id: "product-4",
-    title: "Electric Drill",
-    category: "Tools",
-    price: 10,
-    period: "day",
-    location: "Chicago",
-    distance: 3.2,
-    rating: 4.6,
-    reviews: 37,
-    imageSrc: "https://images.pexels.com/photos/957065/pexels-photo-957065.jpeg",
-    isAvailable: true,
-  },
-  {
-    id: "product-5",
-    title: "Stand Mixer - KitchenAid",
-    category: "Home",
-    price: 20,
-    period: "day",
-    location: "Portland",
-    distance: 1.3,
-    rating: 4.9,
-    reviews: 52,
-    imageSrc: "https://images.pexels.com/photos/6996142/pexels-photo-6996142.jpeg",
-    isAvailable: true,
-  },
-  {
-    id: "product-6",
-    title: "Camping Tent - 4 Person",
-    category: "Outdoor",
-    price: 28,
-    period: "day",
-    location: "Denver",
-    distance: 4.7,
-    rating: 4.5,
-    reviews: 31,
-    imageSrc: "https://images.pexels.com/photos/2582818/pexels-photo-2582818.jpeg",
-    isAvailable: true,
-  },
-  {
-    id: "product-7",
-    title: "Lawn Mower",
-    category: "Tools",
-    price: 18,
-    period: "day",
-    location: "Austin",
-    distance: 2.9,
-    rating: 4.3,
-    reviews: 15,
-    imageSrc: "https://images.pexels.com/photos/589/garden-gardening-grass-lawn.jpg",
-    isAvailable: true,
-  },
-  {
-    id: "product-8",
-    title: "Snowboard with Bindings",
-    category: "Outdoor",
-    price: 30,
-    period: "day",
-    location: "Salt Lake City",
-    distance: 5.1,
-    rating: 4.8,
-    reviews: 27,
-    imageSrc: "https://images.pexels.com/photos/376697/pexels-photo-376697.jpeg",
-    isAvailable: true,
-  },
-  {
-    id: "product-9",
-    title: "Professional Microphone",
-    category: "Electronics",
-    price: 22,
-    period: "day",
-    location: "Nashville",
-    distance: 1.6,
-    rating: 4.9,
-    reviews: 38,
-    imageSrc: "https://images.pexels.com/photos/164873/pexels-photo-164873.jpeg",
-    isAvailable: true,
-  },
-  {
-    id: "product-10",
-    title: "Drone with 4K Camera",
-    category: "Electronics",
-    price: 45,
-    period: "day",
-    location: "Los Angeles",
-    distance: 3.4,
-    rating: 4.7,
-    reviews: 22,
-    imageSrc: "https://images.pexels.com/photos/336232/pexels-photo-336232.jpeg",
-    isAvailable: true,
-  },
-  {
-    id: "product-11",
-    title: "Espresso Machine",
-    category: "Home",
-    price: 22,
-    period: "day",
-    location: "Seattle",
-    distance: 1.9,
-    rating: 4.6,
-    reviews: 31,
-    imageSrc: "https://images.pexels.com/photos/452773/pexels-photo-452773.jpeg",
-    isAvailable: true,
-  },
-  {
-    id: "product-12",
-    title: "Acoustic Guitar",
-    category: "Musical Instruments",
-    price: 15,
-    period: "day",
-    location: "Austin",
-    distance: 2.2,
-    rating: 4.8,
-    reviews: 19,
-    imageSrc: "https://images.pexels.com/photos/1010519/pexels-photo-1010519.jpeg",
-    isAvailable: true,
-  },
-];
+// Product types based on database schema
+export interface Product {
+  id: number
+  owner_id: string
+  category_id: number
+  title: string
+  description: string
+  brand?: string
+  condition: 'new' | 'like_new' | 'good' | 'used'
+  location: string
+  currency: 'usdc' | 'usdt'
+  price_per_hour?: number
+  price_per_day: number
+  daily_cap_hours?: number
+  security_deposit: number
+  status: 'pending' | 'listed' | 'unlisted' | 'rented'
+  average_rating: number
+  review_count: number
+  created_at: string
+  updated_at: string
+}
 
-// Categories for the horizontal filter
-export const categories = [
-  { id: "all", name: "All Categories", icon: "🏠" },
-  { id: "electronics", name: "Electronics", icon: "📱" },
-  { id: "tools", name: "Tools", icon: "🔧" },
-  { id: "outdoor", name: "Outdoor Gear", icon: "⛺" },
-  { id: "home", name: "Home Goods", icon: "🪑" },
-  { id: "sports", name: "Sports", icon: "⚽" },
-  { id: "vehicles", name: "Vehicles", icon: "🚗" },
-  { id: "clothing", name: "Clothing", icon: "👕" },
-  { id: "musical", name: "Musical Instruments", icon: "🎸" },
-  { id: "garden", name: "Garden", icon: "🌷" },
-  { id: "photography", name: "Photography", icon: "📷" },
-  { id: "events", name: "Events", icon: "🎭" },
-];
+export interface ProductImage {
+  id: number
+  product_id: number
+  image_url: string
+  display_order: number
+  is_cover: boolean
+}
+
+export interface Category {
+  id: number
+  name: string
+  parent_id?: number
+}
+
+export interface Profile {
+  id: string
+  username: string
+  display_name: string
+  bio?: string
+  profile_image_url?: string
+  location?: string
+  phone_number?: string
+  email_verified: boolean
+  phone_verified: boolean
+  identity_status: 'unverified' | 'pending' | 'verified'
+  updated_at: string
+}
+
+// Currency conversion utilities
+export const CURRENCY_DECIMALS = 6 // USDC/USDT have 6 decimal places
+
+export function convertToStorageAmount(decimalAmount: number): number {
+  return Math.round(decimalAmount * Math.pow(10, CURRENCY_DECIMALS))
+}
+
+export function convertFromStorageAmount(storageAmount: number): number {
+  return storageAmount / Math.pow(10, CURRENCY_DECIMALS)
+}
+
+// Product conditions
+export const PRODUCT_CONDITIONS = [
+  { value: 'new', label: 'New' },
+  { value: 'like_new', label: 'Like New' },
+  { value: 'good', label: 'Good' },
+  { value: 'used', label: 'Used' },
+] as const
+
+// Supported currencies
+export const SUPPORTED_CURRENCIES = [
+  { value: 'usdc', label: 'USDC' },
+  { value: 'usdt', label: 'USDT' },
+] as const
+
+// Product status options
+export const PRODUCT_STATUSES = [
+  { value: 'pending', label: 'Pending' },
+  { value: 'listed', label: 'Listed' },
+  { value: 'unlisted', label: 'Unlisted' },
+  { value: 'rented', label: 'Rented' },
+] as const
+
+// Default categories with icons for UI display
+export const DEFAULT_CATEGORY_ICONS: Record<string, string> = {
+  'Electronics': '📱',
+  'Tools': '🔧',
+  'Outdoor Gear': '⛺',
+  'Home Goods': '🪑',
+  'Sports': '⚽',
+  'Vehicles': '🚗',
+  'Clothing': '👕',
+  'Musical Instruments': '🎸',
+  'Garden': '🌷',
+  'Photography': '📷',
+  'Events': '🎭',
+  'Books': '📚',
+  'Toys & Games': '🎮',
+  'Art & Crafts': '🎨',
+  'Kitchen': '🍳',
+  'Fitness': '💪',
+  'Party & Celebration': '🎉',
+}
+
+// Helper function to get category icon
+export function getCategoryIcon(categoryName: string): string {
+  return DEFAULT_CATEGORY_ICONS[categoryName] || '📦'
+}

@@ -1,19 +1,53 @@
-import { type Metadata } from 'next'
+"use client"
+
+import { useState, useEffect } from 'react'
 import Link from "next/link"
-import { Search, Sliders, Map, ArrowRight } from "lucide-react"
+import { Search, Sliders, Map, ArrowRight, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ProductCard } from "@/components/marketplace/product-card"
-import { mockProducts, categories } from "@/lib/data"
+import { fetchProducts, fetchCategories } from '@/lib/supabase-client'
+import { Product, ProductImage, Category, Profile, convertFromStorageAmount, getCategoryIcon } from '@/lib/data'
 
-export const metadata: Metadata = {
-  title: 'Kairoria | Marketplace',
-  description: 'Find high-quality products to rent or list your own items to earn passive income.',
+type ProductWithRelations = Product & {
+  categories: Category
+  profiles: Profile
+  product_images: ProductImage[]
 }
 
-export default function MarketplacePage() {
+export default function HomePage() {
+  const [products, setProducts] = useState<ProductWithRelations[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [selectedCategory, setSelectedCategory] = useState<string>('all')
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setIsLoading(true)
+        const [productsData, categoriesData] = await Promise.all([
+          fetchProducts({ limit: 12 }),
+          fetchCategories()
+        ])
+        setProducts(productsData)
+        setCategories(categoriesData)
+      } catch (error) {
+        console.error('Error loading data:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadData()
+  }, [])
+
+  // Filter products by category
+  const filteredProducts = selectedCategory === 'all' 
+    ? products 
+    : products.filter(product => product.category_id.toString() === selectedCategory)
+
   return (
     <div>
       {/* Hero Section with Search */}
@@ -63,16 +97,23 @@ export default function MarketplacePage() {
       <section className="py-6 border-b overflow-x-auto">
         <div className="container">
           <div className="flex items-center gap-1 mb-2">
-            <Tabs defaultValue="all" className="w-full">
+            <Tabs value={selectedCategory} onValueChange={setSelectedCategory} className="w-full">
               <TabsList className="h-auto w-full justify-start bg-transparent p-0">
                 <div className="flex gap-6 overflow-x-auto pb-2">
+                  <TabsTrigger 
+                    value="all"
+                    className="flex flex-col items-center justify-center rounded-lg px-3 py-2 data-[state=active]:bg-background data-[state=active]:shadow-sm"
+                  >
+                    <span className="text-2xl">🏠</span>
+                    <span className="mt-1 text-xs font-medium">All Categories</span>
+                  </TabsTrigger>
                   {categories.map((category) => (
                     <TabsTrigger 
                       key={category.id}
-                      value={category.id}
+                      value={category.id.toString()}
                       className="flex flex-col items-center justify-center rounded-lg px-3 py-2 data-[state=active]:bg-background data-[state=active]:shadow-sm"
                     >
-                      <span className="text-2xl">{category.icon}</span>
+                      <span className="text-2xl">{getCategoryIcon(category.name)}</span>
                       <span className="mt-1 text-xs font-medium">{category.name}</span>
                     </TabsTrigger>
                   ))}
@@ -112,32 +153,67 @@ export default function MarketplacePage() {
             </div>
           </div>
           
+          {/* Loading State */}
+          {isLoading && (
+            <div className="flex items-center justify-center py-12">
+              <div className="text-center">
+                <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+                <p className="text-muted-foreground">Loading products...</p>
+              </div>
+            </div>
+          )}
+
+          {/* No Products State */}
+          {!isLoading && filteredProducts.length === 0 && (
+            <div className="text-center py-12">
+              <h3 className="text-lg font-semibold mb-2">
+                {selectedCategory === 'all' ? 'No products available' : 'No products in this category'}
+              </h3>
+              <p className="text-muted-foreground mb-6">
+                Be the first to list an item in this category!
+              </p>
+              <Link href="/profile/listings/new">
+                <Button>List Your First Item</Button>
+              </Link>
+            </div>
+          )}
+          
           {/* Product Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {mockProducts.map((product) => (
-              <ProductCard 
-                key={product.id}
-                id={product.id}
-                title={product.title}
-                category={product.category}
-                price={product.price}
-                period={product.period as "hour" | "day" | "week" | "month"}
-                location={product.location}
-                distance={product.distance}
-                rating={product.rating}
-                reviews={product.reviews}
-                imageSrc={product.imageSrc}
-                isAvailable={product.isAvailable}
-              />
-            ))}
-          </div>
+          {!isLoading && filteredProducts.length > 0 && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {filteredProducts.map((product) => {
+                const coverImage = product.product_images.find(img => img.is_cover) || product.product_images[0]
+                const pricePerDay = convertFromStorageAmount(product.price_per_day)
+                
+                return (
+                  <ProductCard 
+                    key={product.id}
+                    id={product.id.toString()}
+                    title={product.title}
+                    category={product.categories.name}
+                    price={pricePerDay}
+                    period="day"
+                    location={product.location}
+                    rating={product.average_rating}
+                    reviews={product.review_count}
+                    imageSrc={coverImage?.image_url || '/placeholder-image.jpg'}
+                    isAvailable={product.status === 'listed'}
+                  />
+                )
+              })}
+            </div>
+          )}
           
           {/* Load More Button */}
-          <div className="mt-10 text-center">
-            <Button variant="outline" size="lg">
-              Load More
-            </Button>
-          </div>
+          {!isLoading && filteredProducts.length > 0 && (
+            <div className="mt-10 text-center">
+              <Link href="/marketplace">
+                <Button variant="outline" size="lg">
+                  View All Products
+                </Button>
+              </Link>
+            </div>
+          )}
         </div>
       </section>
       

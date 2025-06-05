@@ -1,0 +1,44 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
+
+export async function GET(request: NextRequest) {
+  try {
+    // Get Supabase URL and keys
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_DATABASE_URL
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    
+    if (!supabaseUrl || !supabaseAnonKey) {
+      return NextResponse.json(
+        { error: 'Supabase configuration missing' },
+        { status: 500 }
+      )
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseAnonKey)
+
+    // Fetch all categories ordered by name
+    const { data: categories, error } = await supabase
+      .from('categories')
+      .select('*')
+      .order('name')
+
+    if (error) {
+      console.error('Categories fetch error:', error)
+      return NextResponse.json(
+        { error: 'Failed to fetch categories' },
+        { status: 500 }
+      )
+    }
+
+    return NextResponse.json({
+      categories: categories || []
+    })
+
+  } catch (error) {
+    console.error('Categories API error:', error)
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
+  }
+} 
