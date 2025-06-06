@@ -7,7 +7,7 @@ import { Product, ProductImage, Category, Profile, convertFromStorageAmount } fr
 import { Loader2 } from 'lucide-react'
 
 type ProductWithRelations = Product & {
-  profiles: Profile
+  owner: Profile
 }
 
 export function ProductGrid() {

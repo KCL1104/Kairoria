@@ -5,9 +5,31 @@ import { Product, Profile, ProductImage } from './data'
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_DATABASE_URL
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
+// Debug logging for environment variables
+if (typeof window !== 'undefined') {
+  console.log('Supabase Environment Check:', {
+    hasUrl: !!supabaseUrl,
+    hasKey: !!supabaseAnonKey,
+    urlStart: supabaseUrl?.substring(0, 20),
+    keyStart: supabaseAnonKey?.substring(0, 20)
+  })
+}
+
+if (!supabaseUrl) {
+  console.error('Missing NEXT_PUBLIC_SUPABASE_URL environment variable')
+}
+
+if (!supabaseAnonKey) {
+  console.error('Missing NEXT_PUBLIC_SUPABASE_ANON_KEY environment variable')
+}
+
 export const supabase = supabaseUrl && supabaseAnonKey 
   ? createClient(supabaseUrl, supabaseAnonKey) 
   : null
+
+if (!supabase && typeof window !== 'undefined') {
+  console.error('Supabase client could not be initialized. Check your environment variables.')
+}
 
 // Product-related functions
 export async function fetchProducts(options?: {

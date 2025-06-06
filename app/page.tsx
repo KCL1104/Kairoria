@@ -12,7 +12,7 @@ import { fetchProducts, fetchUniqueCategories, supabase } from '@/lib/supabase-c
 import { Product, Profile, getCategoryIcon } from '@/lib/data'
 
 type ProductWithRelations = Product & {
-  profiles: Profile
+  owner: Profile
 }
 
 export default function HomePage() {
