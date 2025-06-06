@@ -39,8 +39,14 @@ async function isProfileComplete(supabase: any, userId: string): Promise<boolean
       .eq('id', userId)
       .single()
     
-    if (profileError || !profile) {
+    if (profileError) {
       console.log('Profile not found or error:', profileError)
+      // If profile doesn't exist (PGRST116), it's definitely not complete
+      return false
+    }
+    
+    if (!profile) {
+      console.log('No profile data found')
       return false
     }
     
@@ -62,19 +68,36 @@ async function isProfileComplete(supabase: any, userId: string): Promise<boolean
     
     const emailVerified = !!user.email_confirmed_at
     
+    // Check if Firebase is configured by checking environment variables
+    // In middleware, we need to be more careful about environment variable access
+    let isFirebaseConfigured = false
+    try {
+      isFirebaseConfigured = !!(
+        process.env.NEXT_PUBLIC_FIREBASE_API_KEY &&
+        process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
+      )
+    } catch (error) {
+      console.log('Could not check Firebase configuration in middleware, assuming not configured')
+      isFirebaseConfigured = false
+    }
+    
     console.log('Profile completeness check details:', {
       userId,
       hasRequiredFields,
       emailVerified,
       phoneVerified: profile.is_verified,
+      isFirebaseConfigured,
       fullName: !!profile.full_name?.trim(),
       location: !!profile.location?.trim(),
       phone: !!profile.phone?.trim()
     })
     
-    // Profile is complete if all required fields are present and both email and phone are verified
-    // Note: phone verification is stored in is_verified field (set by complete-profile page)
-    return hasRequiredFields && emailVerified && profile.is_verified
+    // Profile is complete if:
+    // 1. All required fields are present
+    // 2. Email is verified
+    // 3. Phone is verified (only if Firebase is configured)
+    const phoneRequirementMet = !isFirebaseConfigured || profile.is_verified
+    return hasRequiredFields && emailVerified && phoneRequirementMet
   } catch (error) {
     console.error('Error checking profile completeness:', error)
     return false

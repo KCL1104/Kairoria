@@ -11,11 +11,31 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import { supabase } from "@/lib/supabase-client"
 import { auth, RecaptchaVerifier, signInWithPhoneNumber, isFirebaseConfigured } from "@/lib/firebase"
 import type { ConfirmationResult } from "firebase/auth"
 import { Check, Upload, Phone, Shield, AlertTriangle } from "lucide-react"
+
+// Common country codes with their dialing codes
+const COUNTRY_CODES = [
+  { code: '+1', country: 'US/CA', flag: '🇺🇸', name: 'United States / Canada' },
+  { code: '+44', country: 'GB', flag: '🇬🇧', name: 'United Kingdom' },
+  { code: '+49', country: 'DE', flag: '🇩🇪', name: 'Germany' },
+  { code: '+33', country: 'FR', flag: '🇫🇷', name: 'France' },
+  { code: '+39', country: 'IT', flag: '🇮🇹', name: 'Italy' },
+  { code: '+34', country: 'ES', flag: '🇪🇸', name: 'Spain' },
+  { code: '+81', country: 'JP', flag: '🇯🇵', name: 'Japan' },
+  { code: '+82', country: 'KR', flag: '🇰🇷', name: 'South Korea' },
+  { code: '+86', country: 'CN', flag: '🇨🇳', name: 'China' },
+  { code: '+91', country: 'IN', flag: '🇮🇳', name: 'India' },
+  { code: '+61', country: 'AU', flag: '🇦🇺', name: 'Australia' },
+  { code: '+55', country: 'BR', flag: '🇧🇷', name: 'Brazil' },
+  { code: '+52', country: 'MX', flag: '🇲🇽', name: 'Mexico' },
+  { code: '+7', country: 'RU', flag: '🇷🇺', name: 'Russia' },
+  { code: '+27', country: 'ZA', flag: '🇿🇦', name: 'South Africa' },
+]
 
 const profileSchema = z.object({
   full_name: z.string().min(1, "Full name is required"),
@@ -51,6 +71,7 @@ export default function CompleteProfilePage() {
   const [phoneVerified, setPhoneVerified] = useState(false)
   const [emailVerified, setEmailVerified] = useState(false)
   const [emailResendCooldown, setEmailResendCooldown] = useState(0)
+  const [selectedCountryCode, setSelectedCountryCode] = useState('+1') // Default to US/Canada
 
   const recaptchaRef = useRef<HTMLDivElement>(null)
   const { toast } = useToast()
@@ -131,7 +152,7 @@ export default function CompleteProfilePage() {
                 avatar_url: null,
                 location: null,
                 phone: null,
-                is_verified: false,
+                is_verified: !isFirebaseConfigured && !!user.email_confirmed_at, // Auto-verify if Firebase not configured and email is verified
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString()
               })
@@ -171,8 +192,27 @@ export default function CompleteProfilePage() {
           if (finalProfileData.full_name) setValue("full_name", finalProfileData.full_name)
           if (finalProfileData.bio) setValue("bio", finalProfileData.bio)
           if (finalProfileData.location) setValue("location", finalProfileData.location)
-          if (finalProfileData.phone) setValue("phone", finalProfileData.phone)
           if (finalProfileData.avatar_url) setValue("avatar_url", finalProfileData.avatar_url)
+          
+          // Parse phone number to extract country code and number
+          if (finalProfileData.phone) {
+            const phoneStr = finalProfileData.phone.toString()
+            let detectedCountryCode = '+1' // Default
+            let phoneNumber = phoneStr
+            
+            // Find matching country code
+            const matchingCountry = COUNTRY_CODES.find(country => 
+              phoneStr.startsWith(country.code)
+            )
+            
+            if (matchingCountry) {
+              detectedCountryCode = matchingCountry.code
+              phoneNumber = phoneStr.substring(matchingCountry.code.length)
+            }
+            
+            setSelectedCountryCode(detectedCountryCode)
+            setValue("phone", phoneNumber)
+          }
           
           if (finalProfileData.is_verified) {
             setPhoneVerificationStep('verified')
@@ -319,7 +359,12 @@ export default function CompleteProfilePage() {
     }
 
     try {
-      const phoneNumber = watchedPhoneNumber.startsWith('+') ? watchedPhoneNumber : `+1${watchedPhoneNumber}`
+      // Format phone number with selected country code
+      const phoneNumber = watchedPhoneNumber.startsWith('+') 
+        ? watchedPhoneNumber 
+        : `${selectedCountryCode}${watchedPhoneNumber.replace(/^0+/, '')}` // Remove leading zeros
+      
+      console.log('Sending verification to:', phoneNumber)
       
       const confirmation = await signInWithPhoneNumber(auth, phoneNumber, recaptchaVerifier)
       setConfirmationResult(confirmation)
@@ -328,7 +373,7 @@ export default function CompleteProfilePage() {
       
       toast({
         title: "Verification code sent",
-        description: "Please check your phone for the 6-digit verification code"
+        description: `Please check your phone (${phoneNumber}) for the 6-digit verification code`
       })
 
     } catch (error) {
@@ -336,7 +381,7 @@ export default function CompleteProfilePage() {
       toast({
         variant: "destructive",
         title: "Failed to send code",
-        description: "Could not send verification code. Please try again."
+        description: "Could not send verification code. Please check your phone number and try again."
       })
     }
   }
@@ -422,6 +467,11 @@ export default function CompleteProfilePage() {
     setSubmitting(true)
 
     try {
+      // Format phone number with country code for storage
+      const formattedPhone = data.phone.startsWith('+') 
+        ? data.phone 
+        : `${selectedCountryCode}${data.phone.replace(/^0+/, '')}`
+
       const response = await fetch('/api/profiles/update', {
         method: 'PATCH',
         headers: {
@@ -429,6 +479,7 @@ export default function CompleteProfilePage() {
         },
         body: JSON.stringify({
           ...data,
+          phone: formattedPhone, // Store complete phone number with country code
           is_verified: (phoneVerified || !isFirebaseConfigured) && emailVerified,
         }),
       })
@@ -610,10 +661,26 @@ export default function CompleteProfilePage() {
               </Label>
               <div className="space-y-3">
                 <div className="flex space-x-2">
+                  <Select value={selectedCountryCode} onValueChange={(value) => setSelectedCountryCode(value)}>
+                    <SelectTrigger className="w-[140px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="max-w-[300px]">
+                      {COUNTRY_CODES.map((country) => (
+                        <SelectItem key={country.code} value={country.code}>
+                          <div className="flex items-center gap-2">
+                            <span>{country.flag}</span>
+                            <span className="font-medium">{country.code}</span>
+                            <span className="text-xs text-muted-foreground truncate">{country.name}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <Input
                     id="phone"
                     {...register("phone")}
-                    placeholder="+1234567890"
+                    placeholder="2345678901"
                     disabled={phoneVerificationStep === 'verified'}
                     className={phoneVerificationStep === 'verified' ? 'bg-green-50' : ''}
                   />
@@ -675,6 +742,9 @@ export default function CompleteProfilePage() {
               {errors.phone && (
                 <p className="text-sm text-destructive">{errors.phone.message}</p>
               )}
+              <p className="text-xs text-muted-foreground">
+                Enter your phone number without the country code. Example: for {selectedCountryCode}1234567890, just enter 1234567890
+              </p>
             </div>
 
             <Button

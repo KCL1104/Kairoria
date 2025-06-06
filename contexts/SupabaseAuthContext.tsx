@@ -155,13 +155,25 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
         full_name: user.user_metadata?.full_name
       })
 
+      // Check if Firebase is configured
+      const isFirebaseConfigured = !!(
+        process.env.NEXT_PUBLIC_FIREBASE_API_KEY &&
+        process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
+      )
+
       const { data, error } = await supabase
         .from('profiles')
         .insert({
           id: userId,
           email: user.email,
           full_name: user.user_metadata?.full_name || null,
-          avatar_url: user.user_metadata?.avatar_url || null
+          avatar_url: user.user_metadata?.avatar_url || null,
+          is_verified: !isFirebaseConfigured && !!user.email_confirmed_at, // Auto-verify if Firebase not configured and email is verified
+          bio: null,
+          location: null,
+          phone: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
         })
         .select()
         .single()
