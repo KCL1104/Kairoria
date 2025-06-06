@@ -12,16 +12,10 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useToast } from "@/hooks/use-toast"
-import { createClient } from "@supabase/supabase-js"
+import { supabase } from "@/lib/supabase-client"
 import { auth, RecaptchaVerifier, signInWithPhoneNumber, isFirebaseConfigured } from "@/lib/firebase"
 import type { ConfirmationResult } from "firebase/auth"
 import { Check, Upload, Phone, Shield, AlertTriangle } from "lucide-react"
-
-// Create Supabase client
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
 
 const profileSchema = z.object({
   full_name: z.string().min(1, "Full name is required"),
@@ -94,6 +88,15 @@ export default function CompleteProfilePage() {
   useEffect(() => {
     async function loadProfile() {
       try {
+        if (!supabase) {
+          toast({
+            variant: "destructive",
+            title: "Configuration Error",
+            description: "Database connection not available"
+          });
+          return;
+        }
+
         const { data: { user }, error: userError } = await supabase.auth.getUser()
         
         if (userError || !user) {
@@ -170,6 +173,10 @@ export default function CompleteProfilePage() {
     setAvatarUploading(true)
 
     try {
+      if (!supabase) {
+        throw new Error('Database connection not available')
+      }
+
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('Not authenticated')
 

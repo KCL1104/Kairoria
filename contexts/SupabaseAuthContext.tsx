@@ -43,6 +43,7 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
 
     const getInitialSession = async () => {
       try {
+        if (!supabase) return
         const { data: { session }, error } = await supabase.auth.getSession()
         
         if (error) {

@@ -13,14 +13,8 @@ import { ProfileRentals } from "@/components/profile/profile-rentals"
 import { ProfileReviews } from "@/components/profile/profile-reviews"
 import { useProtectedRoute } from "@/hooks/use-protected-route"
 import { useToast } from "@/hooks/use-toast"
-import { createClient } from "@supabase/supabase-js"
+import { supabase } from "@/lib/supabase-client"
 import { useRouter } from "next/navigation"
-
-// Create Supabase client
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
 
 interface UserProfile {
   id: string
@@ -68,6 +62,15 @@ export default function ProfilePage() {
   useEffect(() => {
     async function fetchProfile() {
       try {
+        if (!supabase) {
+          toast({
+            variant: "destructive",
+            title: "Configuration Error",
+            description: "Database connection not available"
+          });
+          return;
+        }
+
         const { data: { user }, error: userError } = await supabase.auth.getUser();
         
         if (userError) {

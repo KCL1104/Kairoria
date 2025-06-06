@@ -1,6 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
 import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
-import { cookies } from 'next/headers'
 
 // Get Supabase URL - check both naming conventions
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_DATABASE_URL
@@ -25,6 +24,8 @@ export const supabaseAdmin = supabaseUrl && supabaseServiceKey
 export const createServerSupabaseClient = () => {
   try {
     if (supabaseUrl && supabaseAnonKey) {
+      // Dynamic import to avoid client/server conflicts
+      const { cookies } = require('next/headers')
       return createServerComponentClient({ cookies })
     } else {
       console.warn('Supabase environment variables not configured')
