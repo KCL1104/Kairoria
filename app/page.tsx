@@ -10,6 +10,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ProductCard } from "@/components/marketplace/product-card"
 import { fetchProducts, fetchUniqueCategories } from '@/lib/supabase-client'
 import { Product, Profile, getCategoryIcon } from '@/lib/data'
+import { supabase } from '@/lib/supabase'
 
 type ProductWithRelations = Product & {
   profiles: Profile
@@ -25,12 +26,48 @@ export default function HomePage() {
     const loadData = async () => {
       try {
         setIsLoading(true)
-        const [productsData, categoriesData] = await Promise.all([
-          fetchProducts({ limit: 12 }),
-          fetchUniqueCategories()
-        ])
-        setProducts(productsData)
-        setCategories(categoriesData)
+        console.log('Starting data load...')
+        
+        // First, let's test what the actual schema is by trying to fetch just one product
+        try {
+          console.log('Testing database schema...')
+          if (supabase) {
+            const { data: schemaTest, error: schemaError } = await supabase
+              .from('products')
+              .select('*')
+              .limit(1)
+            
+            if (schemaError) {
+              console.error('Schema test error:', schemaError)
+            } else {
+              console.log('Schema test successful. Sample product:', schemaTest)
+            }
+          }
+        } catch (schemaTestError) {
+          console.error('Schema test exception:', schemaTestError)
+        }
+        
+        // Fetch categories first
+        try {
+          console.log('Fetching categories...')
+          const categoriesData = await fetchUniqueCategories()
+          console.log('Categories fetched successfully:', categoriesData)
+          setCategories(categoriesData)
+        } catch (categoryError) {
+          console.error('Error fetching categories:', categoryError)
+          // Continue loading even if categories fail
+        }
+        
+        // Then fetch products
+        try {
+          console.log('Fetching products...')
+          const productsData = await fetchProducts({ limit: 12 })
+          console.log('Products fetched successfully:', productsData)
+          setProducts(productsData)
+        } catch (productError) {
+          console.error('Error fetching products:', productError)
+          // Continue loading even if products fail
+        }
       } catch (error) {
         console.error('Error loading data:', error)
       } finally {

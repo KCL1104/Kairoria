@@ -1,11 +1,8 @@
-import { createClient } from '@supabase/supabase-js'
+import { supabase } from './supabase'
 import { Product, Profile, ProductImage } from './data'
 
-// Check if environment variables are available - handle both naming conventions
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_DATABASE_URL
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-export const supabase = supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : null
+// Use the shared Supabase client from the main supabase file
+// This prevents multiple GoTrueClient instances
 
 // Product-related functions
 export async function fetchProducts(options?: {
@@ -16,17 +13,19 @@ export async function fetchProducts(options?: {
 }) {
   if (!supabase) throw new Error('Supabase client not available')
 
+  console.log('Fetching products with options:', options)
+
   let query = supabase
     .from('products')
     .select(`
       *,
       profiles(id, full_name, avatar_url)
     `)
-    .eq('status', 'listed')
+    .eq('is_available', true)
     .order('created_at', { ascending: false })
 
   if (options?.category) {
-    query = query.eq('category_id', options.category)
+    query = query.eq('category', options.category)
   }
 
   if (options?.search) {
@@ -41,9 +40,20 @@ export async function fetchProducts(options?: {
     query = query.range(options.offset, options.offset + (options.limit || 10) - 1)
   }
 
+  console.log('Executing product query...')
   const { data, error } = await query
 
-  if (error) throw error
+  if (error) {
+    console.error('Product query error:', {
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      hint: error.hint
+    })
+    throw error
+  }
+  
+  console.log('Products fetched successfully:', data)
   return data as (Product & {
     profiles: Profile
   })[]
@@ -72,19 +82,32 @@ export async function fetchProductById(id: string) {
 }
 
 export async function fetchUniqueCategories() {
-  if (!supabase) throw new Error('Supabase client not available')
+  try {
+    console.log('Fetching categories from API...')
+    const response = await fetch('/api/categories', {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      cache: 'no-store'
+    })
 
-  const { data, error } = await supabase
-    .from('products')
-    .select('category_id')
-    .eq('status', 'listed')
+    if (!response.ok) {
+      console.error('Categories API response not ok:', response.status, response.statusText)
+      throw new Error(`Failed to fetch categories: ${response.status}`)
+    }
 
-  if (error) throw error
-  
-  // Get unique category IDs
-  const categorySet = new Set(data.map(item => item.category_id))
-  const uniqueCategories = Array.from(categorySet)
-  return uniqueCategories.filter(Boolean) // Remove any null/undefined values
+    const data = await response.json()
+    console.log('Categories API response:', data)
+    
+    // Extract category names from the response
+    const categoryNames = (data.categories || []).map((cat: any) => cat.name)
+    return categoryNames
+  } catch (error) {
+    console.error('Error fetching categories:', error)
+    throw error
+  }
 }
 
 export async function uploadProductImage(

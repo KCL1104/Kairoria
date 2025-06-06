@@ -1,7 +1,7 @@
 "use client"
 
-import { createContext, useContext, useEffect, useState } from 'react'
-import { createClient } from '@supabase/supabase-js'
+import React, { createContext, useContext, useEffect, useState } from 'react'
+import { supabase } from '@/lib/supabase'
 import { User, Session } from '@supabase/supabase-js'
 import { useWallet } from '@solana/wallet-adapter-react'
 import { useRouter } from 'next/navigation'
@@ -30,68 +30,63 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
   const [isLoading, setIsLoading] = useState(true)
   const router = useRouter()
   
-  // Check if environment variables are available - handle both naming conventions
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_DATABASE_URL
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  
-  const hasSupabaseConfig = 
-    typeof window !== 'undefined' && 
-    supabaseUrl && 
-    supabaseAnonKey
+  // Check if Supabase is configured
+  const isSupabaseConfigured = !!supabase
 
-  // Only create Supabase client if we have the required config
-  const supabase = hasSupabaseConfig ? createClient(supabaseUrl!, supabaseAnonKey!) : null
-  const { publicKey, signMessage } = useWallet()
-
+  // Initialize auth state
   useEffect(() => {
     if (!supabase) {
+      console.warn('Supabase client not available')
       setIsLoading(false)
       return
     }
 
-    // Get initial session
-    const getSession = async () => {
+    const getInitialSession = async () => {
       try {
         const { data: { session }, error } = await supabase.auth.getSession()
+        
         if (error) {
           console.error('Error getting session:', error)
         } else {
           setSession(session)
           setUser(session?.user ?? null)
+          
           if (session?.user) {
             await fetchProfile(session.user.id)
           }
         }
       } catch (error) {
-        console.error('Session error:', error)
+        console.error('Session initialization error:', error)
       } finally {
         setIsLoading(false)
       }
     }
 
-    getSession()
+    getInitialSession()
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event: any, session: Session | null) => {
+      async (event, session) => {
+        console.log('Auth state changed:', event, session?.user?.id)
         setSession(session)
         setUser(session?.user ?? null)
+        
         if (session?.user) {
           await fetchProfile(session.user.id)
-        } else {
-          setProfile(null)
         }
+        
         setIsLoading(false)
       }
     )
 
     return () => subscription.unsubscribe()
-  }, [supabase])
+  }, [])
 
   const fetchProfile = async (userId: string) => {
     if (!supabase) return
     
     try {
+      console.log('Fetching profile for userId:', userId)
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -100,7 +95,14 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
       
       if (error && error.code !== 'PGRST116') {
         console.error('Error fetching profile:', error)
+        console.error('Profile error details:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint
+        })
       } else {
+        console.log('Profile fetched successfully:', data)
         setProfile(data)
       }
     } catch (error) {
@@ -297,6 +299,7 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
     }
 
     try {
+      const { publicKey, signMessage } = useWallet()
       if (!publicKey || !signMessage) {
         return { error: new Error('Wallet not connected') }
       }
