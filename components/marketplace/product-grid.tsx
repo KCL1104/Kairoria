@@ -7,7 +7,9 @@ import { Product, ProductImage, Category, Profile, convertFromStorageAmount } fr
 import { Loader2 } from 'lucide-react'
 
 type ProductWithRelations = Product & {
+  categories: { id: number; name: string }
   owner: Profile
+  product_images: ProductImage[]
 }
 
 export function ProductGrid() {
@@ -19,11 +21,13 @@ export function ProductGrid() {
     const loadProducts = async () => {
       try {
         setIsLoading(true)
+        console.log('ProductGrid: Loading products...')
         const data = await fetchProducts({ limit: 50 })
+        console.log('ProductGrid: Products loaded:', data)
         setProducts(data)
         setError(null)
       } catch (err) {
-        console.error('Error fetching products:', err)
+        console.error('ProductGrid: Error fetching products:', err)
         setError('Failed to load products')
       } finally {
         setIsLoading(false)
@@ -78,9 +82,26 @@ export function ProductGrid() {
       </div>
 
       {/* Product grid */}
-      <div className="text-center py-12">
-        <h3 className="text-lg font-semibold mb-2">Product listings coming soon!</h3>
-        <p className="text-muted-foreground">We're updating the product display for the new database schema.</p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        {products.map((product) => {
+          const coverImage = product.product_images?.find(img => img.is_cover) || product.product_images?.[0]
+          
+          return (
+            <ProductCard 
+              key={product.id}
+              id={product.id.toString()}
+              title={product.title}
+              category={product.categories?.name || 'Unknown'}
+              price={convertFromStorageAmount(product.price_per_day)}
+              period="day"
+              location={product.location}
+              rating={product.average_rating || 0}
+              reviews={product.review_count || 0}
+              imageSrc={coverImage?.image_url || "https://images.pexels.com/photos/276517/pexels-photo-276517.jpeg?auto=compress&cs=tinysrgb&w=800"}
+              isAvailable={product.status === 'listed'}
+            />
+          )
+        })}
       </div>
     </div>
   )

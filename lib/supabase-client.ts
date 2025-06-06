@@ -46,7 +46,9 @@ export async function fetchProducts(options?: {
     .from('products')
     .select(`
       *,
-      owner:profiles!owner_id(id, full_name, avatar_url)
+      categories(id, name),
+      owner:profiles!owner_id(id, full_name, avatar_url),
+      product_images(id, image_url, display_order, is_cover)
     `)
     .eq('status', 'listed')
     .order('created_at', { ascending: false })
@@ -82,7 +84,9 @@ export async function fetchProducts(options?: {
   
   console.log('Products fetched successfully:', data)
   return data as (Product & {
+    categories: { id: number; name: string }
     owner: Profile
+    product_images: ProductImage[]
   })[]
 }
 

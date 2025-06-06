@@ -12,6 +12,7 @@ import { ProfileListings } from "@/components/profile/profile-listings"
 import { ProfileRentals } from "@/components/profile/profile-rentals"
 import { ProfileReviews } from "@/components/profile/profile-reviews"
 import { useProtectedRoute } from "@/hooks/use-protected-route"
+import { useAuth } from "@/contexts/SupabaseAuthContext"
 import { useToast } from "@/hooks/use-toast"
 import { supabase } from "@/lib/supabase-client"
 import { useRouter } from "next/navigation"
@@ -31,8 +32,7 @@ interface UserProfile {
 export default function ProfilePage() {
   // Protect this route - redirect to login if not authenticated
   const { isLoading: authLoading } = useProtectedRoute();
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { profile, isProfileLoading } = useAuth();
   const [activeTab, setActiveTab] = useState("listings")
   const { toast } = useToast();
   const router = useRouter();
@@ -58,73 +58,18 @@ export default function ProfilePage() {
     }
   }, [toast]);
 
-  // Fetch user profile data
+  // Check if profile is incomplete and redirect to complete profile
   useEffect(() => {
-    async function fetchProfile() {
-      try {
-        if (!supabase) {
-          toast({
-            variant: "destructive",
-            title: "Configuration Error",
-            description: "Database connection not available"
-          });
-          return;
-        }
-
-        const { data: { user }, error: userError } = await supabase.auth.getUser();
-        
-        if (userError) {
-          console.error('Error getting user:', userError);
-          return;
-        }
-
-        if (!user) {
-          return;
-        }
-
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single();
-
-        if (profileError) {
-          console.error('Error fetching profile:', profileError);
-          toast({
-            variant: "destructive",
-            title: "Error loading profile",
-            description: "Failed to load your profile data"
-          });
-          return;
-        }
-
-        setProfile(profileData);
-
-        // Check if profile is incomplete and redirect to complete profile
-        if (!profileData.phone || !profileData.location || !profileData.is_verified) {
-          router.push('/complete-profile');
-          return;
-        }
-
-      } catch (error) {
-        console.error('Error:', error);
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "An unexpected error occurred"
-        });
-      } finally {
-        setLoading(false);
+    if (!authLoading && !isProfileLoading && profile) {
+      if (!profile.phone || !profile.location || !profile.is_verified) {
+        router.push('/complete-profile');
+        return;
       }
     }
-
-    if (!authLoading) {
-      fetchProfile();
-    }
-  }, [authLoading, toast, router]);
+  }, [authLoading, isProfileLoading, profile, router]);
   
   // Show loading state while checking authentication or fetching data
-  if (authLoading || loading) {
+  if (authLoading || isProfileLoading) {
     return (
       <div className="container max-w-4xl py-10">
         <div className="flex justify-center items-center min-h-[400px]">

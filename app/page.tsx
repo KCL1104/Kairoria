@@ -9,10 +9,12 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ProductCard } from "@/components/marketplace/product-card"
 import { fetchProducts, fetchUniqueCategories, supabase } from '@/lib/supabase-client'
-import { Product, Profile, getCategoryIcon } from '@/lib/data'
+import { Product, Profile, getCategoryIcon, ProductImage, convertFromStorageAmount } from '@/lib/data'
 
 type ProductWithRelations = Product & {
+  categories: { id: number; name: string }
   owner: Profile
+  product_images: ProductImage[]
 }
 
 export default function HomePage() {
@@ -77,10 +79,10 @@ export default function HomePage() {
     loadData()
   }, [])
 
-  // Filter products by category (use empty array since we don't have category field in new schema)
+  // Filter products by category
   const filteredProducts = selectedCategory === 'all' 
     ? products 
-    : []
+    : products.filter(product => product.categories?.name === selectedCategory)
 
   return (
     <div>
@@ -214,16 +216,26 @@ export default function HomePage() {
           
           {/* Product Grid */}
           {!isLoading && filteredProducts.length > 0 && (
-            <div className="text-center py-12">
-              <h3 className="text-lg font-semibold mb-2">
-                Product listings coming soon!
-              </h3>
-              <p className="text-muted-foreground mb-6">
-                We're working on displaying products from the new database schema.
-              </p>
-              <Link href="/marketplace">
-                <Button>Browse Marketplace</Button>
-              </Link>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {filteredProducts.slice(0, 12).map((product) => {
+                const coverImage = product.product_images?.find(img => img.is_cover) || product.product_images?.[0]
+                
+                return (
+                  <ProductCard 
+                    key={product.id}
+                    id={product.id.toString()}
+                    title={product.title}
+                    category={product.categories?.name || 'Unknown'}
+                    price={convertFromStorageAmount(product.price_per_day)}
+                    period="day"
+                    location={product.location}
+                    rating={product.average_rating || 0}
+                    reviews={product.review_count || 0}
+                    imageSrc={coverImage?.image_url || "https://images.pexels.com/photos/276517/pexels-photo-276517.jpeg?auto=compress&cs=tinysrgb&w=800"}
+                    isAvailable={product.status === 'listed'}
+                  />
+                )
+              })}
             </div>
           )}
           

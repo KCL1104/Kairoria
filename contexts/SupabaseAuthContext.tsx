@@ -10,6 +10,7 @@ interface AuthContextType {
   user: User | null
   session: Session | null
   isLoading: boolean
+  isProfileLoading: boolean
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: any }>
   signIn: (email: string, password: string) => Promise<{ error: any }>
   signOut: () => Promise<void>
@@ -28,6 +29,7 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isProfileLoading, setIsProfileLoading] = useState(false)
   const router = useRouter()
   
   // Check if Supabase is configured
@@ -102,6 +104,7 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
   const fetchProfile = async (userId: string) => {
     if (!supabase) return
     
+    setIsProfileLoading(true)
     try {
       console.log('Fetching profile for userId:', userId)
       const { data, error } = await supabase
@@ -130,6 +133,8 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
       }
     } catch (error) {
       console.error('Profile fetch error:', error)
+    } finally {
+      setIsProfileLoading(false)
     }
   }
 
@@ -423,6 +428,7 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
     user,
     session,
     isLoading,
+    isProfileLoading,
     signUp,
     signIn,
     signOut,

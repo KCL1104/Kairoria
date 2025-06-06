@@ -113,28 +113,71 @@ export default function CompleteProfilePage() {
           .eq('id', user.id)
           .single()
 
+        let finalProfileData = null
+        
         if (profileError) {
-          console.error('Error fetching profile:', profileError)
-          toast({
-            variant: "destructive",
-            title: "Error loading profile",
-            description: "Failed to load your profile data"
-          })
-          return
-        }
+          // Check if the error is because the profile doesn't exist
+          if (profileError.code === 'PGRST116') {
+            console.log('Profile does not exist, creating a new one...')
+            
+            // Create a new profile
+            const { data: newProfile, error: createError } = await supabase
+              .from('profiles')
+              .insert({
+                id: user.id,
+                email: user.email,
+                full_name: null,
+                bio: null,
+                avatar_url: null,
+                location: null,
+                phone: null,
+                is_verified: false,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              })
+              .select()
+              .single()
 
-        setProfile(profileData)
+            if (createError) {
+              console.error('Error creating profile:', createError)
+              toast({
+                variant: "destructive",
+                title: "Error creating profile",
+                description: "Failed to create your profile. Please try again."
+              })
+              return
+            }
+
+            console.log('New profile created:', newProfile)
+            finalProfileData = newProfile
+          } else {
+            console.error('Error fetching profile:', profileError)
+            toast({
+              variant: "destructive",
+              title: "Error loading profile",
+              description: "Failed to load your profile data"
+            })
+            return
+          }
+        } else {
+          finalProfileData = profileData
+        }
         
-        // Pre-fill form with existing data
-        if (profileData.full_name) setValue("full_name", profileData.full_name)
-        if (profileData.bio) setValue("bio", profileData.bio)
-        if (profileData.location) setValue("location", profileData.location)
-        if (profileData.phone) setValue("phone", profileData.phone)
-        if (profileData.avatar_url) setValue("avatar_url", profileData.avatar_url)
+        // Set profile state
+        setProfile(finalProfileData)
         
-        if (profileData.is_verified) {
-          setPhoneVerificationStep('verified')
-          setPhoneVerified(true)
+        // Pre-fill form with existing data (works for both existing and newly created profiles)
+        if (finalProfileData) {
+          if (finalProfileData.full_name) setValue("full_name", finalProfileData.full_name)
+          if (finalProfileData.bio) setValue("bio", finalProfileData.bio)
+          if (finalProfileData.location) setValue("location", finalProfileData.location)
+          if (finalProfileData.phone) setValue("phone", finalProfileData.phone)
+          if (finalProfileData.avatar_url) setValue("avatar_url", finalProfileData.avatar_url)
+          
+          if (finalProfileData.is_verified) {
+            setPhoneVerificationStep('verified')
+            setPhoneVerified(true)
+          }
         }
 
       } catch (error) {
@@ -575,7 +618,7 @@ export default function CompleteProfilePage() {
                     className={phoneVerificationStep === 'verified' ? 'bg-green-50' : ''}
                   />
                   {phoneVerificationStep === 'verified' ? (
-                    <Button type="button\" disabled className="bg-green-600">
+                    <Button type="button" disabled className="bg-green-600">
                       <Check className="h-4 w-4 mr-2" />
                       Verified
                     </Button>
