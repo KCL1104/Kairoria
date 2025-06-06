@@ -152,43 +152,6 @@ export default function CompleteProfilePage() {
     loadProfile()
   }, [setValue, toast, router])
 
-  // Force profile completeness check and redirect if already complete
-  useEffect(() => {
-    const checkProfileCompleteness = async () => {
-      if (!user || !supabase || isLoading) return
-      
-      try {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('full_name, location, phone, is_verified')
-          .eq('id', user.id)
-          .single()
-        
-        const { data: { user: authUser } } = await supabase.auth.getUser()
-        const emailVerified = !!authUser?.email_confirmed_at
-        
-        const hasRequiredFields = !!(profile?.full_name?.trim() && profile?.location?.trim() && profile?.phone?.trim())
-        const isComplete = hasRequiredFields && emailVerified && profile?.is_verified
-        
-        console.log('Complete profile page - profile check:', {
-          hasRequiredFields,
-          emailVerified,
-          phoneVerified: profile?.is_verified,
-          isComplete
-        })
-        
-        if (isComplete) {
-          const returnUrl = searchParams.get('return')
-          router.push(returnUrl && returnUrl !== '/complete-profile' ? decodeURI(returnUrl) : '/profile')
-        }
-      } catch (error) {
-        console.error('Error checking profile completeness:', error)
-      }
-    }
-    
-    checkProfileCompleteness()
-  }, [user, supabase, isLoading, router, searchParams])
-
   // Countdown timer for resend cooldown
   useEffect(() => {
     if (resendCooldown > 0) {
@@ -612,7 +575,7 @@ export default function CompleteProfilePage() {
                     className={phoneVerificationStep === 'verified' ? 'bg-green-50' : ''}
                   />
                   {phoneVerificationStep === 'verified' ? (
-                    <Button type="button" disabled className="bg-green-600">
+                    <Button type="button\" disabled className="bg-green-600">
                       <Check className="h-4 w-4 mr-2" />
                       Verified
                     </Button>
@@ -705,4 +668,4 @@ export default function CompleteProfilePage() {
       </Card>
     </div>
   )
-}
+} 
