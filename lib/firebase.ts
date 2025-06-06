@@ -21,7 +21,16 @@ const isFirebaseConfigured = !!(
   firebaseConfig.appId
 );
 
-
+// Debug Firebase configuration
+console.log('Firebase Configuration Check:', {
+  isFirebaseConfigured,
+  hasApiKey: !!firebaseConfig.apiKey,
+  hasAuthDomain: !!firebaseConfig.authDomain,
+  hasProjectId: !!firebaseConfig.projectId,
+  hasStorageBucket: !!firebaseConfig.storageBucket,
+  hasMessagingSenderId: !!firebaseConfig.messagingSenderId,
+  hasAppId: !!firebaseConfig.appId
+});
 
 // Initialize Firebase only if properly configured and not already initialized
 let app: FirebaseApp | null = null;
