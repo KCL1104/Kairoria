@@ -8,9 +8,8 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ProductCard } from "@/components/marketplace/product-card"
-import { fetchProducts, fetchUniqueCategories } from '@/lib/supabase-client'
+import { fetchProducts, fetchUniqueCategories, supabase } from '@/lib/supabase-client'
 import { Product, Profile, getCategoryIcon } from '@/lib/data'
-import { supabase } from '@/lib/supabase'
 
 type ProductWithRelations = Product & {
   profiles: Profile

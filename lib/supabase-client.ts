@@ -1,8 +1,13 @@
-import { supabase } from './supabase'
+import { createClient } from '@supabase/supabase-js'
 import { Product, Profile, ProductImage } from './data'
 
-// Use the shared Supabase client from the main supabase file
-// This prevents multiple GoTrueClient instances
+// Client-side Supabase client (no server imports)
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_DATABASE_URL
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+export const supabase = supabaseUrl && supabaseAnonKey 
+  ? createClient(supabaseUrl, supabaseAnonKey) 
+  : null
 
 // Product-related functions
 export async function fetchProducts(options?: {

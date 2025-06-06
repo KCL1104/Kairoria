@@ -1,43 +1,121 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+
+// Create Supabase client
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 // Handler for POST requests to the registration endpoint
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    // In a real implementation, this would:
-    // 1. Extract user data from request body
-    // 2. Validate input data
-    // 3. Check for existing users with same email/username
-    // 4. Hash password
-    // 5. Store user in database
-    // 6. Send verification email
-    // 7. Create and return session or token
+    const body = await request.json();
+    const { email, password, fullName } = body;
 
-    return NextResponse.json(
-      { 
-        success: true,
-        message: 'Registration successful. Please check your email for verification.',
-        user: {
-          id: 'user-123',
-          name: 'New User',
-          email: 'newuser@example.com'
-        }
+    // Validate required fields
+    if (!email || !password) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          message: 'Email and password are required' 
+        },
+        { status: 400 }
+      );
+    }
+
+    // Validate password strength
+    if (password.length < 6) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          message: 'Password must be at least 6 characters long' 
+        },
+        { status: 400 }
+      );
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          message: 'Please enter a valid email address' 
+        },
+        { status: 400 }
+      );
+    }
+
+    // Attempt to sign up with Supabase
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          full_name: fullName || '',
+        },
       },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-        }
+    });
+
+    if (error) {
+      console.error('Supabase registration error:', error);
+      
+      // Handle specific error cases
+      if (error.message.includes('already registered')) {
+        return NextResponse.json(
+          { 
+            success: false, 
+            message: 'An account with this email already exists' 
+          },
+          { status: 409 }
+        );
       }
-    );
+
+      return NextResponse.json(
+        { 
+          success: false, 
+          message: error.message || 'Registration failed' 
+        },
+        { status: 400 }
+      );
+    }
+
+    if (!data.user) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          message: 'Registration failed - no user created' 
+        },
+        { status: 500 }
+      );
+    }
+
+    // Check if email confirmation is required
+    const needsEmailConfirmation = !data.session && data.user && !data.user.email_confirmed_at;
+
+    return NextResponse.json({
+      success: true,
+      message: needsEmailConfirmation 
+        ? 'Registration successful! Please check your email for a verification link before logging in.'
+        : 'Registration successful! You can now log in.',
+      user: {
+        id: data.user.id,
+        email: data.user.email,
+        name: fullName || '',
+        email_confirmed: !!data.user.email_confirmed_at
+      },
+      needsEmailConfirmation
+    });
+
   } catch (error) {
     console.error('Registration error:', error);
     return NextResponse.json(
-      { success: false, message: 'Error creating account' },
       { 
-        status: 500,
-        headers: {
-          'Content-Type': 'application/json',
-        }
-      }
+        success: false, 
+        message: 'Internal server error' 
+      },
+      { status: 500 }
     );
   }
 }

@@ -13,13 +13,35 @@ import { ProfileRentals } from "@/components/profile/profile-rentals"
 import { ProfileReviews } from "@/components/profile/profile-reviews"
 import { useProtectedRoute } from "@/hooks/use-protected-route"
 import { useToast } from "@/hooks/use-toast"
+import { createClient } from "@supabase/supabase-js"
+import { useRouter } from "next/navigation"
+
+// Create Supabase client
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
+
+interface UserProfile {
+  id: string
+  full_name?: string
+  email: string
+  bio?: string
+  avatar_url?: string
+  location?: string
+  phone?: string
+  is_verified: boolean
+  updated_at: string
+}
 
 export default function ProfilePage() {
   // Protect this route - redirect to login if not authenticated
   const { isLoading: authLoading } = useProtectedRoute();
-  
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("listings")
   const { toast } = useToast();
+  const router = useRouter();
   
   // Check for sign-out success message in URL
   useEffect(() => {
@@ -41,9 +63,65 @@ export default function ProfilePage() {
       }
     }
   }, [toast]);
+
+  // Fetch user profile data
+  useEffect(() => {
+    async function fetchProfile() {
+      try {
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        
+        if (userError) {
+          console.error('Error getting user:', userError);
+          return;
+        }
+
+        if (!user) {
+          return;
+        }
+
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+
+        if (profileError) {
+          console.error('Error fetching profile:', profileError);
+          toast({
+            variant: "destructive",
+            title: "Error loading profile",
+            description: "Failed to load your profile data"
+          });
+          return;
+        }
+
+        setProfile(profileData);
+
+        // Check if profile is incomplete and redirect to complete profile
+        if (!profileData.phone || !profileData.location || !profileData.is_verified) {
+          router.push('/complete-profile');
+          return;
+        }
+
+      } catch (error) {
+        console.error('Error:', error);
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "An unexpected error occurred"
+        });
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    if (!authLoading) {
+      fetchProfile();
+    }
+  }, [authLoading, toast, router]);
   
-  // Show loading state while checking authentication
-  if (authLoading) {
+  // Show loading state while checking authentication or fetching data
+  if (authLoading || loading) {
     return (
       <div className="container py-10">
         <div className="flex justify-center items-center min-h-[500px]">
@@ -55,28 +133,23 @@ export default function ProfilePage() {
       </div>
     );
   }
-  
-  // Mock user data - in a real app, this would come from the authentication provider
-  const user = {
-    id: "user-1",
-    name: "David Chen",
-    location: "San Francisco, CA",
-    bio: "Hi there! I'm a passionate photographer and gadget enthusiast. I love sharing my equipment with others who might need it for special occasions or trying before buying.",
-    memberSince: "August 2022",
-    avatarSrc: "https://images.pexels.com/photos/614810/pexels-photo-614810.jpeg",
-    rating: 4.8,
-    reviews: 42,
-    stats: {
-      listings: 12,
-      rentals: 8,
-      completed: 37,
-    },
-    verified: {
-      email: true,
-      phone: true,
-      id: true,
-      facebook: true,
-    },
+
+  if (!profile) {
+    return (
+      <div className="container py-10">
+        <div className="flex justify-center items-center min-h-[500px]">
+          <div className="text-center">
+            <p className="text-muted-foreground">Profile not found</p>
+            <Button 
+              onClick={() => router.push('/complete-profile')} 
+              className="mt-4"
+            >
+              Complete Your Profile
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
   }
   
   return (
@@ -87,32 +160,40 @@ export default function ProfilePage() {
           <div className="flex flex-col items-center text-center p-6 border rounded-lg">
             <div className="relative mb-4 group">
               <Avatar className="h-32 w-32">
-                <AvatarImage src={user.avatarSrc} alt={user.name} />
-                <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                <AvatarImage src={profile.avatar_url || ""} alt={profile.full_name || "User"} />
+                <AvatarFallback>
+                  {profile.full_name?.charAt(0) || "U"}
+                </AvatarFallback>
               </Avatar>
               <Button 
                 size="icon"
                 variant="secondary"
                 className="absolute bottom-0 right-0 h-8 w-8 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={() => router.push('/complete-profile')}
               >
                 <Edit className="h-4 w-4" />
                 <span className="sr-only">Edit profile picture</span>
               </Button>
             </div>
-            <h1 className="text-2xl font-bold">{user.name}</h1>
-            <div className="flex items-center gap-1 mt-1 justify-center">
-              <MapPin className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">{user.location}</span>
-            </div>
-            <div className="flex items-center gap-1 mt-2 justify-center">
-              <Star className="h-4 w-4 fill-primary text-primary" />
-              <span className="text-sm font-medium">{user.rating}</span>
-              <span className="text-sm text-muted-foreground">({user.reviews} reviews)</span>
-            </div>
+            <h1 className="text-2xl font-bold">{profile.full_name || "User"}</h1>
+            {profile.location && (
+              <div className="flex items-center gap-1 mt-1 justify-center">
+                <MapPin className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">{profile.location}</span>
+              </div>
+            )}
             <p className="text-sm text-muted-foreground mt-4">
-              Member since {user.memberSince}
+              Member since {new Date(profile.updated_at).toLocaleDateString('en-US', { 
+                year: 'numeric', 
+                month: 'long' 
+              })}
             </p>
-            <Button className="w-full mt-4">Edit Profile</Button>
+            <Button 
+              className="w-full mt-4"
+              onClick={() => router.push('/complete-profile')}
+            >
+              Edit Profile
+            </Button>
           </div>
           
           <div className="border rounded-lg p-6">
@@ -120,59 +201,36 @@ export default function ProfilePage() {
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-sm">Email Address</span>
-                <Badge variant={user.verified.email ? "default" : "outline"}>
-                  {user.verified.email ? "Verified" : "Unverified"}
-                </Badge>
+                <Badge variant="default">Verified</Badge>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm">Phone Number</span>
-                <Badge variant={user.verified.phone ? "default" : "outline"}>
-                  {user.verified.phone ? "Verified" : "Unverified"}
-                </Badge>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm">Government ID</span>
-                <Badge variant={user.verified.id ? "default" : "outline"}>
-                  {user.verified.id ? "Verified" : "Unverified"}
-                </Badge>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm">Facebook</span>
-                <Badge variant={user.verified.facebook ? "default" : "outline"}>
-                  {user.verified.facebook ? "Connected" : "Not Connected"}
+                <Badge variant={profile.is_verified ? "default" : "outline"}>
+                  {profile.is_verified ? "Verified" : "Unverified"}
                 </Badge>
               </div>
             </div>
           </div>
           
-          <div className="border rounded-lg p-6">
-            <h2 className="font-semibold mb-4">Bio</h2>
-            <p className="text-sm text-muted-foreground">{user.bio}</p>
-            <Button variant="ghost" size="sm" className="mt-2">
-              <Edit className="h-3 w-3 mr-1" />
-              Edit Bio
-            </Button>
-          </div>
+          {profile.bio && (
+            <div className="border rounded-lg p-6">
+              <h2 className="font-semibold mb-4">Bio</h2>
+              <p className="text-sm text-muted-foreground">{profile.bio}</p>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="mt-2"
+                onClick={() => router.push('/complete-profile')}
+              >
+                <Edit className="h-3 w-3 mr-1" />
+                Edit Bio
+              </Button>
+            </div>
+          )}
         </div>
         
         {/* Main Content */}
         <div className="space-y-6">
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="border rounded-lg p-4 text-center">
-              <h3 className="text-3xl font-bold">{user.stats.listings}</h3>
-              <p className="text-sm text-muted-foreground">Active Listings</p>
-            </div>
-            <div className="border rounded-lg p-4 text-center">
-              <h3 className="text-3xl font-bold">{user.stats.rentals}</h3>
-              <p className="text-sm text-muted-foreground">Current Rentals</p>
-            </div>
-            <div className="border rounded-lg p-4 text-center">
-              <h3 className="text-3xl font-bold">{user.stats.completed}</h3>
-              <p className="text-sm text-muted-foreground">Completed Transactions</p>
-            </div>
-          </div>
-          
           <Tabs defaultValue="listings" onValueChange={setActiveTab}>
             <TabsList className="grid grid-cols-3">
               <TabsTrigger value="listings">My Listings</TabsTrigger>
