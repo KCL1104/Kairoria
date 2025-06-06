@@ -175,6 +175,12 @@ export default function CompleteProfilePage() {
       
       try {
         const { data: { user } } = await supabase.auth.getUser()
+        console.log('Email verification check:', {
+          userEmail: user?.email,
+          emailConfirmedAt: user?.email_confirmed_at,
+          isVerified: !!user?.email_confirmed_at
+        })
+        
         if (user?.email_confirmed_at) {
           setEmailVerified(true)
         }
@@ -188,6 +194,13 @@ export default function CompleteProfilePage() {
     // Listen for auth state changes to update email verification status
     if (supabase) {
       const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+        console.log('Auth state change - email verification:', {
+          event,
+          userEmail: session?.user?.email,
+          emailConfirmedAt: session?.user?.email_confirmed_at,
+          isVerified: !!session?.user?.email_confirmed_at
+        })
+        
         if (session?.user?.email_confirmed_at) {
           setEmailVerified(true)
         }

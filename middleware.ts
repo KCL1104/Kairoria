@@ -102,12 +102,14 @@ export async function middleware(req: NextRequest) {
     if (AUTH_ROUTES.some(route => pathname.startsWith(route)) && isAuthenticated) {
       // Don't redirect the callback route which is used by Supabase auth
       if (!pathname.includes('/auth/callback')) {
+        console.log('Redirecting authenticated user from auth route:', pathname)
         return NextResponse.redirect(new URL('/', req.url))
       }
     }
     
     // Special case for logout page - allow this to process normally as it handles the logout flow
     if (pathname === '/auth/logout') {
+      console.log('Allowing logout page access')
       return res
     }
 
