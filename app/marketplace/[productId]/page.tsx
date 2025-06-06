@@ -17,7 +17,7 @@ import { Product, ProductImage, Category, Profile, convertFromStorageAmount } fr
 
 type ProductWithRelations = Product & {
   categories: { id: number; name: string }
-  profiles: Profile
+  owner: Profile
   product_images: ProductImage[]
 }
 
@@ -87,13 +87,13 @@ export default function ProductPage({ params }: { params: { productId: string } 
   ]
 
   const owner = {
-    name: product.profiles.display_name || product.profiles.username || product.profiles.full_name || "Anonymous",
+    name: product.owner.full_name || "Anonymous",
     rating: 4.8, // Could be calculated from reviews
     reviews: 42, // Could be counted from reviews table
     responseRate: 98,
     responseTime: "within an hour",
     memberSince: "Aug 2022", // Could be derived from created_at
-    avatarSrc: product.profiles.profile_image_url || product.profiles.avatar_url || "https://images.pexels.com/photos/614810/pexels-photo-614810.jpeg?auto=compress&cs=tinysrgb&w=300",
+    avatarSrc: product.owner.avatar_url || "https://images.pexels.com/photos/614810/pexels-photo-614810.jpeg?auto=compress&cs=tinysrgb&w=300",
   }
   
   return (

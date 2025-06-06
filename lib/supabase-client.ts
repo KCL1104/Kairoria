@@ -24,7 +24,7 @@ export async function fetchProducts(options?: {
     .from('products')
     .select(`
       *,
-      profiles(id, full_name, avatar_url)
+      owner:profiles!owner_id(id, full_name, avatar_url)
     `)
     .eq('is_available', true)
     .order('created_at', { ascending: false })
@@ -60,7 +60,7 @@ export async function fetchProducts(options?: {
   
   console.log('Products fetched successfully:', data)
   return data as (Product & {
-    profiles: Profile
+    owner: Profile
   })[]
 }
 
@@ -72,7 +72,7 @@ export async function fetchProductById(id: string) {
     .select(`
       *,
       categories(id, name),
-      profiles(id, full_name, username, display_name, avatar_url, profile_image_url, location, is_verified),
+      owner:profiles!owner_id(id, full_name, avatar_url, location, is_verified),
       product_images(id, image_url, display_order, is_cover)
     `)
     .eq('id', id)
@@ -81,7 +81,7 @@ export async function fetchProductById(id: string) {
   if (error) throw error
   return data as Product & {
     categories: { id: number; name: string }
-    profiles: Profile
+    owner: Profile
     product_images: ProductImage[]
   }
 }
