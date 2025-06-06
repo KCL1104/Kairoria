@@ -30,6 +30,8 @@ const PROFILE_COMPLETION_EXEMPT_ROUTES = [
 // Helper function to check if profile is complete
 async function isProfileComplete(supabase: any, userId: string): Promise<boolean> {
   try {
+    console.log('Checking profile completeness for user:', userId)
+    
     // Check profile data
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
@@ -38,6 +40,7 @@ async function isProfileComplete(supabase: any, userId: string): Promise<boolean
       .single()
     
     if (profileError || !profile) {
+      console.log('Profile not found or error:', profileError)
       return false
     }
     
@@ -45,6 +48,7 @@ async function isProfileComplete(supabase: any, userId: string): Promise<boolean
     const hasRequiredFields = !!(profile.full_name?.trim() && profile.location?.trim() && profile.phone?.trim())
     
     if (!hasRequiredFields) {
+      console.log('Missing required profile fields')
       return false
     }
     
@@ -52,6 +56,7 @@ async function isProfileComplete(supabase: any, userId: string): Promise<boolean
     const { data: { user }, error: userError } = await supabase.auth.getUser()
     
     if (userError || !user) {
+      console.log('User not found or error:', userError)
       return false
     }
     
@@ -80,6 +85,8 @@ export async function middleware(req: NextRequest) {
   const res = NextResponse.next()
   const pathname = req.nextUrl.pathname
   
+  console.log('Middleware executing for:', pathname)
+  
   try {
     // Create Supabase client for auth checks
     const supabase = createMiddlewareClient({ req, res })
@@ -91,10 +98,17 @@ export async function middleware(req: NextRequest) {
     
     const isAuthenticated = !!session
     
+    console.log('Middleware auth check:', {
+      pathname,
+      isAuthenticated,
+      userId: session?.user?.id
+    })
+    
     // Handle protected routes - redirect to login if not authenticated
     if (PROTECTED_ROUTES.some(route => pathname.startsWith(route)) && !isAuthenticated) {
       const redirectUrl = new URL('/auth/login', req.url)
       redirectUrl.searchParams.set('callbackUrl', encodeURI(pathname))
+      console.log('Redirecting to login from protected route:', pathname)
       return NextResponse.redirect(redirectUrl)
     }
     
@@ -127,20 +141,25 @@ export async function middleware(req: NextRequest) {
       })
       
       if (!isExemptRoute) {
-        const profileComplete = await isProfileComplete(supabase, session.user.id)
-        
-        console.log('Profile complete check result:', {
-          pathname,
-          profileComplete,
-          userId: session.user.id
-        })
-        
-        if (!profileComplete) {
-          // Redirect to complete profile page
-          const redirectUrl = new URL('/complete-profile', req.url)
-          redirectUrl.searchParams.set('return', encodeURI(pathname))
-          console.log('Redirecting to complete-profile from:', pathname)
-          return NextResponse.redirect(redirectUrl)
+        try {
+          const profileComplete = await isProfileComplete(supabase, session.user.id)
+          
+          console.log('Profile complete check result:', {
+            pathname,
+            profileComplete,
+            userId: session.user.id
+          })
+          
+          if (!profileComplete) {
+            // Redirect to complete profile page
+            const redirectUrl = new URL('/complete-profile', req.url)
+            redirectUrl.searchParams.set('return', encodeURI(pathname))
+            console.log('Redirecting to complete-profile from:', pathname)
+            return NextResponse.redirect(redirectUrl)
+          }
+        } catch (error) {
+          console.error('Profile completeness check failed:', error)
+          // Continue without redirect to avoid breaking the app
         }
       }
     }
