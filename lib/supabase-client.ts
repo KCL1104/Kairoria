@@ -22,11 +22,11 @@ export async function fetchProducts(options?: {
       *,
       profiles(id, full_name, avatar_url)
     `)
-    .eq('is_available', true)
+    .eq('status', 'listed')
     .order('created_at', { ascending: false })
 
   if (options?.category) {
-    query = query.eq('category', options.category)
+    query = query.eq('category_id', options.category)
   }
 
   if (options?.search) {
@@ -76,13 +76,13 @@ export async function fetchUniqueCategories() {
 
   const { data, error } = await supabase
     .from('products')
-    .select('category')
-    .eq('is_available', true)
+    .select('category_id')
+    .eq('status', 'listed')
 
   if (error) throw error
   
-  // Get unique categories
-  const categorySet = new Set(data.map(item => item.category))
+  // Get unique category IDs
+  const categorySet = new Set(data.map(item => item.category_id))
   const uniqueCategories = Array.from(categorySet)
   return uniqueCategories.filter(Boolean) // Remove any null/undefined values
 }

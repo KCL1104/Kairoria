@@ -10,15 +10,27 @@ export async function POST(request: Request) {
     // 4. Update the user's password in the database
     // 5. Invalidate all existing sessions (optional)
 
-    return NextResponse.json({ 
-      success: true,
-      message: 'Password has been reset successfully' 
-    });
+    return NextResponse.json(
+      { 
+        success: true,
+        message: 'Password has been reset successfully' 
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      }
+    );
   } catch (error) {
     console.error('Password reset error:', error);
     return NextResponse.json(
       { success: false, message: 'Invalid or expired token' },
-      { status: 400 }
+      { 
+        status: 400,
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      }
     );
   }
 }

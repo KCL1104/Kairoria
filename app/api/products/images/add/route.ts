@@ -10,7 +10,12 @@ export async function POST(request: NextRequest) {
     if (!supabaseUrl || !supabaseAnonKey) {
       return NextResponse.json(
         { error: 'Supabase configuration missing' },
-        { status: 500 }
+        { 
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }
       )
     }
 
@@ -19,7 +24,12 @@ export async function POST(request: NextRequest) {
     if (!authHeader) {
       return NextResponse.json(
         { error: 'Authorization header missing' },
-        { status: 401 }
+        { 
+          status: 401,
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }
       )
     }
 
@@ -37,7 +47,12 @@ export async function POST(request: NextRequest) {
     if (userError || !user) {
       return NextResponse.json(
         { error: 'User not authenticated' },
-        { status: 401 }
+        { 
+          status: 401,
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }
       )
     }
 
@@ -49,7 +64,12 @@ export async function POST(request: NextRequest) {
     if (!product_id || !image_url) {
       return NextResponse.json(
         { error: 'Missing required fields: product_id and image_url' },
-        { status: 400 }
+        { 
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }
       )
     }
 
@@ -63,14 +83,24 @@ export async function POST(request: NextRequest) {
     if (productError) {
       return NextResponse.json(
         { error: 'Product not found' },
-        { status: 404 }
+        { 
+          status: 404,
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }
       )
     }
 
     if (product.owner_id !== user.id) {
       return NextResponse.json(
         { error: 'Unauthorized: You can only add images to your own products' },
-        { status: 403 }
+        { 
+          status: 403,
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }
       )
     }
 
@@ -116,7 +146,12 @@ export async function POST(request: NextRequest) {
       console.error('Product image creation error:', insertError)
       return NextResponse.json(
         { error: 'Failed to add product image' },
-        { status: 500 }
+        { 
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }
       )
     }
 
@@ -125,14 +160,24 @@ export async function POST(request: NextRequest) {
         message: 'Product image added successfully',
         image: productImage
       },
-      { status: 201 }
+      { 
+        status: 201,
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      }
     )
 
   } catch (error) {
     console.error('Product image creation error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
-      { status: 500 }
+      { 
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      }
     )
   }
 } 

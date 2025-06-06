@@ -230,14 +230,18 @@ export default function NewListingPage() {
   const onSubmit = async (data: ProductFormData) => {
     if (!user || !supabase) return
 
+    console.log('Form submission started with data:', data)
     setIsSubmitting(true)
     try {
       // Get session for auth token
       const { data: { session } } = await supabase.auth.getSession()
+      console.log('Session check:', { hasSession: !!session, hasAccessToken: !!session?.access_token })
+      
       if (!session) {
         throw new Error('No active session')
       }
 
+      console.log('Making API request to /api/products/create')
       // Create product
       const response = await fetch('/api/products/create', {
         method: 'POST',
@@ -249,7 +253,11 @@ export default function NewListingPage() {
         body: JSON.stringify(data),
       })
 
+      console.log('API response status:', response.status)
+      console.log('API response headers:', Object.fromEntries(response.headers.entries()))
+      
       const result = await response.json()
+      console.log('API response data:', result)
 
       if (!response.ok) {
         throw new Error(result.error || 'Failed to create product')
@@ -264,6 +272,7 @@ export default function NewListingPage() {
       })
 
     } catch (error) {
+      console.error('Form submission error:', error)
       toast({
         variant: 'destructive',
         title: 'Error',

@@ -10,21 +10,33 @@ export async function POST(request: Request) {
     // 4. Handle "remember me" functionality
 
     // Simulate a successful login for now
-    return NextResponse.json({ 
-      success: true,
-      message: 'Login successful',
-      user: {
-        id: 'user-123',
-        name: 'Example User',
-        email: 'user@example.com'
+    return NextResponse.json(
+      { 
+        success: true,
+        message: 'Login successful',
+        user: {
+          id: 'user-123',
+          name: 'Example User',
+          email: 'user@example.com'
+        },
+        token: 'sample-auth-token'
       },
-      token: 'sample-auth-token'
-    });
+      {
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      }
+    );
   } catch (error) {
     console.error('Login error:', error);
     return NextResponse.json(
       { success: false, message: 'Invalid credentials' },
-      { status: 401 }
+      { 
+        status: 401,
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      }
     );
   }
 }

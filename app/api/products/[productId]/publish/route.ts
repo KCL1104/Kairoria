@@ -13,7 +13,12 @@ export async function PUT(
     if (!supabaseUrl || !supabaseAnonKey) {
       return NextResponse.json(
         { error: 'Supabase configuration missing' },
-        { status: 500 }
+        { 
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }
       )
     }
 
@@ -22,7 +27,12 @@ export async function PUT(
     if (!authHeader) {
       return NextResponse.json(
         { error: 'Authorization header missing' },
-        { status: 401 }
+        { 
+          status: 401,
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }
       )
     }
 
@@ -40,7 +50,12 @@ export async function PUT(
     if (userError || !user) {
       return NextResponse.json(
         { error: 'User not authenticated' },
-        { status: 401 }
+        { 
+          status: 401,
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }
       )
     }
 
@@ -49,7 +64,12 @@ export async function PUT(
     if (isNaN(productId)) {
       return NextResponse.json(
         { error: 'Invalid product ID' },
-        { status: 400 }
+        { 
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }
       )
     }
 
@@ -63,14 +83,24 @@ export async function PUT(
     if (productError) {
       return NextResponse.json(
         { error: 'Product not found' },
-        { status: 404 }
+        { 
+          status: 404,
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }
       )
     }
 
     if (product.owner_id !== user.id) {
       return NextResponse.json(
         { error: 'Unauthorized: You can only publish your own products' },
-        { status: 403 }
+        { 
+          status: 403,
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }
       )
     }
 
@@ -84,14 +114,24 @@ export async function PUT(
     if (imagesError) {
       return NextResponse.json(
         { error: 'Error checking product images' },
-        { status: 500 }
+        { 
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }
       )
     }
 
     if (!images || images.length === 0) {
       return NextResponse.json(
         { error: 'Cannot publish product without at least one image' },
-        { status: 400 }
+        { 
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }
       )
     }
 
@@ -110,7 +150,12 @@ export async function PUT(
       console.error('Product update error:', updateError)
       return NextResponse.json(
         { error: 'Failed to publish product' },
-        { status: 500 }
+        { 
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }
       )
     }
 
@@ -119,14 +164,24 @@ export async function PUT(
         message: 'Product published successfully',
         product: updatedProduct
       },
-      { status: 200 }
+      { 
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      }
     )
 
   } catch (error) {
     console.error('Product publish error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
-      { status: 500 }
+      { 
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      }
     )
   }
 } 

@@ -12,20 +12,32 @@ export async function POST(request: Request) {
     // 6. Send verification email
     // 7. Create and return session or token
 
-    return NextResponse.json({ 
-      success: true,
-      message: 'Registration successful. Please check your email for verification.',
-      user: {
-        id: 'user-123',
-        name: 'New User',
-        email: 'newuser@example.com'
+    return NextResponse.json(
+      { 
+        success: true,
+        message: 'Registration successful. Please check your email for verification.',
+        user: {
+          id: 'user-123',
+          name: 'New User',
+          email: 'newuser@example.com'
+        }
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+        }
       }
-    });
+    );
   } catch (error) {
     console.error('Registration error:', error);
     return NextResponse.json(
       { success: false, message: 'Error creating account' },
-      { status: 500 }
+      { 
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      }
     );
   }
 }

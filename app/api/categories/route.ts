@@ -10,7 +10,12 @@ export async function GET(request: NextRequest) {
     if (!supabaseUrl || !supabaseAnonKey) {
       return NextResponse.json(
         { error: 'Supabase configuration missing' },
-        { status: 500 }
+        { 
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }
       )
     }
 
@@ -26,19 +31,36 @@ export async function GET(request: NextRequest) {
       console.error('Categories fetch error:', error)
       return NextResponse.json(
         { error: 'Failed to fetch categories' },
-        { status: 500 }
+        { 
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }
       )
     }
 
-    return NextResponse.json({
-      categories: categories || []
-    })
+    return NextResponse.json(
+      {
+        categories: categories || []
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      }
+    )
 
   } catch (error) {
     console.error('Categories API error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
-      { status: 500 }
+      { 
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      }
     )
   }
 } 

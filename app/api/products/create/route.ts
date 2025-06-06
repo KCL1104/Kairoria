@@ -3,24 +3,44 @@ import { createClient } from '@supabase/supabase-js'
 import { convertToStorageAmount } from '@/lib/data'
 
 export async function POST(request: NextRequest) {
+  console.log('Product create API called')
+  console.log('Request headers:', Object.fromEntries(request.headers.entries()))
+  
   try {
     // Get Supabase URL and keys
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_DATABASE_URL
     const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
     
+    console.log('Environment check:', { 
+      hasSupabaseUrl: !!supabaseUrl, 
+      hasAnonKey: !!supabaseAnonKey 
+    })
+    
     if (!supabaseUrl || !supabaseAnonKey) {
       return NextResponse.json(
         { error: 'Supabase configuration missing' },
-        { status: 500 }
+        { 
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }
       )
     }
 
     // Create Supabase client with the user's session
     const authHeader = request.headers.get('Authorization')
+    console.log('Auth header:', authHeader ? 'Present' : 'Missing')
+    
     if (!authHeader) {
       return NextResponse.json(
         { error: 'Authorization header missing' },
-        { status: 401 }
+        { 
+          status: 401,
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }
       )
     }
 
@@ -36,14 +56,22 @@ export async function POST(request: NextRequest) {
     const { data: { user }, error: userError } = await supabase.auth.getUser()
     
     if (userError || !user) {
+      console.log('User authentication error:', userError)
       return NextResponse.json(
         { error: 'User not authenticated' },
-        { status: 401 }
+        { 
+          status: 401,
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }
       )
     }
 
     // Parse the request body
     const body = await request.json()
+    console.log('Request body:', body)
+    
     const {
       title,
       description,
@@ -62,7 +90,12 @@ export async function POST(request: NextRequest) {
     if (!title || !description || !category_id || !condition || !location || !currency || !price_per_day) {
       return NextResponse.json(
         { error: 'Missing required fields' },
-        { status: 400 }
+        { 
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }
       )
     }
 
@@ -71,7 +104,12 @@ export async function POST(request: NextRequest) {
     if (!validConditions.includes(condition)) {
       return NextResponse.json(
         { error: 'Invalid condition value' },
-        { status: 400 }
+        { 
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }
       )
     }
 
@@ -80,7 +118,12 @@ export async function POST(request: NextRequest) {
     if (!validCurrencies.includes(currency)) {
       return NextResponse.json(
         { error: 'Invalid currency value' },
-        { status: 400 }
+        { 
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }
       )
     }
 
@@ -119,24 +162,40 @@ export async function POST(request: NextRequest) {
       console.error('Product creation error:', insertError)
       return NextResponse.json(
         { error: 'Failed to create product' },
-        { status: 500 }
+        { 
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }
       )
     }
 
+    console.log('Product created successfully:', product.id)
     return NextResponse.json(
       { 
         message: 'Product created successfully',
         product_id: product.id,
         product
       },
-      { status: 201 }
+      { 
+        status: 201,
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      }
     )
 
   } catch (error) {
     console.error('Product creation error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
-      { status: 500 }
+      { 
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      }
     )
   }
 } 
