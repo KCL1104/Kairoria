@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -53,6 +53,7 @@ export default function CompleteProfilePage() {
   const recaptchaRef = useRef<HTMLDivElement>(null)
   const { toast } = useToast()
   const router = useRouter()
+  const searchParams = useSearchParams()
 
   const {
     register,
@@ -303,7 +304,9 @@ export default function CompleteProfilePage() {
         description: "Your profile has been successfully updated"
       })
 
-      router.push('/profile')
+      // Redirect to the return URL if provided, otherwise to profile
+      const returnUrl = searchParams.get('return')
+      router.push(returnUrl && returnUrl !== '/complete-profile' ? decodeURI(returnUrl) : '/profile')
 
     } catch (error) {
       console.error('Error updating profile:', error)

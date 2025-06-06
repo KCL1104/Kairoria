@@ -19,6 +19,35 @@ const AUTH_ROUTES = [
   '/auth/reset-password',
 ]
 
+// Routes that don't require profile completion (even when authenticated)
+const PROFILE_COMPLETION_EXEMPT_ROUTES = [
+  '/complete-profile',
+  '/auth/logout',
+  '/auth/callback',
+  '/api',
+]
+
+// Helper function to check if profile is complete
+async function isProfileComplete(supabase: any, userId: string): Promise<boolean> {
+  try {
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('full_name, location, phone')
+      .eq('id', userId)
+      .single()
+    
+    if (error || !profile) {
+      return false
+    }
+    
+    // Profile is complete if all required fields are present and non-empty
+    return !!(profile.full_name?.trim() && profile.location?.trim() && profile.phone?.trim())
+  } catch (error) {
+    console.error('Error checking profile completeness:', error)
+    return false
+  }
+}
+
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next()
   const pathname = req.nextUrl.pathname
@@ -53,6 +82,25 @@ export async function middleware(req: NextRequest) {
     if (pathname === '/auth/logout') {
       return res
     }
+
+    // Check profile completeness for authenticated users
+    if (isAuthenticated && session?.user) {
+      // Skip profile completion check for exempt routes
+      const isExemptRoute = PROFILE_COMPLETION_EXEMPT_ROUTES.some(route => 
+        pathname.startsWith(route)
+      )
+      
+      if (!isExemptRoute) {
+        const profileComplete = await isProfileComplete(supabase, session.user.id)
+        
+        if (!profileComplete) {
+          // Redirect to complete profile page
+          const redirectUrl = new URL('/complete-profile', req.url)
+          redirectUrl.searchParams.set('return', encodeURI(pathname))
+          return NextResponse.redirect(redirectUrl)
+        }
+      }
+    }
     
     return res
   } catch (error) {
@@ -61,13 +109,10 @@ export async function middleware(req: NextRequest) {
   }
 }
 
-// Configure the middleware to run only on specific paths
+// Configure the middleware to run on most paths to check profile completeness
 export const config = {
   matcher: [
-    // Include all routes starting with these prefixes
-    '/profile/:path*',
-    '/messages/:path*',
-    '/auth/:path*',
-    '/admin/:path*',
+    // Include all routes except static files and API routes that don't need checking
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }
