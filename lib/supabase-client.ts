@@ -48,7 +48,7 @@ export async function fetchProducts(options?: {
       *,
       owner:profiles!owner_id(id, full_name, avatar_url)
     `)
-    .eq('is_available', true)
+    .eq('status', 'listed')
     .order('created_at', { ascending: false })
 
   if (options?.category) {
@@ -170,4 +170,4 @@ export async function fetchUserProducts(userId: string) {
 
   if (error) throw error
   return data as Product[]
-} 
+}
