@@ -49,6 +49,8 @@ export default function CompleteProfilePage() {
   const [recaptchaVerifier, setRecaptchaVerifier] = useState<RecaptchaVerifier | null>(null)
   const [resendCooldown, setResendCooldown] = useState(0)
   const [phoneVerified, setPhoneVerified] = useState(false)
+  const [emailVerified, setEmailVerified] = useState(false)
+  const [emailResendCooldown, setEmailResendCooldown] = useState(0)
 
   const recaptchaRef = useRef<HTMLDivElement>(null)
   const { toast } = useToast()
@@ -157,6 +159,43 @@ export default function CompleteProfilePage() {
       return () => clearTimeout(timer)
     }
   }, [resendCooldown])
+
+  // Countdown timer for email resend cooldown
+  useEffect(() => {
+    if (emailResendCooldown > 0) {
+      const timer = setTimeout(() => setEmailResendCooldown(emailResendCooldown - 1), 1000)
+      return () => clearTimeout(timer)
+    }
+  }, [emailResendCooldown])
+
+  // Check email verification status
+  useEffect(() => {
+    const checkEmailVerification = async () => {
+      if (!supabase) return
+      
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user?.email_confirmed_at) {
+          setEmailVerified(true)
+        }
+      } catch (error) {
+        console.error('Error checking email verification:', error)
+      }
+    }
+
+    checkEmailVerification()
+    
+    // Listen for auth state changes to update email verification status
+    if (supabase) {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+        if (session?.user?.email_confirmed_at) {
+          setEmailVerified(true)
+        }
+      })
+      
+      return () => subscription.unsubscribe()
+    }
+  }, [])
 
   const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -269,8 +308,52 @@ export default function CompleteProfilePage() {
     }
   }
 
+  const sendEmailVerification = async () => {
+    if (!supabase) {
+      toast({
+        variant: "destructive",
+        title: "Email verification unavailable",
+        description: "Database connection not available"
+      })
+      return
+    }
+
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: profile?.email || ''
+      })
+
+      if (error) throw error
+
+      setEmailResendCooldown(60)
+      toast({
+        title: "Verification email sent",
+        description: "Please check your email for the verification link"
+      })
+
+    } catch (error) {
+      console.error('Error sending email verification:', error)
+      toast({
+        variant: "destructive",
+        title: "Email verification failed",
+        description: "Failed to send verification email. Please try again."
+      })
+    }
+  }
+
   const onSubmit = async (data: ProfileForm) => {
-    // Allow submission even without phone verification if Firebase is not configured
+    // Check email verification
+    if (!emailVerified) {
+      toast({
+        variant: "destructive",
+        title: "Email verification required",
+        description: "Please verify your email address before saving your profile"
+      })
+      return
+    }
+
+    // Check phone verification (if Firebase is configured)
     if (!phoneVerified && isFirebaseConfigured) {
       toast({
         variant: "destructive",
@@ -290,7 +373,7 @@ export default function CompleteProfilePage() {
         },
         body: JSON.stringify({
           ...data,
-          is_verified: phoneVerified || !isFirebaseConfigured,
+          is_verified: (phoneVerified || !isFirebaseConfigured) && emailVerified,
         }),
       })
 
@@ -339,7 +422,8 @@ export default function CompleteProfilePage() {
         <CardHeader className="text-center">
           <CardTitle className="text-2xl">Complete Your Profile</CardTitle>
           <CardDescription>
-            Please complete your profile information to get started with Kairoria
+            Welcome to Kairoria! Please complete your profile information to get started with our marketplace.
+            You'll need to verify your email, provide your location and phone number, and verify your phone for security.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -377,6 +461,49 @@ export default function CompleteProfilePage() {
                   onChange={handleAvatarUpload}
                   className="hidden"
                 />
+              </div>
+            </div>
+
+            {/* Email Verification Section */}
+            <div className="space-y-4">
+              <Label>Email Verification *</Label>
+              <div className="p-4 border rounded-lg bg-gray-50">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <span className="font-medium">{profile?.email}</span>
+                    {emailVerified ? (
+                      <div className="flex items-center space-x-1 text-green-600">
+                        <Check className="h-4 w-4" />
+                        <span className="text-sm font-medium">Verified</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center space-x-1 text-orange-600">
+                        <AlertTriangle className="h-4 w-4" />
+                        <span className="text-sm font-medium">Unverified</span>
+                      </div>
+                    )}
+                  </div>
+                  {!emailVerified && (
+                    <Button
+                      type="button"
+                      onClick={sendEmailVerification}
+                      disabled={emailResendCooldown > 0}
+                      variant="outline"
+                      size="sm"
+                    >
+                      <Shield className="h-4 w-4 mr-2" />
+                      {emailResendCooldown > 0 
+                        ? `Resend (${emailResendCooldown}s)`
+                        : 'Send Verification'
+                      }
+                    </Button>
+                  )}
+                </div>
+                {!emailVerified && (
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Please check your email and click the verification link to continue.
+                  </p>
+                )}
               </div>
             </div>
 
@@ -497,10 +624,29 @@ export default function CompleteProfilePage() {
             <Button
               type="submit"
               className="w-full"
-              disabled={submitting || !isValid || (isFirebaseConfigured && !phoneVerified)}
+              disabled={submitting || !isValid || !emailVerified || (isFirebaseConfigured && !phoneVerified)}
             >
               {submitting ? "Saving Profile..." : "Save Profile"}
             </Button>
+            
+            {/* Verification Status Summary */}
+            <div className="text-center space-y-2">
+              <p className="text-sm text-muted-foreground">
+                Verification Required:
+              </p>
+              <div className="flex justify-center space-x-4 text-sm">
+                <div className={`flex items-center space-x-1 ${emailVerified ? 'text-green-600' : 'text-orange-600'}`}>
+                  {emailVerified ? <Check className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
+                  <span>Email</span>
+                </div>
+                <div className={`flex items-center space-x-1 ${
+                  phoneVerified || !isFirebaseConfigured ? 'text-green-600' : 'text-orange-600'
+                }`}>
+                  {phoneVerified || !isFirebaseConfigured ? <Check className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
+                  <span>Phone {!isFirebaseConfigured && '(Disabled)'}</span>
+                </div>
+              </div>
+            </div>
           </form>
 
           {/* Invisible reCAPTCHA container */}

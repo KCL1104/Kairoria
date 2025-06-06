@@ -68,8 +68,9 @@ export default function RegisterPage() {
     try {
       const { error } = await signUp(email, password, name)
       if (!error) {
-        // Registration successful - redirect to check email page or home
-        router.push("/auth/verify")
+        // Registration successful - redirect to complete profile page
+        // The middleware will handle directing users to complete their profile
+        router.push("/complete-profile")
       } else {
         setError(error.message || "Registration failed")
       }
@@ -87,6 +88,7 @@ export default function RegisterPage() {
       if (error) {
         setError(error.message || "Google sign up failed")
       }
+      // If successful, middleware will redirect to complete-profile if needed
     } catch (error) {
       setError("Google sign up failed. Please try again.")
     }
@@ -99,6 +101,7 @@ export default function RegisterPage() {
       if (error) {
         setError(error.message || "Twitter sign up failed")
       }
+      // If successful, middleware will redirect to complete-profile if needed
     } catch (error) {
       setError("Twitter sign up failed. Please try again.")
     }
@@ -114,6 +117,7 @@ export default function RegisterPage() {
     try {
       const { error } = await signInWithSolana()
       if (!error) {
+        // Redirect to home, middleware will handle profile completion check
         router.push("/")
       } else {
         setError(error.message || "Solana wallet sign up failed")
