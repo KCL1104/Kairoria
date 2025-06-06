@@ -67,7 +67,8 @@ export default function LoginPage() {
     try {
       const { error } = await signIn(email, password)
       if (!error) {
-        router.push("/")
+        // Let auth context and middleware handle redirection
+        console.log('Login successful, waiting for auth state update')
       } else {
         setError(error.message || "Invalid email or password")
       }
@@ -85,6 +86,7 @@ export default function LoginPage() {
       if (error) {
         setError(error.message || "Google login failed")
       }
+      // Auth context and middleware will handle redirection
     } catch (error) {
       setError("Google login failed. Please try again.")
     }
@@ -97,6 +99,7 @@ export default function LoginPage() {
       if (error) {
         setError(error.message || "Twitter login failed")
       }
+      // Auth context and middleware will handle redirection
     } catch (error) {
       setError("Twitter login failed. Please try again.")
     }
@@ -112,7 +115,8 @@ export default function LoginPage() {
     try {
       const { error } = await signInWithSolana()
       if (!error) {
-        router.push("/")
+        // Let auth context and middleware handle redirection
+        console.log('Solana login successful, waiting for auth state update')
       } else {
         setError(error.message || "Solana wallet login failed")
       }

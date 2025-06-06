@@ -68,9 +68,9 @@ export default function RegisterPage() {
     try {
       const { error } = await signUp(email, password, name)
       if (!error) {
-        // Registration successful - redirect to complete profile page
-        // The middleware will handle directing users to complete their profile
-        router.push("/complete-profile")
+        // Registration successful - let the auth context and middleware handle redirection
+        // Don't manually redirect here as it can interfere with the auth flow
+        console.log('Registration successful, waiting for auth state update')
       } else {
         setError(error.message || "Registration failed")
       }
@@ -88,7 +88,7 @@ export default function RegisterPage() {
       if (error) {
         setError(error.message || "Google sign up failed")
       }
-      // If successful, middleware will redirect to complete-profile if needed
+      // If successful, auth context and middleware will handle redirection
     } catch (error) {
       setError("Google sign up failed. Please try again.")
     }
@@ -101,7 +101,7 @@ export default function RegisterPage() {
       if (error) {
         setError(error.message || "Twitter sign up failed")
       }
-      // If successful, middleware will redirect to complete-profile if needed
+      // If successful, auth context and middleware will handle redirection
     } catch (error) {
       setError("Twitter sign up failed. Please try again.")
     }
@@ -117,8 +117,8 @@ export default function RegisterPage() {
     try {
       const { error } = await signInWithSolana()
       if (!error) {
-        // Redirect to home, middleware will handle profile completion check
-        router.push("/")
+        // Let auth context and middleware handle redirection
+        console.log('Solana signup successful, waiting for auth state update')
       } else {
         setError(error.message || "Solana wallet sign up failed")
       }
