@@ -126,8 +126,8 @@ export default function ProfilePage() {
   // Show loading state while checking authentication or fetching data
   if (authLoading || loading) {
     return (
-      <div className="container py-10">
-        <div className="flex justify-center items-center min-h-[500px]">
+      <div className="container max-w-4xl py-10">
+        <div className="flex justify-center items-center min-h-[400px]">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
             <p className="mt-2 text-muted-foreground">Loading your profile...</p>
@@ -155,6 +155,15 @@ export default function ProfilePage() {
     );
   }
   
+  // Add debug section for profile completion status
+  console.log('Profile page - current profile data:', {
+    hasFullName: !!profile.full_name?.trim(),
+    hasLocation: !!profile.location?.trim(), 
+    hasPhone: !!profile.phone?.trim(),
+    isVerified: profile.is_verified,
+    email: profile.email
+  })
+
   return (
     <div className="container py-8">
       <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-8">

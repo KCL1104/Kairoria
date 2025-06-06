@@ -30,18 +30,46 @@ const PROFILE_COMPLETION_EXEMPT_ROUTES = [
 // Helper function to check if profile is complete
 async function isProfileComplete(supabase: any, userId: string): Promise<boolean> {
   try {
-    const { data: profile, error } = await supabase
+    // Check profile data
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('full_name, location, phone')
+      .select('full_name, location, phone, is_verified')
       .eq('id', userId)
       .single()
     
-    if (error || !profile) {
+    if (profileError || !profile) {
       return false
     }
     
-    // Profile is complete if all required fields are present and non-empty
-    return !!(profile.full_name?.trim() && profile.location?.trim() && profile.phone?.trim())
+    // Check if basic profile fields are filled
+    const hasRequiredFields = !!(profile.full_name?.trim() && profile.location?.trim() && profile.phone?.trim())
+    
+    if (!hasRequiredFields) {
+      return false
+    }
+    
+    // Check email verification status
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
+    
+    if (userError || !user) {
+      return false
+    }
+    
+    const emailVerified = !!user.email_confirmed_at
+    
+    console.log('Profile completeness check details:', {
+      userId,
+      hasRequiredFields,
+      emailVerified,
+      phoneVerified: profile.is_verified,
+      fullName: !!profile.full_name?.trim(),
+      location: !!profile.location?.trim(),
+      phone: !!profile.phone?.trim()
+    })
+    
+    // Profile is complete if all required fields are present and both email and phone are verified
+    // Note: phone verification is stored in is_verified field (set by complete-profile page)
+    return hasRequiredFields && emailVerified && profile.is_verified
   } catch (error) {
     console.error('Error checking profile completeness:', error)
     return false
@@ -90,13 +118,26 @@ export async function middleware(req: NextRequest) {
         pathname.startsWith(route)
       )
       
+      console.log('Middleware check:', {
+        pathname,
+        isExemptRoute,
+        userId: session.user.id
+      })
+      
       if (!isExemptRoute) {
         const profileComplete = await isProfileComplete(supabase, session.user.id)
+        
+        console.log('Profile complete check result:', {
+          pathname,
+          profileComplete,
+          userId: session.user.id
+        })
         
         if (!profileComplete) {
           // Redirect to complete profile page
           const redirectUrl = new URL('/complete-profile', req.url)
           redirectUrl.searchParams.set('return', encodeURI(pathname))
+          console.log('Redirecting to complete-profile from:', pathname)
           return NextResponse.redirect(redirectUrl)
         }
       }
