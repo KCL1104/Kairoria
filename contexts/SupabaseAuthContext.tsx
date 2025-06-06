@@ -110,7 +110,7 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
         .eq('id', userId)
         .single()
       
-      if (error && error.code !== 'PGRST116') {
+      if (error) {
         console.error('Error fetching profile:', error)
         console.error('Profile error details:', {
           code: error.code,
@@ -118,12 +118,57 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
           details: error.details,
           hint: error.hint
         })
+        
+        // If profile doesn't exist (PGRST116), try to create it
+        if (error.code === 'PGRST116') {
+          console.log('Profile not found, attempting to create one...')
+          await createProfileIfNotExists(userId)
+        }
       } else {
         console.log('Profile fetched successfully:', data)
         setProfile(data)
       }
     } catch (error) {
       console.error('Profile fetch error:', error)
+    }
+  }
+
+  const createProfileIfNotExists = async (userId: string) => {
+    if (!supabase) return
+    
+    try {
+      // Get current user data
+      const { data: { user }, error: userError } = await supabase.auth.getUser()
+      if (userError || !user) {
+        console.error('Error getting user for profile creation:', userError)
+        return
+      }
+
+      console.log('Creating profile for user:', {
+        id: userId,
+        email: user.email,
+        full_name: user.user_metadata?.full_name
+      })
+
+      const { data, error } = await supabase
+        .from('profiles')
+        .insert({
+          id: userId,
+          email: user.email,
+          full_name: user.user_metadata?.full_name || null,
+          avatar_url: user.user_metadata?.avatar_url || null
+        })
+        .select()
+        .single()
+
+      if (error) {
+        console.error('Error creating profile:', error)
+      } else {
+        console.log('Profile created successfully:', data)
+        setProfile(data)
+      }
+    } catch (error) {
+      console.error('Create profile error:', error)
     }
   }
 
