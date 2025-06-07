@@ -13,10 +13,12 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { ConversationList } from "@/components/messages/conversation-list"
 import { ChatMessage } from "@/components/messages/chat-message"
+import { useRouter } from "next/navigation"
 
 export default function MessagesPage() {
   const [messageText, setMessageText] = useState("")
   const [selectedConversation, setSelectedConversation] = useState<string | null>("1")
+  const router = useRouter()
   
   const handleSendMessage = () => {
     if (!messageText.trim()) return
@@ -24,6 +26,26 @@ export default function MessagesPage() {
     // In a real app, this would send the message to the API
     console.log("Sending message:", messageText)
     setMessageText("")
+  }
+
+  const handleViewProfile = () => {
+    // Navigate to user's profile page
+    router.push('/profile') // or dynamic user ID when available
+  }
+
+  const handleBlockUser = () => {
+    // Block user functionality
+    console.log('Block user')
+  }
+
+  const handleReportConversation = () => {
+    // Report conversation functionality
+    console.log('Report conversation')
+  }
+
+  const handleDeleteConversation = () => {
+    // Delete conversation functionality
+    console.log('Delete conversation')
   }
   
   return (
@@ -83,10 +105,10 @@ export default function MessagesPage() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem>View profile</DropdownMenuItem>
-                    <DropdownMenuItem>Block user</DropdownMenuItem>
-                    <DropdownMenuItem>Report conversation</DropdownMenuItem>
-                    <DropdownMenuItem>Delete conversation</DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleViewProfile}>View profile</DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleBlockUser}>Block user</DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleReportConversation}>Report conversation</DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleDeleteConversation}>Delete conversation</DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>

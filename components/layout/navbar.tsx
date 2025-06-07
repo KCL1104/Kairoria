@@ -122,14 +122,15 @@ export default function Navbar() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem asChild>
-                    <Link href="/profile">Profile</Link>
+                  <DropdownMenuItem onClick={() => router.push('/profile')}>
+                    <User className="mr-2 h-4 w-4" />
+                    Profile
                   </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/profile/listings">My Listings</Link>
+                  <DropdownMenuItem onClick={() => router.push('/profile/listings')}>
+                    My Listings
                   </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/profile/listings/new">List New Item</Link>
+                  <DropdownMenuItem onClick={() => router.push('/profile/listings/new')}>
+                    List New Item
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleSignOut}>

@@ -77,7 +77,7 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
         if (session?.user) {
           await fetchProfile(session.user.id)
           
-          // After successful authentication, check if we need to redirect to complete profile
+          // After successful authentication, check if we need to redirect away from auth routes
           if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
             // Small delay to ensure profile is fetched
             setTimeout(() => {
@@ -87,8 +87,8 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
               )
               
               if (isAuthRoute) {
-                // Let middleware handle the redirection
-                window.location.href = '/profile'
+                // Use Next.js router instead of hard redirect, let middleware handle profile completion
+                router.push('/')
               }
             }, 100)
           }

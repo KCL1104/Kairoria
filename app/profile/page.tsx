@@ -58,16 +58,6 @@ export default function ProfilePage() {
     }
   }, [toast]);
 
-  // Check if profile is incomplete and redirect to complete profile
-  useEffect(() => {
-    if (!authLoading && !isProfileLoading && profile) {
-      if (!profile.phone || !profile.location || !profile.is_verified) {
-        router.push('/complete-profile');
-        return;
-      }
-    }
-  }, [authLoading, isProfileLoading, profile, router]);
-  
   // Show loading state while checking authentication or fetching data
   if (authLoading || isProfileLoading) {
     return (
