@@ -38,56 +38,74 @@ export async function fetchProducts(options?: {
   category?: string
   search?: string
 }) {
-  if (!supabase) throw new Error('Supabase client not available')
+  if (!supabase) {
+    console.error('Supabase client not available')
+    return []
+  }
 
   console.log('Fetching products with options:', options)
 
-  let query = supabase
-    .from('products')
-    .select(`
-      *,
-      categories(id, name),
-      owner:profiles!owner_id(id, full_name, avatar_url),
-      product_images(id, image_url, display_order, is_cover)
-    `)
-    .eq('status', 'listed')
-    .order('created_at', { ascending: false })
-
-  if (options?.category) {
-    query = query.eq('category', options.category)
-  }
-
-  if (options?.search) {
-    query = query.or(`title.ilike.%${options.search}%, description.ilike.%${options.search}%`)
-  }
-
-  if (options?.limit) {
-    query = query.limit(options.limit)
-  }
-
-  if (options?.offset) {
-    query = query.range(options.offset, options.offset + (options.limit || 10) - 1)
-  }
-
-  console.log('Executing product query...')
-  const { data, error } = await query
-
-  if (error) {
-    console.error('Product query error:', {
-      code: error.code,
-      message: error.message,
-      details: error.details,
-      hint: error.hint
+  try {
+    // Create a timeout promise
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Product fetch timeout')), 10000)
     })
-    throw error
+
+    let query = supabase
+      .from('products')
+      .select(`
+        *,
+        categories(id, name),
+        owner:profiles!owner_id(id, full_name, avatar_url),
+        product_images(id, image_url, display_order, is_cover)
+      `)
+      .eq('status', 'listed')
+      .order('created_at', { ascending: false })
+
+    if (options?.category) {
+      query = query.eq('category', options.category)
+    }
+
+    if (options?.search) {
+      query = query.or(`title.ilike.%${options.search}%, description.ilike.%${options.search}%`)
+    }
+
+    if (options?.limit) {
+      query = query.limit(options.limit)
+    }
+
+    if (options?.offset) {
+      query = query.range(options.offset, options.offset + (options.limit || 10) - 1)
+    }
+
+    console.log('Executing product query...')
+    
+    // Race between the query and timeout
+    const { data, error } = await Promise.race([
+      query,
+      timeoutPromise
+    ]) as any
+
+    if (error) {
+      console.error('Product query error:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint
+      })
+      return []
+    }
+    
+    console.log('Products fetched successfully:', data)
+    return (data || []) as (Product & {
+      categories: { id: number; name: string }
+      owner: Profile
+      product_images: ProductImage[]
+    })[]
+  } catch (error) {
+    console.error('Unexpected error in fetchProducts:', error)
+    return []
   }
-  
-  console.log('Products fetched successfully:', data)
-  return data as (Product & {
-    categories: { id: number; name: string }
-    owner: Profile
-    product_images: ProductImage[]
-  })[]
 }
 
 export async function fetchProductById(id: string) {
@@ -115,18 +133,26 @@ export async function fetchProductById(id: string) {
 export async function fetchUniqueCategories() {
   try {
     console.log('Fetching categories from API...')
+    
+    // Create abort controller for timeout
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 8000) // 8 second timeout
+    
     const response = await fetch('/api/categories', {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
       },
-      cache: 'no-store'
+      cache: 'no-store',
+      signal: controller.signal
     })
+    
+    clearTimeout(timeoutId)
 
     if (!response.ok) {
       console.error('Categories API response not ok:', response.status, response.statusText)
-      throw new Error(`Failed to fetch categories: ${response.status}`)
+      return [] // Return empty array instead of throwing
     }
 
     const data = await response.json()
@@ -137,7 +163,8 @@ export async function fetchUniqueCategories() {
     return categoryNames
   } catch (error) {
     console.error('Error fetching categories:', error)
-    throw error
+    // Return empty array instead of throwing to prevent loading hang
+    return []
   }
 }
 

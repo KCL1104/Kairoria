@@ -22,13 +22,24 @@ export function ProductGrid() {
       try {
         setIsLoading(true)
         console.log('ProductGrid: Loading products...')
+        
+        // Set timeout to prevent infinite loading
+        const timeout = setTimeout(() => {
+          console.warn('ProductGrid: Loading timeout reached')
+          setIsLoading(false)
+          setError('Loading timeout - please try again')
+        }, 12000) // 12 seconds timeout
+        
         const data = await fetchProducts({ limit: 50 })
+        clearTimeout(timeout)
+        
         console.log('ProductGrid: Products loaded:', data)
-        setProducts(data)
+        setProducts(data || [])
         setError(null)
       } catch (err) {
         console.error('ProductGrid: Error fetching products:', err)
         setError('Failed to load products')
+        setProducts([])
       } finally {
         setIsLoading(false)
       }

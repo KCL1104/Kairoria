@@ -29,46 +29,38 @@ export default function HomePage() {
         setIsLoading(true)
         console.log('Starting data load...')
         
-        // First, let's test what the actual schema is by trying to fetch just one product
-        try {
-          console.log('Testing database schema...')
-          if (supabase) {
-            const { data: schemaTest, error: schemaError } = await supabase
-              .from('products')
-              .select('*')
-              .limit(1)
-            
-            if (schemaError) {
-              console.error('Schema test error:', schemaError)
-            } else {
-              console.log('Schema test successful. Sample product:', schemaTest)
-            }
-          }
-        } catch (schemaTestError) {
-          console.error('Schema test exception:', schemaTestError)
+        // Set a maximum timeout for the entire loading process
+        const loadingTimeout = setTimeout(() => {
+          console.warn('Loading timeout reached, stopping loading state')
+          setIsLoading(false)
+        }, 15000) // 15 seconds max
+        
+        // Fetch categories and products in parallel using Promise.allSettled
+        const [categoriesResult, productsResult] = await Promise.allSettled([
+          fetchUniqueCategories(),
+          fetchProducts({ limit: 12 })
+        ])
+        
+        clearTimeout(loadingTimeout)
+        
+        // Handle categories result
+        if (categoriesResult.status === 'fulfilled') {
+          console.log('Categories fetched successfully:', categoriesResult.value)
+          setCategories(categoriesResult.value)
+        } else {
+          console.error('Categories failed:', categoriesResult.reason)
+          setCategories([])
         }
         
-        // Fetch categories first
-        try {
-          console.log('Fetching categories...')
-          const categoriesData = await fetchUniqueCategories()
-          console.log('Categories fetched successfully:', categoriesData)
-          setCategories(categoriesData)
-        } catch (categoryError) {
-          console.error('Error fetching categories:', categoryError)
-          // Continue loading even if categories fail
+        // Handle products result
+        if (productsResult.status === 'fulfilled') {
+          console.log('Products fetched successfully:', productsResult.value)
+          setProducts(productsResult.value)
+        } else {
+          console.error('Products failed:', productsResult.reason)
+          setProducts([])
         }
         
-        // Then fetch products
-        try {
-          console.log('Fetching products...')
-          const productsData = await fetchProducts({ limit: 12 })
-          console.log('Products fetched successfully:', productsData)
-          setProducts(productsData)
-        } catch (productError) {
-          console.error('Error fetching products:', productError)
-          // Continue loading even if products fail
-        }
       } catch (error) {
         console.error('Error loading data:', error)
       } finally {
