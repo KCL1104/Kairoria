@@ -112,7 +112,16 @@ async function isProfileComplete(supabase: any, userId: string): Promise<boolean
     // 2. Email is verified
     // 3. Phone is verified (only if Firebase is configured)
     const phoneRequirementMet = !isFirebaseConfigured || profile.is_verified
-    return hasRequiredFields && emailVerified && phoneRequirementMet
+    const isComplete = hasRequiredFields && emailVerified && phoneRequirementMet
+    
+    console.log('Profile completion check result:', {
+      hasRequiredFields,
+      emailVerified,
+      phoneRequirementMet,
+      isComplete
+    })
+    
+    return isComplete
   } catch (error) {
     console.error('Error checking profile completeness:', error)
     return false
