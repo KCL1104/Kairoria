@@ -3,8 +3,8 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-  // This ensures that Next.js correctly handles routes in static exports
-  trailingSlash: true,
+  // Removed trailingSlash: true to enable middleware functionality
+  // trailingSlash: true,
   eslint: {
     // This allows production builds to successfully complete even with ESLint errors
     ignoreDuringBuilds: true,
