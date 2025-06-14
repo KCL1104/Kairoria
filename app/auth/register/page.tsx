@@ -68,9 +68,12 @@ export default function RegisterPage() {
     try {
       const { error } = await signUp(email, password, name)
       if (!error) {
-        // Registration successful - let the auth context and middleware handle redirection
-        // Don't manually redirect here as it can interfere with the auth flow
-        console.log('Registration successful, waiting for auth state update')
+        // Registration successful - redirect to email verification page
+        const params = new URLSearchParams({
+          email: email,
+          name: name
+        })
+        router.push(`/auth/verify-email?${params.toString()}`)
       } else {
         setError(error.message || "Registration failed")
       }

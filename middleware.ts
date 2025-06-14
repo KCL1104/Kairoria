@@ -54,7 +54,11 @@ async function isProfileComplete(supabase: any, userId: string): Promise<boolean
     const hasRequiredFields = !!(profile.full_name?.trim() && profile.location?.trim() && profile.phone?.trim())
     
     if (!hasRequiredFields) {
-      console.log('Missing required profile fields')
+      console.log('Missing required profile fields:', {
+        full_name: !!profile.full_name?.trim(),
+        location: !!profile.location?.trim(),
+        phone: !!profile.phone?.trim()
+      })
       return false
     }
     

@@ -18,6 +18,7 @@ interface AuthContextType {
   signInWithTwitter: () => Promise<{ error: any }>
   signInWithSolana: () => Promise<{ error: any }>
   resetPassword: (email: string) => Promise<{ error: any }>
+  sendEmailConfirmation: (email: string) => Promise<{ error: any }>
   isAuthenticated: boolean
   profile: any
 }
@@ -87,10 +88,11 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
               )
               
               if (isAuthRoute) {
-                // Use Next.js router instead of hard redirect, let middleware handle profile completion
-                router.push('/')
+                // Let middleware handle the redirect logic including profile completion check
+                // Force a page refresh to trigger middleware
+                window.location.href = '/'
               }
-            }, 100)
+            }, 500) // Increased delay to ensure profile fetch completes
           }
         }
         
@@ -195,6 +197,7 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
     }
 
     try {
+      // Create user without sending confirmation email immediately
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -202,9 +205,10 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
           data: {
             full_name: fullName,
           },
+          emailRedirectTo: `${window.location.origin}/auth/callback`
         },
       })
-      return { error }
+      return { data, error }
     } catch (error) {
       return { error }
     }
@@ -436,6 +440,28 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
     }
   }
 
+  const sendEmailConfirmation = async (email: string) => {
+    try {
+      const response = await fetch('/api/auth/send-confirmation', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        return { error: new Error(data.message || 'Failed to send confirmation email') }
+      }
+
+      return { error: null }
+    } catch (error) {
+      return { error: error instanceof Error ? error : new Error('Failed to send confirmation email') }
+    }
+  }
+
   const value = {
     user,
     session,
@@ -448,6 +474,7 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
     signInWithTwitter,
     signInWithSolana,
     resetPassword,
+    sendEmailConfirmation,
     isAuthenticated: !!user,
     profile,
   }
