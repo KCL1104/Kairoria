@@ -11,6 +11,16 @@ const PROTECTED_ROUTES = [
   '/admin',
 ]
 
+// List of routes that require complete signup (profile completion)
+const COMPLETE_SIGNUP_REQUIRED_ROUTES = [
+  '/profile',
+  '/profile/listings',
+  '/profile/rentals', 
+  '/profile/listings/new',
+  '/marketplace/', // for item viewing and renting (will match /marketplace/123 etc.)
+  '/messages', // for communication about rentals
+]
+
 // List of authentication routes that should redirect to home if already logged in
 const AUTH_ROUTES = [
   '/auth/login',
@@ -22,6 +32,7 @@ const AUTH_ROUTES = [
 // Routes that don't require profile completion (even when authenticated)
 const PROFILE_COMPLETION_EXEMPT_ROUTES = [
   '/complete-profile',
+  '/incomplete-signup',
   '/auth/logout',
   '/auth/callback',
   '/api',
@@ -178,11 +189,28 @@ export async function middleware(req: NextRequest) {
           })
           
           if (!profileComplete) {
-            // Redirect to complete profile page
-            const redirectUrl = new URL('/complete-profile', req.url)
-            redirectUrl.searchParams.set('return', encodeURI(pathname))
-            console.log('Redirecting to complete-profile from:', pathname)
-            return NextResponse.redirect(redirectUrl)
+            // Check if this is a route that requires complete signup
+            const requiresCompleteSignup = COMPLETE_SIGNUP_REQUIRED_ROUTES.some(route => {
+              // Special handling for marketplace product pages
+              if (route === '/marketplace/' && pathname.startsWith('/marketplace/') && pathname !== '/marketplace') {
+                return true
+              }
+              return pathname.startsWith(route)
+            })
+            
+            if (requiresCompleteSignup) {
+              // Redirect to incomplete signup page for routes that require complete signup
+              const redirectUrl = new URL('/incomplete-signup', req.url)
+              redirectUrl.searchParams.set('return', encodeURI(pathname))
+              console.log('Redirecting to incomplete-signup from:', pathname)
+              return NextResponse.redirect(redirectUrl)
+            } else {
+              // For other routes, redirect directly to complete profile
+              const redirectUrl = new URL('/complete-profile', req.url)
+              redirectUrl.searchParams.set('return', encodeURI(pathname))
+              console.log('Redirecting to complete-profile from:', pathname)
+              return NextResponse.redirect(redirectUrl)
+            }
           }
         } catch (error) {
           console.error('Profile completeness check failed:', error)
