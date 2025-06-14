@@ -31,20 +31,14 @@ const requiresCompleteProfile = [
   '/profile/settings'
 ]
 
-// Helper function to check if user has required profile fields
-function hasRequiredFields(profile: any): boolean {
+// Helper function to check if profile has all required fields
+function hasRequiredProfileFields(profile: any): boolean {
   if (!profile) return false
   
   const requiredFields = [
-    'first_name',
-    'last_name',
-    'phone_number',
-    'date_of_birth',
-    'address_line_1',
-    'city',
-    'state',
-    'postal_code',
-    'country'
+    'full_name',
+    'phone',
+    'location'
   ]
   
   return requiredFields.every(field => {
@@ -55,7 +49,7 @@ function hasRequiredFields(profile: any): boolean {
 
 // Helper function to check if phone number is verified
 function isPhoneVerified(profile: any): boolean {
-  return profile?.phone_verified === true
+  return profile?.is_verified === true
 }
 
 // Helper function to check if email is verified
@@ -73,7 +67,7 @@ function isProfileComplete(user: any, profile: any): boolean {
   })
   console.log('Profile:', profile)
   
-  const hasRequiredFieldsResult = hasRequiredFields(profile)
+  const hasRequiredFieldsResult = hasRequiredProfileFields(profile)
   const emailVerified = isEmailVerified(user)
   const phoneRequirementMet = isPhoneVerified(profile)
   
