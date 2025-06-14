@@ -20,14 +20,15 @@ const authRoutes = [
 ]
 
 const requiresCompleteSignup = [
-  '/profile/listings/new',
-  '/profile/listings/edit',
   '/messages',
   '/dashboard'
 ]
 
 const requiresCompleteProfile = [
+  '/profile',
   '/profile/listings',
+  '/profile/listings/new',
+  '/profile/listings/edit',
   '/profile/settings'
 ]
 
