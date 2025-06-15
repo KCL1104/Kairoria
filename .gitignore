@@ -39,3 +39,5 @@ next-env.d.ts
 /.cursor
 /.bolt
 /.trae
+# Local Netlify folder
+.netlify

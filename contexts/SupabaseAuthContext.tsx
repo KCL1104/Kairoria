@@ -96,6 +96,7 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
           }
         }
         
+        // Only set loading to false after profile processing is complete
         setIsLoading(false)
       }
     )
@@ -128,6 +129,9 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
         if (error.code === 'PGRST116') {
           console.log('Profile not found, attempting to create one...')
           await createProfileIfNotExists(userId)
+        } else {
+          // For other errors, set profile to null to prevent infinite loading
+          setProfile(null)
         }
       } else {
         console.log('Profile fetched successfully:', data)
@@ -135,19 +139,25 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
       }
     } catch (error) {
       console.error('Profile fetch error:', error)
+      // Set profile to null on catch to prevent infinite loading
+      setProfile(null)
     } finally {
       setIsProfileLoading(false)
     }
   }
 
   const createProfileIfNotExists = async (userId: string) => {
-    if (!supabase) return
+    if (!supabase) {
+      setProfile(null)
+      return
+    }
     
     try {
       // Get current user data
       const { data: { user }, error: userError } = await supabase.auth.getUser()
       if (userError || !user) {
         console.error('Error getting user for profile creation:', userError)
+        setProfile(null)
         return
       }
 
@@ -183,12 +193,16 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
 
       if (error) {
         console.error('Error creating profile:', error)
+        // Set profile to null if creation fails to prevent infinite loading
+        setProfile(null)
       } else {
         console.log('Profile created successfully:', data)
         setProfile(data)
       }
     } catch (error) {
       console.error('Create profile error:', error)
+      // Set profile to null on catch to prevent infinite loading
+      setProfile(null)
     }
   }
 
