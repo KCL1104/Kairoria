@@ -1,0 +1,129 @@
+/* Custom styles for react-phone-number-input to match the design system */
+.phone-input .PhoneInputInput {
+  display: flex;
+  height: 2.5rem;
+  width: 100%;
+  border-radius: 0.375rem;
+  border: 1px solid hsl(var(--border));
+  background-color: hsl(var(--background));
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  outline: none;
+  transition: all 0.2s;
+}
+
+.phone-input .PhoneInputInput:focus {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+.phone-input .PhoneInputInput:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.phone-input .PhoneInputInput::placeholder {
+  color: hsl(var(--muted-foreground));
+}
+
+.phone-input-verified .PhoneInputInput {
+  display: flex;
+  height: 2.5rem;
+  width: 100%;
+  border-radius: 0.375rem;
+  border: 1px solid hsl(var(--border));
+  background-color: rgb(240 253 244);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  outline: none;
+  transition: all 0.2s;
+}
+
+.phone-input-verified .PhoneInputInput:focus {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+.phone-input-verified .PhoneInputInput:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.phone-input-verified .PhoneInputInput::placeholder {
+  color: hsl(var(--muted-foreground));
+}
+
+.phone-input .PhoneInputCountrySelect {
+  display: flex;
+  height: 2.5rem;
+  align-items: center;
+  justify-content: space-between;
+  border-radius: 0.375rem;
+  border: 1px solid hsl(var(--border));
+  background-color: hsl(var(--background));
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  outline: none;
+  transition: all 0.2s;
+}
+
+.phone-input .PhoneInputCountrySelect:focus {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+.phone-input .PhoneInputCountrySelect:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.phone-input .PhoneInputCountrySelect::placeholder {
+  color: hsl(var(--muted-foreground));
+}
+
+.phone-input-verified .PhoneInputCountrySelect {
+  display: flex;
+  height: 2.5rem;
+  align-items: center;
+  justify-content: space-between;
+  border-radius: 0.375rem;
+  border: 1px solid hsl(var(--border));
+  background-color: rgb(240 253 244);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  outline: none;
+  transition: all 0.2s;
+}
+
+.phone-input-verified .PhoneInputCountrySelect:focus {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+.phone-input-verified .PhoneInputCountrySelect:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.phone-input-verified .PhoneInputCountrySelect::placeholder {
+  color: hsl(var(--muted-foreground));
+}
+
+.phone-input .PhoneInputCountrySelectArrow {
+  height: 1rem;
+  width: 1rem;
+  opacity: 0.5;
+}
+
+.phone-input .PhoneInputCountryIcon {
+  margin-right: 0.5rem;
+}
+
+.phone-input .PhoneInputCountryIconImg {
+  height: 1rem;
+  width: 1.5rem;
+}

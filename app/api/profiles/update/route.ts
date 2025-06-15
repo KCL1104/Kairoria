@@ -41,7 +41,8 @@ export async function PATCH(request: NextRequest) {
       location,
       phone,
       avatar_url,
-      is_verified = false
+      is_email_verified = false,
+      is_phone_verified = false
     } = body
 
     // Validate required fields
@@ -61,7 +62,8 @@ export async function PATCH(request: NextRequest) {
         location,
         phone,
         avatar_url: avatar_url || null,
-        is_verified,
+        is_email_verified,
+        is_phone_verified,
         updated_at: new Date().toISOString()
       })
       .eq('id', user.id)
@@ -88,4 +90,4 @@ export async function PATCH(request: NextRequest) {
       { status: 500 }
     )
   }
-} 
+}

@@ -30,7 +30,12 @@ CREATE TABLE IF NOT EXISTS profiles (
     phone TEXT,
     bio TEXT,
     location TEXT,
-    is_verified BOOLEAN DEFAULT FALSE,
+    is_email_verified BOOLEAN DEFAULT FALSE,
+    is_phone_verified BOOLEAN DEFAULT FALSE,
+    email_verification_code TEXT,
+    phone_verification_code TEXT,
+    email_verification_expires_at TIMESTAMP WITH TIME ZONE,
+    phone_verification_expires_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
@@ -453,4 +458,4 @@ CREATE TRIGGER ensure_single_cover_image_trigger
     FOR EACH ROW EXECUTE FUNCTION ensure_single_cover_image();
 
 -- Commit transaction
-COMMIT; 
+COMMIT;
