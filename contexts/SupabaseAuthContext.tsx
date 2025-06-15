@@ -105,7 +105,10 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
   }, [])
 
   const fetchProfile = async (userId: string) => {
-    if (!supabase) return
+    if (!supabase) {
+      console.log('Supabase client not available for profile fetch')
+      return
+    }
     
     setIsProfileLoading(true)
     try {
@@ -115,6 +118,8 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
         .select('*')
         .eq('id', userId)
         .single()
+      
+      console.log('Profile fetch response:', { data, error })
       
       if (error) {
         console.error('Error fetching profile:', error)
