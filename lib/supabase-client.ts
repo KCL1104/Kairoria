@@ -116,7 +116,7 @@ export async function fetchProductById(id: string) {
     .select(`
       *,
       categories(id, name),
-      owner:profiles!owner_id(id, full_name, avatar_url, location, is_verified),
+      owner:profiles!owner_id(id, full_name, avatar_url, location, is_email_verified, is_phone_verified),
       product_images(id, image_url, display_order, is_cover)
     `)
     .eq('id', id)

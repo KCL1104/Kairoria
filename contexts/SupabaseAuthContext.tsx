@@ -170,7 +170,8 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
           email: user.email,
           full_name: user.user_metadata?.full_name || null,
           avatar_url: user.user_metadata?.avatar_url || null,
-          is_verified: !isFirebaseConfigured && !!user.email_confirmed_at, // Auto-verify if Firebase not configured and email is verified
+          is_email_verified: !isFirebaseConfigured && !!user.email_confirmed_at, // Auto-verify if Firebase not configured and email is verified
+          is_phone_verified: false, // Phone verification will be handled separately
           bio: null,
           location: null,
           phone: null,

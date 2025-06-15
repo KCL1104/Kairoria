@@ -25,7 +25,8 @@ interface UserProfile {
   avatar_url?: string
   location?: string
   phone?: string
-  is_verified: boolean
+  is_email_verified: boolean
+  is_phone_verified: boolean
   updated_at: string
 }
 
@@ -95,7 +96,7 @@ export default function ProfilePage() {
     hasFullName: !!profile.full_name?.trim(),
     hasLocation: !!profile.location?.trim(), 
     hasPhone: !!profile.phone?.trim(),
-    isVerified: profile.is_verified,
+    isVerified: profile.is_email_verified && profile.is_phone_verified,
     email: profile.email
   })
 
@@ -152,8 +153,8 @@ export default function ProfilePage() {
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm">Phone Number</span>
-                <Badge variant={profile.is_verified ? "default" : "outline"}>
-                  {profile.is_verified ? "Verified" : "Unverified"}
+                <Badge variant={(profile.is_email_verified && profile.is_phone_verified) ? "default" : "outline"}>
+                  {(profile.is_email_verified && profile.is_phone_verified) ? "Verified" : "Unverified"}
                 </Badge>
               </div>
             </div>

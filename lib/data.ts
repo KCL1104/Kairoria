@@ -49,7 +49,8 @@ export interface Profile {
   phone?: string
   bio?: string
   location?: string
-  is_verified: boolean
+  is_email_verified: boolean
+  is_phone_verified: boolean
   created_at: string
   updated_at: string
 }
