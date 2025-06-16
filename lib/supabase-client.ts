@@ -29,7 +29,36 @@ export const supabase = supabaseUrl && supabaseAnonKey
         // Set session to persist for 1 month (30 days)
         persistSession: true,
         autoRefreshToken: true,
-        detectSessionInUrl: true
+        detectSessionInUrl: true,
+        storage: typeof window !== 'undefined' ? {
+          getItem: (key: string) => {
+            // Try to get from cookies first, then localStorage
+            if (typeof document !== 'undefined') {
+              const cookies = document.cookie.split(';')
+              const cookie = cookies.find(c => c.trim().startsWith(`${key}=`))
+              if (cookie) {
+                return cookie.split('=')[1]
+              }
+            }
+            return localStorage.getItem(key)
+          },
+          setItem: (key: string, value: string) => {
+            // Set both in localStorage and cookies
+            localStorage.setItem(key, value)
+            if (typeof document !== 'undefined') {
+              // Set cookie with proper attributes
+              const maxAge = 30 * 24 * 60 * 60 // 30 days in seconds
+              document.cookie = `${key}=${value}; path=/; max-age=${maxAge}; SameSite=Lax; Secure=${window.location.protocol === 'https:'}`
+            }
+          },
+          removeItem: (key: string) => {
+            localStorage.removeItem(key)
+            if (typeof document !== 'undefined') {
+              // Remove cookie by setting it to expire
+              document.cookie = `${key}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`
+            }
+          }
+        } : undefined
       }
     }) 
   : null

@@ -6,7 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test": "playwright test",
+    "test:ui": "playwright test --ui",
+    "test:auth": "playwright test user-auth-detection",
+    "test:headed": "playwright test --headed"
   },
   "dependencies": {
     "@googlemaps/js-api-loader": "^1.16.8",
