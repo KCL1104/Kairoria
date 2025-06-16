@@ -88,9 +88,14 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
               )
               
               if (isAuthRoute) {
+                // Check for callbackUrl in the current URL
+                const urlParams = new URLSearchParams(window.location.search)
+                const callbackUrl = urlParams.get('callbackUrl')
+                
+                // If there's a callbackUrl, redirect to it; otherwise go to home
                 // Let middleware handle the redirect logic including profile completion check
-                // Force a page refresh to trigger middleware
-                window.location.href = '/'
+                const redirectUrl = callbackUrl || '/'
+                window.location.href = redirectUrl
               }
             }, 500) // Increased delay to ensure profile fetch completes
           }

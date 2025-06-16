@@ -9,24 +9,29 @@ async function updateSessionAndGetUser(request: NextRequest) {
     }, 
   }) 
 
-  const supabase = createServerClient( 
-    process.env.NEXT_PUBLIC_SUPABASE_URL!, 
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, 
-    { 
-      cookies: { 
-        get(name: string) { 
-          return request.cookies.get(name)?.value 
-        }, 
-        set(name: string, value: string, options: any) { 
-          request.cookies.set({ name, value, ...options }) 
-          response.cookies.set({ name, value, ...options }) 
-        }, 
-        remove(name: string, options: any) { 
-          request.cookies.set({ name, value: '', ...options }) 
-          response.cookies.set({ name, value: '', ...options }) 
-        }, 
-      }, 
-    } 
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll()
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) => {
+            request.cookies.set(name, value)
+          })
+          response = NextResponse.next({
+            request: {
+              headers: request.headers,
+            },
+          })
+          cookiesToSet.forEach(({ name, value, options }) => {
+            response.cookies.set(name, value, options)
+          })
+        },
+      },
+    }
   ) 
 
   const { data: { user } } = await supabase.auth.getUser() 
@@ -46,7 +51,7 @@ function isFullyRegistered(profile: any): boolean {
 } 
 
 // 路由定義 
-const publicRoutes = ['/', '/about', '/contact'] // 公開路由 
+const publicRoutes = ['/', '/about', '/contact', '/marketplace'] // 公開路由 
 const authRoutes = ['/auth/login', '/auth/signup', '/auth/reset-password'] 
 const completeSignupRoute = '/complete-signup' 
 const protectedRoutes = ['/profile', '/messages', '/dashboard', '/settings', '/admin'] 
