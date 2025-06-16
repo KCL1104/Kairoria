@@ -18,7 +18,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        // Set session to persist for 1 month (30 days)
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true
+      }
+    });
     const body = await request.json();
     const { email, password, fullName } = body;
 

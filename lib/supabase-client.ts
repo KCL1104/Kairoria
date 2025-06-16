@@ -24,7 +24,14 @@ if (!supabaseAnonKey) {
 }
 
 export const supabase = supabaseUrl && supabaseAnonKey 
-  ? createClient(supabaseUrl, supabaseAnonKey) 
+  ? createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        // Set session to persist for 1 month (30 days)
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true
+      }
+    }) 
   : null
 
 if (!supabase && typeof window !== 'undefined') {

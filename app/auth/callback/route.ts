@@ -35,7 +35,14 @@ export async function GET(request: Request) {
         return NextResponse.redirect(`${requestUrl.origin}/auth/login?error=config_error`)
       }
 
-      const supabase = createClient(supabaseUrl, supabaseAnonKey)
+      const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      // Set session to persist for 1 month (30 days)
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true
+    }
+  })
       const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
       
       if (exchangeError) {
@@ -54,4 +61,4 @@ export async function GET(request: Request) {
 
   // No code parameter, redirect to login
   return NextResponse.redirect(`${requestUrl.origin}/auth/login`)
-} 
+}

@@ -19,7 +19,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        // Set session to persist for 1 month (30 days)
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true
+      }
+    });
     const body = await request.json();
     const { email, password } = body;
 
@@ -97,13 +104,13 @@ export async function POST(request: NextRequest) {
     // Set session cookies for server-side authentication
     const cookieStore = cookies();
     
-    // Set access token cookie
+    // Set access token cookie (1 month = 30 days * 24 hours * 60 minutes * 60 seconds)
     response.cookies.set('sb-access-token', data.session.access_token, {
       path: '/',
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: data.session.expires_in || 3600
+      maxAge: 60 * 60 * 24 * 30 // 30 days (1 month)
     });
 
     // Set refresh token cookie
