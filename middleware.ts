@@ -1,102 +1,14 @@
-import { type NextRequest } from 'next/server'
-import { updateSession } from '@/utils/supabase/middleware'
+import { type NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
-import { NextResponse } from 'next/server'
 
-// Define route patterns
-const protectedRoutes = [
-  '/profile',
-  '/messages',
-  '/dashboard',
-  '/settings',
-  '/admin'
-]
+// Helper function: Update session and get user based on the latest Supabase SSR pattern
+async function updateSessionAndGetUser(request: NextRequest) {
+  let response = NextResponse.next({
+    request: {
+      headers: request.headers,
+    },
+  })
 
-const authRoutes = [
-  '/auth/login',
-  '/auth/signup',
-  '/auth/callback',
-  '/auth/reset-password'
-]
-
-const profileCompletionRoutes = [
-  '/complete-profile',
-  '/complete-signup',
-  '/incomplete-signup'
-]
-
-// Routes that require complete signup (verification)
-const requiresCompleteSignup = [
-  '/messages',
-  '/dashboard'
-]
-
-// Routes that require complete profile (full profile data)
-const requiresCompleteProfile = [
-  '/profile',
-  '/profile/listings',
-  '/profile/listings/new',
-  '/profile/listings/edit',
-  '/profile/settings'
-]
-
-// Routes that need complete signup but should redirect to incomplete-signup first
-const needsCompleteSignupRoutes = [
-  '/messages',
-  '/dashboard',
-  '/profile',
-  '/profile/listings',
-  '/profile/listings/new',
-  '/profile/listings/edit',
-  '/profile/settings'
-]
-
-// Helper function to check if user has required profile fields
-function hasRequiredProfileFields(profile: any): boolean {
-  return !!(profile?.full_name && profile?.phone && profile?.location)
-}
-
-// Helper function to check if phone is verified
-function isPhoneVerified(profile: any): boolean {
-  return profile?.is_phone_verified === true
-}
-
-// Helper function to check if email is verified
-function isEmailVerified(profile: any): boolean {
-  return profile?.is_email_verified === true
-}
-
-// Helper function to check if profile is complete (both email and phone verified)
-function isProfileComplete(profile: any): boolean {
-  return hasRequiredProfileFields(profile) && 
-         isPhoneVerified(profile) && 
-         isEmailVerified(profile)
-}
-
-// Helper function to check if signup is complete (only basic fields required)
-function isSignupComplete(profile: any): boolean {
-  return hasRequiredProfileFields(profile)
-}
-
-export async function middleware(request: NextRequest) {
-  // First, update the session using the new SSR approach
-  let response = await updateSession(request)
-  
-  // Get the current path
-  const path = request.nextUrl.pathname
-  
-  console.log('🚀 Middleware running for path:', path)
-  
-  // Check if it's a protected route
-  const isProtectedRoute = protectedRoutes.some(route => path.startsWith(route))
-  const isAuthRoute = authRoutes.some(route => path.startsWith(route))
-  const isProfileCompletionRoute = profileCompletionRoutes.some(route => path.startsWith(route))
-  
-  console.log('isProtectedRoute:', isProtectedRoute)
-  console.log('isAuthRoute:', isAuthRoute)
-  console.log('isProfileCompletionRoute:', isProfileCompletionRoute)
-  
-  // Create a new Supabase client for this request
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -106,155 +18,158 @@ export async function middleware(request: NextRequest) {
           return request.cookies.get(name)?.value
         },
         set(name: string, value: string, options: any) {
-          // Don't set cookies in middleware, let updateSession handle it
+          request.cookies.set({ name, value, ...options })
+          response.cookies.set({ name, value, ...options })
         },
         remove(name: string, options: any) {
-          // Don't remove cookies in middleware, let updateSession handle it
+          request.cookies.set({ name, value: '', ...options })
+          response.cookies.set({ name, value: '', ...options })
         },
       },
     }
   )
-  
-  // Get the user
-  const { data: { user }, error } = await supabase.auth.getUser()
-  
-  console.log('User status:', user ? 'authenticated' : 'not authenticated')
-  if (error) {
-    console.error('User fetch error:', error)
+
+  // Important: This call automatically refreshes the token, crucial for maintaining login status
+  const { data: { user } } = await supabase.auth.getUser()
+
+  return { response, supabase, user }
+}
+
+// Helper function: Check if the user has the necessary profile fields
+function hasRequiredProfileFields(profile: any): boolean {
+  return !!(profile?.full_name && profile?.phone && profile?.location)
+}
+
+// Helper function: Check if the phone is verified
+function isPhoneVerified(profile: any): boolean {
+  return profile?.is_phone_verified === true
+}
+
+// Helper function: Check if the email is verified
+function isEmailVerified(profile: any): boolean {
+  return profile?.is_email_verified === true
+}
+
+// Helper function: Check if signup is complete (basic fields + email verification)
+function isSignupComplete(profile: any): boolean {
+  return hasRequiredProfileFields(profile) && isEmailVerified(profile)
+}
+
+// Helper function: Check if the profile is fully complete (including phone verification)
+function isProfileComplete(profile: any): boolean {
+  return isSignupComplete(profile) && isPhoneVerified(profile)
+}
+
+// Define route types
+const protectedRoutes = [
+  '/profile',
+  '/messages', 
+  '/dashboard',
+  '/settings',
+  '/admin'
+]
+
+const authRoutes = [
+  '/auth/login',
+  '/auth/signup', 
+  '/auth/reset-password'
+]
+
+const profileCompletionRoutes = [
+  '/complete-profile',
+  '/complete-signup',
+  '/incomplete-signup'
+]
+
+// Routes that require a complete profile (including phone verification)
+const requiresCompleteProfile = [
+  '/profile/listings/new',
+  '/profile/listings/edit',
+  '/messages'
+]
+
+export async function middleware(request: NextRequest) {
+  // Step 1: Update and get session and user information
+  const { response, supabase, user } = await updateSessionAndGetUser(request)
+  const path = request.nextUrl.pathname
+
+  console.log('🚀 Middleware running for path:', path)
+
+  // Check if the current path belongs to a certain type
+  const isProtectedRoute = protectedRoutes.some(route => path.startsWith(route))
+  const isAuthRoute = authRoutes.some(route => path.startsWith(route))
+  const isProfileCompletionRoute = profileCompletionRoutes.some(route => path.startsWith(route))
+  const requiresFullProfile = requiresCompleteProfile.some(route => path.startsWith(route))
+
+  // Rule 1: Logged-in users should not access login/signup pages again
+  if (user && isAuthRoute) {
+    console.log('✅ Logged-in user accessing auth page, redirecting to home')
+    return NextResponse.redirect(new URL('/', request.url))
   }
-  
-  // If user is not authenticated and trying to access protected route
-  if (isProtectedRoute && !user) {
-    console.log('❌ Redirecting unauthenticated user to login')
+
+  // Rule 2: Unauthenticated users accessing protected pages should be redirected to the login page
+  if (!user && isProtectedRoute) {
+    console.log('❌ Unauthenticated user accessing protected page, redirecting to login')
     const redirectUrl = new URL('/auth/login', request.url)
     redirectUrl.searchParams.set('callbackUrl', path)
     return NextResponse.redirect(redirectUrl)
   }
-  
-  // Allow authenticated users to access profile completion routes without further checks
-  if (user && isProfileCompletionRoute) {
-    console.log('✅ Allowing authenticated user to access profile completion route')
-    return response
-  }
-  
-  // Check if user is trying to access routes that need complete signup
-  // Skip this check if user is already on incomplete-signup page to prevent loops
-  const needsCompleteSignup = needsCompleteSignupRoutes.some(route => path.startsWith(route))
-  if (user && needsCompleteSignup && !isProfileCompletionRoute && path !== '/incomplete-signup') {
-    console.log('🔍 Checking profile completeness for authenticated user accessing protected route')
-    
+
+  // Rule 3: Logged-in users, perform profile check
+  if (user && (isProtectedRoute || isAuthRoute)) {
     try {
-      // Get user profile
-      const { data: profile, error: profileError } = await supabase
+      // Query user profile
+      const { data: profile, error } = await supabase
         .from('profiles')
-        .select('*')
+        .select('full_name, phone, location, is_email_verified, is_phone_verified')
         .eq('id', user.id)
         .single()
-      
-      if (profileError) {
-        console.error('Profile fetch error:', profileError)
-      }
-      
-      // Check if user has incomplete signup - redirect to incomplete-signup page first
-      if (!isSignupComplete(profile) || !isEmailVerified(profile) || !isPhoneVerified(profile)) {
-        console.log('🔄 Redirecting to /incomplete-signup - signup incomplete')
-        const redirectUrl = new URL('/incomplete-signup', request.url)
-        redirectUrl.searchParams.set('return', path)
-        return NextResponse.redirect(redirectUrl)
-      }
-      
-      console.log('✅ Profile is complete, allowing access')
-    } catch (error) {
-      console.error('Error checking profile:', error)
-      // On error, redirect to incomplete-signup as safety measure
-      const redirectUrl = new URL('/incomplete-signup', request.url)
-      redirectUrl.searchParams.set('return', path)
-      return NextResponse.redirect(redirectUrl)
-    }
-  }
-  
-  // If user is authenticated and trying to access auth routes (except callback and login), check profile completeness first
-  if (user && isAuthRoute && path !== '/auth/callback' && path !== '/auth/login') {
-    console.log('✅ Authenticated user accessing auth route, checking profile completeness')
-    
-    try {
-      // Get user profile
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single()
-      
-      if (profileError) {
-        console.error('Profile fetch error during auth route check:', profileError)
-      }
-      
-      // If profile is incomplete, redirect to complete-profile instead of profile
-      if (!isSignupComplete(profile)) {
-        console.log('🔄 Redirecting to /complete-profile - missing required fields')
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error querying profile:', error)
+        // Redirect to complete-profile as a safety measure on error
         return NextResponse.redirect(new URL('/complete-profile', request.url))
       }
-      
-      // If profile has required fields but not verified, redirect to complete-signup
-      if (!isEmailVerified(profile) || !isPhoneVerified(profile)) {
-        console.log('🔄 Redirecting to /complete-signup - verification needed')
-        return NextResponse.redirect(new URL('/complete-signup', request.url))
+
+      // Rule 3.1: If basic profile data is incomplete, redirect to complete-profile
+      if (!hasRequiredProfileFields(profile)) {
+        if (!isProfileCompletionRoute || path === '/incomplete-signup') {
+          console.log('🔄 Basic profile data incomplete, redirecting to complete-profile')
+          return NextResponse.redirect(new URL('/complete-profile', request.url))
+        }
       }
-      
-      // If profile is complete, redirect to incomplete-signup to handle next step
-      console.log('✅ Profile complete, redirecting to /incomplete-signup')
-      return NextResponse.redirect(new URL('/incomplete-signup', request.url))
+      // Rule 3.2: If email is not verified, redirect to complete-signup
+      else if (!isEmailVerified(profile)) {
+        if (!isProfileCompletionRoute || path === '/incomplete-signup') {
+          console.log('🔄 Email not verified, redirecting to complete-signup')
+          return NextResponse.redirect(new URL('/complete-signup', request.url))
+        }
+      }
+      // Rule 3.3: If accessing a route that requires a complete profile but phone is not verified
+      else if (requiresFullProfile && !isPhoneVerified(profile)) {
+        if (!isProfileCompletionRoute) {
+          console.log('🔄 Phone verification required, redirecting to incomplete-signup')
+          const redirectUrl = new URL('/incomplete-signup', request.url)
+          redirectUrl.searchParams.set('return', path)
+          return NextResponse.redirect(redirectUrl)
+        }
+      }
+      // Rule 3.4: If profile is complete but user is accessing a completion page, redirect to home or return URL
+      else if (isProfileComplete(profile) && isProfileCompletionRoute) {
+        console.log('✅ Profile complete, redirecting to home or return URL')
+        const returnUrl = request.nextUrl.searchParams.get('return')
+        return NextResponse.redirect(new URL(returnUrl || '/', request.url))
+      }
+
+      console.log('✅ Profile check passed')
     } catch (error) {
-      console.error('Error checking profile during auth route access:', error)
-      // Fallback to incomplete-signup redirect if there's an error
-      return NextResponse.redirect(new URL('/incomplete-signup', request.url))
+      console.error('Profile check error:', error)
+      // 錯誤時導向 complete-profile 作為安全措施
+      return NextResponse.redirect(new URL('/complete-profile', request.url))
     }
   }
-  
-  // If authenticated user tries to access login page, redirect based on profile status
-  if (user && path === '/auth/login') {
-    console.log('✅ Authenticated user accessing login page, checking profile completeness')
-    
-    try {
-      // Get user profile
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single()
-      
-      if (profileError) {
-        console.error('Profile fetch error during login page check:', profileError)
-      }
-      
-      // If profile is incomplete, redirect to complete-profile
-      if (!isSignupComplete(profile)) {
-        console.log('🔄 Redirecting to /complete-profile - missing required fields')
-        return NextResponse.redirect(new URL('/complete-profile', request.url))
-      }
-      
-      // If profile has required fields but not verified, redirect to complete-signup
-      if (!isEmailVerified(profile) || !isPhoneVerified(profile)) {
-        console.log('🔄 Redirecting to /complete-signup - verification needed')
-        return NextResponse.redirect(new URL('/complete-signup', request.url))
-      }
-      
-      // If profile is complete, redirect to incomplete-signup with callback URL
-      const callbackUrl = request.nextUrl.searchParams.get('callbackUrl')
-      const redirectUrl = new URL('/incomplete-signup', request.url)
-      if (callbackUrl) {
-        redirectUrl.searchParams.set('return', callbackUrl)
-      }
-      console.log('✅ Profile complete, redirecting to /incomplete-signup with return URL:', callbackUrl || 'none')
-      return NextResponse.redirect(redirectUrl)
-    } catch (error) {
-      console.error('Error checking profile during login page access:', error)
-      // Fallback to incomplete-signup redirect if there's an error
-      return NextResponse.redirect(new URL('/incomplete-signup', request.url))
-    }
-  }
-  
-  console.log('✅ Allowing request to continue')
+
+  console.log(`✅ Middleware check passed, proceeding to: ${path}`)
   return response
 }
 
@@ -262,11 +177,12 @@ export const config = {
   matcher: [
     /*
      * Match all request paths except for the ones starting with:
+     * - api (API routes)
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
-     * - public folder
+     * - public folder files (images, etc.)
      */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!api|_next/static|_next/image|favicon.ico|.*\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }
