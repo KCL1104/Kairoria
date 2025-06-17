@@ -1,4 +1,5 @@
 "use client"
+import { logAuthEvent } from '@/lib/auth-utils'
 
 /**
  * Cross-tab authentication synchronization utility
@@ -44,9 +45,11 @@ export class CrossTabAuth {
     try {
       this.channel = new BroadcastChannel('kairoria_auth')
       this.channel.addEventListener('message', this.handleBroadcastMessage.bind(this))
+      logAuthEvent('cross_tab_channel_initialized')
       console.log('🔄 Cross-tab auth channel initialized')
     } catch (error) {
       console.warn('BroadcastChannel not supported, falling back to storage events')
+      logAuthEvent('cross_tab_channel_error', { error: String(error) })
     }
   }
 
@@ -69,6 +72,7 @@ export class CrossTabAuth {
   private handleBroadcastMessage(event: MessageEvent<AuthEvent>) {
     console.log('📡 Received cross-tab message:', event.data)
     this.notifyListeners(event.data)
+    logAuthEvent('cross_tab_message_received', { type: event.data.type })
   }
 
   private handleStorageChange(newValue: string | null) {
@@ -80,8 +84,10 @@ export class CrossTabAuth {
           payload: authState,
           timestamp: Date.now()
         })
+        logAuthEvent('cross_tab_storage_change', { type: 'AUTH_STATE_CHANGE' })
       } catch (error) {
         console.error('Error parsing auth state from storage:', error)
+        logAuthEvent('cross_tab_storage_parse_error', { error: String(error) })
       }
     } else {
       // Auth state was cleared
@@ -89,6 +95,7 @@ export class CrossTabAuth {
         type: 'SIGN_OUT',
         timestamp: Date.now()
       })
+      logAuthEvent('cross_tab_storage_cleared')
     }
   }
 
@@ -111,6 +118,10 @@ export class CrossTabAuth {
       // Refresh token if it expires in the next 5 minutes
       if (timeUntilExpiry < 300 && timeUntilExpiry > 0) {
         console.log('🔄 Token expiring soon, triggering refresh')
+        logAuthEvent('token_refresh_needed', { 
+          expiresAt: tokens.expires_at,
+          timeUntilExpiry: Math.floor(timeUntilExpiry)
+        })
         this.broadcastEvent({
           type: 'TOKEN_UPDATE',
           payload: { action: 'refresh_needed' },
@@ -133,13 +144,19 @@ export class CrossTabAuth {
       this.setSecureStorage('sb-refresh-token', updatedTokens.refresh_token || '')
       
       // Store complete auth state
-      localStorage.setItem(this.storageKey, JSON.stringify(updatedTokens))
-      
-      console.log('💾 Tokens stored successfully:', {
+      const tokenInfo = {
         hasAccessToken: !!updatedTokens.access_token,
         hasRefreshToken: !!updatedTokens.refresh_token,
         expiresAt: updatedTokens.expires_at
+      }
+      
+      localStorage.setItem(this.storageKey, JSON.stringify(updatedTokens))
+      
+      console.log('💾 Tokens stored successfully:', {
+        ...tokenInfo
       })
+      
+      logAuthEvent('tokens_stored', tokenInfo)
 
       // Notify other tabs
       this.broadcastEvent({
@@ -150,6 +167,7 @@ export class CrossTabAuth {
 
     } catch (error) {
       console.error('Error storing tokens:', error)
+      logAuthEvent('token_storage_error', { error: String(error) })
     }
   }
 
@@ -194,6 +212,8 @@ export class CrossTabAuth {
       this.removeSecureStorage('sb-access-token')
       this.removeSecureStorage('sb-refresh-token')
       
+      logAuthEvent('tokens_cleared')
+      
       // Clear additional auth keys
       const authKeys = [
         'supabase.auth.token',
@@ -219,6 +239,7 @@ export class CrossTabAuth {
       
     } catch (error) {
       console.error('Error clearing tokens:', error)
+      logAuthEvent('token_clear_error', { error: String(error) })
     }
   }
 
@@ -245,6 +266,7 @@ export class CrossTabAuth {
         this.channel.postMessage(event)
       } catch (error) {
         console.error('Error broadcasting event:', error)
+        logAuthEvent('broadcast_error', { error: String(error) })
       }
     }
     
@@ -268,7 +290,7 @@ export class CrossTabAuth {
       const maxAge = key.includes('refresh') ? 30 * 24 * 60 * 60 : 60 * 60 // 30 days for refresh, 1 hour for access
       const secure = window.location.protocol === 'https:' ? '; Secure' : ''
       const domain = window.location.hostname
-      
+
       // Set cookie with domain to ensure it works across subdomains
       document.cookie = `${key}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}; SameSite=Lax${secure}`
     }

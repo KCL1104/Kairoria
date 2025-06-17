@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase-client'
 import { User, Session } from '@supabase/supabase-js'
 import { AuthDebugger } from '@/lib/auth-debug'
 import { crossTabAuth } from '@/lib/cross-tab-auth'
+import { logAuthEvent } from '@/lib/auth-utils'
 import { useRouter } from 'next/navigation'
 import { instantSignOut } from '@/lib/instant-signout'
 
@@ -40,7 +41,8 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
   // Initialize auth state
   useEffect(() => {
     if (!supabase) {
-      console.warn('Supabase client not available')
+      console.warn('❌ Supabase client not available')
+      logAuthEvent('auth_context_error', { error: 'Supabase client not available' })
       setIsLoading(false)
       return
     }
@@ -48,6 +50,7 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
     // Set up cross-tab auth listener
     const unsubscribeCrossTab = crossTabAuth.subscribe((event) => {
       console.log('📡 Cross-tab auth event:', event.type)
+      logAuthEvent('cross_tab_event', { type: event.type })
       
       if (event.type === 'SIGN_OUT') {
         // Clear local state immediately
@@ -70,11 +73,13 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
     const getInitialSession = async () => {
       try {
         console.log('🔄 Getting initial session...')
+        logAuthEvent('session_init_start')
         AuthDebugger.logAuthState('Initial Session Check')
         const { data: { session }, error } = await supabase.auth.getSession()
         
         if (error) {
           console.error('Error getting session:', error)
+          logAuthEvent('session_init_error', { error: error.message })
         } else {
           // Store session in cross-tab auth
           if (session) {
@@ -91,8 +96,12 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
           
           console.log('📊 Initial session result:', {
             hasSession: !!session,
-            hasUser: !!session?.user,
-            userId: session?.user?.id
+            hasUser: !!session?.user
+          })
+          
+          logAuthEvent('session_init_complete', { 
+            hasSession: !!session,
+            userId: session?.user?.id || undefined
           })
           
           if (session?.user) {
@@ -101,6 +110,7 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
         }
       } catch (error) {
         console.error('Session initialization error:', error)
+        logAuthEvent('session_init_exception', { error: String(error) })
       } finally {
         setIsLoading(false)
       }
@@ -112,6 +122,7 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('🔄 Auth state changed:', event, session?.user?.id)
+        logAuthEvent('auth_state_change', { event, userId: session?.user?.id })
         
         // Update cross-tab auth state
         if (session) {
@@ -135,6 +146,8 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
           if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
             console.log('✅ User signed in, checking for redirect...')
             AuthDebugger.logAuthState('After Sign In')
+            logAuthEvent('sign_in_redirect_check')
+            
             // Small delay to ensure profile is fetched
             setTimeout(() => {
               const currentPath = window.location.pathname
@@ -150,6 +163,7 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
                 // If there's a callbackUrl, redirect to it; otherwise go to home
                 // Let middleware handle the redirect logic including profile completion check
                 const redirectUrl = callbackUrl || '/'
+                logAuthEvent('sign_in_redirect', { from: currentPath, to: redirectUrl })
                 window.location.href = redirectUrl
               }
             }, 500) // Increased delay to ensure profile fetch completes
@@ -174,10 +188,12 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
       console.log('Supabase client not available for profile fetch')
       return
     }
-    
+
     setIsProfileLoading(true)
     try {
       console.log('Fetching profile for userId:', userId)
+      logAuthEvent('profile_fetch_start', { userId })
+      
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -189,10 +205,12 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
       if (error) {
         console.error('Error fetching profile:', error)
         console.error('Profile error details:', {
-          code: error.code,
-          message: error.message,
-          details: error.details,
-          hint: error.hint
+          code: error.code
+        })
+        logAuthEvent('profile_fetch_error', { 
+          userId, 
+          errorCode: error.code,
+          errorMessage: error.message
         })
         
         // If profile doesn't exist (PGRST116), try to create it
@@ -206,9 +224,11 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
       } else {
         console.log('Profile fetched successfully:', data)
         setProfile(data)
+        logAuthEvent('profile_fetch_success', { userId })
       }
     } catch (error) {
       console.error('Profile fetch error:', error)
+      logAuthEvent('profile_fetch_exception', { userId, error: String(error) })
       // Set profile to null on catch to prevent infinite loading
       setProfile(null)
     } finally {
@@ -221,12 +241,16 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
       setProfile(null)
       return
     }
-    
+
     try {
       // Get current user data
       const { data: { user }, error: userError } = await supabase.auth.getUser()
       if (userError || !user) {
         console.error('Error getting user for profile creation:', userError)
+        logAuthEvent('profile_creation_error', { 
+          userId,
+          error: userError?.message || 'No user found'
+        })
         setProfile(null)
         return
       }
@@ -236,6 +260,7 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
         email: user.email,
         full_name: user.user_metadata?.full_name
       })
+      logAuthEvent('profile_creation_start', { userId })
 
       // Check if Firebase is configured
       const isFirebaseConfigured = !!(
@@ -263,14 +288,21 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
 
       if (error) {
         console.error('Error creating profile:', error)
+        logAuthEvent('profile_creation_error', { 
+          userId,
+          errorCode: error.code,
+          errorMessage: error.message
+        })
         // Set profile to null if creation fails to prevent infinite loading
         setProfile(null)
       } else {
         console.log('Profile created successfully:', data)
         setProfile(data)
+        logAuthEvent('profile_creation_success', { userId })
       }
     } catch (error) {
       console.error('Create profile error:', error)
+      logAuthEvent('profile_creation_exception', { userId, error: String(error) })
       // Set profile to null on catch to prevent infinite loading
       setProfile(null)
     }
@@ -280,6 +312,8 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
     if (!supabase) {
       return { error: new Error('Supabase client not available') }
     }
+    
+    logAuthEvent('signup_attempt', { email })
 
     try {
       // Create user without sending confirmation email immediately
@@ -293,8 +327,22 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
           emailRedirectTo: `${window.location.origin}/auth/callback`
         },
       })
+      
+      if (error) {
+        logAuthEvent('signup_error', { 
+          email,
+          error: error.message
+        })
+      } else {
+        logAuthEvent('signup_success', { 
+          email,
+          userId: data?.user?.id
+        })
+      }
+      
       return { data, error }
     } catch (error) {
+      logAuthEvent('signup_exception', { email, error: String(error) })
       return { error }
     }
   }
@@ -303,14 +351,40 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
     if (!supabase) {
       return { error: new Error('Supabase client not available') }
     }
+    
+    logAuthEvent('signin_attempt', { email })
 
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
+      
+      if (error) {
+        logAuthEvent('signin_error', { 
+          email,
+          error: error.message
+        })
+      } else {
+        logAuthEvent('signin_success', { 
+          email,
+          userId: data?.user?.id
+        })
+        
+        // Store tokens in cross-tab auth
+        if (data?.session) {
+          crossTabAuth.storeTokens({
+            access_token: data.session.access_token,
+            refresh_token: data.session.refresh_token,
+            expires_at: data.session.expires_at,
+            user_id: data.session.user.id
+          })
+        }
+      }
+      
       return { error }
     } catch (error) {
+      logAuthEvent('signin_exception', { email, error: String(error) })
       return { error }
     }
   }
@@ -319,6 +393,7 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
     // Use the instant sign-out utility for immediate feedback
     await instantSignOut.performInstantSignOut({
       onStart: () => {
+        logAuthEvent('signout_start', { userId: user?.id })
         // Immediately clear local state and cross-tab auth for instant UI feedback
         crossTabAuth.clearTokens()
         setUser(null)
@@ -327,9 +402,11 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
       },
       onSuccess: () => {
         console.log('Sign-out completed successfully')
+        logAuthEvent('signout_success')
       },
       onError: (error) => {
         console.error('Sign-out error:', error)
+        logAuthEvent('signout_error', { error: error.message })
         // Even on error, keep the state cleared to prevent inconsistency
       },
       redirectTo: '/'
@@ -340,6 +417,8 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
     if (!supabase) {
       return { error: new Error('Supabase client not available') }
     }
+    
+    logAuthEvent('google_signin_attempt')
 
     console.log('🔄 Starting Google OAuth...')
 
@@ -356,8 +435,16 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
         hasError: !!error,
         errorMessage: error?.message
       })
+      
+      if (error) {
+        logAuthEvent('google_signin_error', { error: error.message })
+      } else {
+        logAuthEvent('google_signin_initiated')
+      }
+      
       return { error }
     } catch (error) {
+      logAuthEvent('google_signin_exception', { error: String(error) })
       return { error }
     }
   }
@@ -366,6 +453,8 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
     if (!supabase) {
       return { error: new Error('Supabase client not available') }
     }
+    
+    logAuthEvent('twitter_signin_attempt')
 
     try {
       const { data, error } = await supabase.auth.signInWithOAuth({
@@ -374,8 +463,16 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
           redirectTo: `${window.location.origin}/auth/callback`,
         },
       })
+      
+      if (error) {
+        logAuthEvent('twitter_signin_error', { error: error.message })
+      } else {
+        logAuthEvent('twitter_signin_initiated')
+      }
+      
       return { error }
     } catch (error) {
+      logAuthEvent('twitter_signin_exception', { error: String(error) })
       return { error }
     }
   }
@@ -384,19 +481,31 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
     if (!supabase) {
       return { error: new Error('Supabase client not available') }
     }
+    
+    logAuthEvent('password_reset_attempt', { email })
 
     try {
       const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/auth/reset-password`,
       })
+      
+      if (error) {
+        logAuthEvent('password_reset_error', { email, error: error.message })
+      } else {
+        logAuthEvent('password_reset_email_sent', { email })
+      }
+      
       return { error }
     } catch (error) {
+      logAuthEvent('password_reset_exception', { email, error: String(error) })
       return { error }
     }
   }
 
   const sendEmailConfirmation = async (email: string) => {
     try {
+      logAuthEvent('email_confirmation_attempt', { email })
+      
       const response = await fetch('/api/auth/send-confirmation', {
         method: 'POST',
         headers: {
@@ -408,11 +517,20 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
       const data = await response.json()
 
       if (!response.ok) {
+        logAuthEvent('email_confirmation_error', { 
+          email, 
+          error: data.message || 'Failed to send confirmation email'
+        })
         return { error: new Error(data.message || 'Failed to send confirmation email') }
       }
 
+      logAuthEvent('email_confirmation_sent', { email })
       return { error: null }
     } catch (error) {
+      logAuthEvent('email_confirmation_exception', { 
+        email, 
+        error: error instanceof Error ? error.message : String(error)
+      })
       return { error: error instanceof Error ? error : new Error('Failed to send confirmation email') }
     }
   }

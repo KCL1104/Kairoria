@@ -1,10 +1,13 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
+import { logAuthEvent } from '@/lib/auth-utils';
 
 // Handler for POST requests to the logout endpoint
 export async function POST(request: Request) {
   try {
+    logAuthEvent('logout_attempt')
+    
     // Set response headers for immediate feedback
     const headers = new Headers({
       'Content-Type': 'application/json',
@@ -19,6 +22,7 @@ export async function POST(request: Request) {
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     
     if (!supabaseUrl || !supabaseAnonKey) {
+      logAuthEvent('logout_config_error', { error: 'Supabase configuration missing' })
       return NextResponse.json(
         { success: false, message: 'Supabase configuration missing' },
         { status: 500, headers }
@@ -41,10 +45,13 @@ export async function POST(request: Request) {
     // If we have a session token and admin client, invalidate the session
     if (sessionToken && adminClient) {
       try {
+        logAuthEvent('session_invalidation_attempt', { hasToken: !!sessionToken })
         // Attempt to invalidate the specific session
         await adminClient.auth.admin.signOut(sessionToken);
+        logAuthEvent('session_invalidated_success')
       } catch (error) {
         console.error('Failed to invalidate session:', error);
+        logAuthEvent('session_invalidation_error', { error: String(error) })
         // Continue with the response even if session invalidation fails
       }
     }
@@ -72,28 +79,33 @@ export async function POST(request: Request) {
     
     cookiesToClear.forEach(name => {
       // Clear cookies with multiple configurations to ensure complete removal
-      const clearConfigs = [
-        { path: '/', domain: undefined },
-        { path: '/', domain: `.${new URL(request.url).hostname}` },
-        { path: '/', domain: new URL(request.url).hostname },
-      ];
-
-      clearConfigs.forEach(config => {
-        response.cookies.set(name, '', {
-          expires: new Date(0),
-          maxAge: 0,
-          secure: process.env.NODE_ENV === 'production',
-          httpOnly: true,
-          sameSite: 'lax',
-          ...config
-        });
+      response.cookies.set(name, '', {
+        path: '/',
+        expires: new Date(0),
+        maxAge: 0,
+        secure: process.env.NODE_ENV === 'production',
+        httpOnly: true,
+        sameSite: 'lax'
+      });
+      
+      // Also clear with domain for cross-subdomain support
+      response.cookies.set(name, '', {
+        path: '/',
+        domain: `.${new URL(request.url).hostname}`,
+        expires: new Date(0),
+        maxAge: 0,
+        secure: process.env.NODE_ENV === 'production',
+        httpOnly: true,
+        sameSite: 'lax'
       });
     });
     
+    logAuthEvent('logout_successful')
     return response;
     
   } catch (error) {
     console.error('Logout error:', error);
+    logAuthEvent('logout_error', { error: String(error) })
     return NextResponse.json(
       { success: false, message: 'Error processing logout' },
       { 

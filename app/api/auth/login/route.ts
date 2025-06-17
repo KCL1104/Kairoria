@@ -1,15 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
+import { AUTH_COOKIE_OPTIONS, logAuthEvent } from '@/lib/auth-utils';
 
 // Handler for POST requests to the login endpoint
 export async function POST(request: NextRequest) {
   try {
+    logAuthEvent('login_attempt')
+    
     // Create Supabase client at runtime to avoid build-time errors
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
     if (!supabaseUrl || !supabaseAnonKey) {
+      logAuthEvent('login_config_error', { error: 'Database configuration not available' })
       return NextResponse.json(
         { 
           success: false, 
@@ -22,7 +26,7 @@ export async function POST(request: NextRequest) {
     const supabase = createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
         // Set session to persist for 1 month (30 days)
-        persistSession: true,
+        persistSession: false, // We'll handle persistence ourselves with secure cookies
         autoRefreshToken: true,
         detectSessionInUrl: true
       }
@@ -32,6 +36,7 @@ export async function POST(request: NextRequest) {
 
     // Validate required fields
     if (!email || !password) {
+      logAuthEvent('login_validation_error', { error: 'Missing credentials' })
       return NextResponse.json(
         { 
           success: false, 
@@ -49,6 +54,7 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error('Supabase login error:', error);
+      logAuthEvent('login_failed', { error: error.message, email })
       return NextResponse.json(
         { 
           success: false, 
@@ -59,6 +65,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!data.user || !data.session) {
+      logAuthEvent('login_failed', { error: 'Authentication failed', email })
       return NextResponse.json(
         { 
           success: false, 
@@ -81,6 +88,7 @@ export async function POST(request: NextRequest) {
     } catch (profileError) {
       console.error('Error fetching profile:', profileError);
       // Continue without profile data - it's not critical for login
+      logAuthEvent('profile_fetch_error', { error: String(profileError), userId: data.user.id })
     }
 
     // Create response with user data
@@ -104,28 +112,24 @@ export async function POST(request: NextRequest) {
     // Set session cookies for server-side authentication
     const cookieStore = cookies();
     
-    // Set access token cookie (1 month = 30 days * 24 hours * 60 minutes * 60 seconds)
+    // Set access token cookie with enhanced security options
     response.cookies.set('sb-access-token', data.session.access_token, {
-      path: '/',
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 30 // 30 days (1 month)
+      ...AUTH_COOKIE_OPTIONS,
+      maxAge: 60 * 60 * 24 // 24 hours for access token
     });
 
     // Set refresh token cookie
     response.cookies.set('sb-refresh-token', data.session.refresh_token, {
-      path: '/',
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 30 // 30 days
+      ...AUTH_COOKIE_OPTIONS,
+      maxAge: 60 * 60 * 24 * 30 // 30 days for refresh token
     });
 
+    logAuthEvent('login_successful', { userId: data.user.id, email })
     return response;
 
   } catch (error) {
     console.error('Login error:', error);
+    logAuthEvent('login_error', { error: String(error) })
     return NextResponse.json(
       { 
         success: false, 

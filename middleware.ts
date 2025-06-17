@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@supabase/ssr' 
+import { createMiddlewareClient, logAuthEvent } from '@/lib/auth-utils'
 import { AuthDebugger } from '@/lib/auth-debug'
 
 // Helper function to update session and get user
@@ -10,40 +10,9 @@ async function updateSessionAndGetUser(request: NextRequest) {
     }, 
   }) 
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-  if (!supabaseUrl || !supabaseAnonKey) {
-    console.error('Missing Supabase environment variables')
-    return { response, supabase: null, user: null }
-  }
-
-  const supabase = createServerClient(
-    supabaseUrl,
-    supabaseAnonKey,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll()
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => {
-            request.cookies.set(name, value)
-          })
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          })
-          cookiesToSet.forEach(({ name, value, options }) => {
-            response.cookies.set(name, value, options)
-          })
-        },
-      },
-    }
-  ) 
-
   try {
+    const supabase = createMiddlewareClient(request, response)
+
     const { data: { user } } = await supabase.auth.getUser()
     console.log('🔍 Middleware - User check:', {
       path: request.nextUrl.pathname,
@@ -101,7 +70,14 @@ export async function middleware(request: NextRequest) {
   // Rule 1: Unauthenticated users
   if (!user) { 
     // Allow access to public routes and auth routes
-    if (isPublicRoute || isAuthRoute) { 
+    if (isPublicRoute || isAuthRoute) {
+      if (isProtectedRoute) {
+        logAuthEvent('access_denied', { 
+          path, 
+          reason: 'unauthenticated',
+          redirectTo: '/auth/login'
+        })
+      }
       return response 
     } 
     console.log(`🔒 [Middleware] Redirecting unauthenticated user to login`)
@@ -115,6 +91,11 @@ export async function middleware(request: NextRequest) {
   // Rule 2: Authenticated users shouldn't access auth routes
   if (user && isAuthRoute && !path.includes('/callback')) { 
     console.log(`🔄 [Middleware] Redirecting authenticated user away from auth route`)
+    logAuthEvent('auth_route_redirect', { 
+      userId: user.id,
+      path,
+      redirectTo: '/'
+    })
     return NextResponse.redirect(new URL('/', request.url)) 
   } 
 
@@ -159,6 +140,12 @@ export async function middleware(request: NextRequest) {
       if (!fullyRegistered) { 
         // Allow staying on complete-signup page
         console.log(`📝 [Middleware] User not fully registered, profile:`, profileData)
+        logAuthEvent('incomplete_profile', { 
+          userId: user.id,
+          path,
+          profileStatus: profileData
+        })
+        
         if (isCompleteSignupRoute) { 
           return response 
         } 
@@ -168,6 +155,11 @@ export async function middleware(request: NextRequest) {
           const redirectUrl = new URL(completeSignupRoute, request.url) 
           console.log(`🔄 [Middleware] Redirecting incomplete user to complete-signup`)
           redirectUrl.searchParams.set('return', path) 
+          logAuthEvent('profile_completion_redirect', { 
+            userId: user.id,
+            path,
+            redirectTo: redirectUrl.toString()
+          })
           return NextResponse.redirect(redirectUrl) 
         } 
         
