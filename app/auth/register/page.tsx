@@ -5,8 +5,7 @@ import { useState, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { ArrowLeft } from "lucide-react"
 import { useAuth } from "@/contexts/SupabaseAuthContext"
-import { useWallet } from "@solana/wallet-adapter-react"
-import { WalletMultiButton } from "@solana/wallet-adapter-react-ui"
+
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -26,8 +25,7 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const { signUp, signInWithGoogle, signInWithTwitter, signInWithSolana, isAuthenticated, isLoading: authLoading } = useAuth()
-  const { connected } = useWallet()
+  const { signUp, signInWithGoogle, isAuthenticated, isLoading: authLoading } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -97,38 +95,7 @@ export default function RegisterPage() {
     }
   }
 
-  const handleTwitterSignUp = async () => {
-    setError("")
-    try {
-      const { error } = await signInWithTwitter()
-      if (error) {
-        setError(error.message || "Twitter sign up failed")
-      }
-      // If successful, auth context and middleware will handle redirection
-    } catch (error) {
-      setError("Twitter sign up failed. Please try again.")
-    }
-  }
 
-  const handleSolanaSignUp = async () => {
-    setError("")
-    if (!connected) {
-      setError("Please connect your Solana wallet first")
-      return
-    }
-    
-    try {
-      const { error } = await signInWithSolana()
-      if (!error) {
-        // Let auth context and middleware handle redirection
-        console.log('Solana signup successful, waiting for auth state update')
-      } else {
-        setError(error.message || "Solana wallet sign up failed")
-      }
-    } catch (error) {
-      setError("Solana wallet sign up failed. Please try again.")
-    }
-  }
   
   return (
     <div className="container max-w-lg py-10">
@@ -252,43 +219,7 @@ export default function RegisterPage() {
               Sign up with Google
             </Button>
             
-            <Button 
-              variant="outline" 
-              className="w-full" 
-              onClick={handleTwitterSignUp}
-            >
-              <svg className="mr-2 h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z"/>
-              </svg>
-              Sign up with Twitter
-            </Button>
 
-            <div className="space-y-2">
-              <style jsx global>{`
-                .wallet-adapter-button {
-                  background-color: white !important;
-                  color: black !important;
-                  border: 1px solid #d1d5db !important;
-                  font-weight: 500 !important;
-                }
-                .wallet-adapter-button:hover {
-                  background-color: #f9fafb !important;
-                }
-                .wallet-adapter-button:not([disabled]):hover {
-                  background-color: #f9fafb !important;
-                }
-              `}</style>
-              <WalletMultiButton className="!w-full" />
-              {connected && (
-                <Button 
-                  variant="outline" 
-                  className="w-full bg-white text-black border-gray-300 hover:bg-gray-50" 
-                  onClick={handleSolanaSignUp}
-                >
-                  Sign up with Connected Wallet
-                </Button>
-              )}
-            </div>
           </div>
         </CardContent>
         <CardFooter>
