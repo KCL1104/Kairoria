@@ -1,5 +1,6 @@
 'use client'
 
+import { PhoneInput } from "@/components/ui/phone-input"
 import { useState, useEffect, useRef } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -19,6 +20,7 @@ interface ProfileData {
   location: string
   is_email_verified: boolean
   is_phone_verified: boolean
+  country_code?: string
 }
 
 export default function CompleteSignupPage() {
@@ -27,7 +29,8 @@ export default function CompleteSignupPage() {
     phone: '',
     location: '',
     is_email_verified: false,
-    is_phone_verified: false
+    is_phone_verified: false,
+    country_code: ''
   })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -97,7 +100,8 @@ export default function CompleteSignupPage() {
             phone: profileData.phone || '',
             location: profileData.location || '',
             is_email_verified: profileData.is_email_verified || false,
-            is_phone_verified: profileData.is_phone_verified || false
+            is_phone_verified: profileData.is_phone_verified || false,
+            country_code: profileData.country_code || ''
           })
           
           if (profileData.is_phone_verified) {
@@ -132,7 +136,8 @@ export default function CompleteSignupPage() {
 
   // Save profile data
   const saveProfileData = async () => {
-    if (!profile.full_name || !profile.phone || !profile.location) {
+    const phoneNumber = profile.phone.replace(/\D/g, '')
+    if (!profile.full_name || !phoneNumber || !profile.location) {
       toast({
         variant: "destructive",
         title: "Missing information",
@@ -148,6 +153,7 @@ export default function CompleteSignupPage() {
         .update({
           full_name: profile.full_name,
           phone: profile.phone,
+          country_code: profile.country_code,
           location: profile.location
         })
         .eq('id', user?.id)
@@ -208,7 +214,8 @@ export default function CompleteSignupPage() {
 
   // Phone verification
   const sendPhoneVerification = async () => {
-    if (!profile.phone || !recaptchaVerifier || !auth) {
+    const phoneNumber = profile.phone.replace(/\D/g, '')
+    if (!phoneNumber || !recaptchaVerifier || !auth) {
       toast({
         variant: "destructive",
         title: "Phone verification unavailable",
@@ -221,6 +228,7 @@ export default function CompleteSignupPage() {
     await saveProfileData()
 
     try {
+      // Use the full phone number with country code for Firebase
       const result = await signInWithPhoneNumber(auth, profile.phone, recaptchaVerifier)
       setConfirmationResult(result)
       setPhoneVerificationStep('code-sent')
@@ -380,11 +388,12 @@ export default function CompleteSignupPage() {
                 
                 <div>
                   <Label htmlFor="phone">Phone Number</Label>
-                  <Input
-                    id="phone"
+                  <PhoneInput
                     value={profile.phone}
-                    onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
-                    placeholder="+886 912 345 678"
+                    onChange={(value) => setProfile({ ...profile, phone: value })}
+                    onCountryChange={(country) => setProfile({ ...profile, country_code: country.code })}
+                    placeholder="Enter your phone number"
+                    required
                   />
                 </div>
                 
@@ -400,7 +409,7 @@ export default function CompleteSignupPage() {
                 
                 <Button
                   onClick={saveProfileData}
-                  disabled={saving || !profile.full_name || !profile.phone || !profile.location}
+                  disabled={saving || !profile.full_name || !profile.phone.replace(/\D/g, '') || !profile.location}
                   className="w-full"
                 >
                   {saving ? (
@@ -504,11 +513,11 @@ export default function CompleteSignupPage() {
               ) : (
                 <div className="space-y-3">
                   <p className="text-sm text-gray-600">
-                    We'll send a verification code to your phone number
+                    We'll send a verification code to <strong>{profile.phone}</strong>
                   </p>
                   <Button
-                    onClick={sendPhoneVerification}
-                    disabled={!profile.phone}
+                    onClick={sendPhoneVerification} 
+                    disabled={!profile.phone.replace(/\D/g, '')}
                     variant="outline"
                     size="sm"
                     className="w-full"
