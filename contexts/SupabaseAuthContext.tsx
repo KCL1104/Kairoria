@@ -4,6 +4,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase-client'
 import { User, Session } from '@supabase/supabase-js'
 import { AuthDebugger } from '@/lib/auth-debug'
+import { crossTabAuth } from '@/lib/cross-tab-auth'
 import { useRouter } from 'next/navigation'
 import { instantSignOut } from '@/lib/instant-signout'
 
@@ -43,6 +44,28 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
       setIsLoading(false)
       return
     }
+    
+    // Set up cross-tab auth listener
+    const unsubscribeCrossTab = crossTabAuth.subscribe((event) => {
+      console.log('📡 Cross-tab auth event:', event.type)
+      
+      if (event.type === 'SIGN_OUT') {
+        // Clear local state immediately
+        setUser(null)
+        setSession(null)
+        setProfile(null)
+      } else if (event.type === 'TOKEN_UPDATE' && event.payload?.action === 'refresh_needed') {
+        // Refresh token if needed
+        supabase.auth.refreshSession()
+      } else if (event.type === 'AUTH_STATE_CHANGE' && event.payload) {
+        // Update local state with new auth state
+        if (event.payload.user) {
+          setUser(event.payload.user)
+          setSession(event.payload.session)
+          fetchProfile(event.payload.user.id)
+        }
+      }
+    })
 
     const getInitialSession = async () => {
       try {
@@ -53,6 +76,16 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
         if (error) {
           console.error('Error getting session:', error)
         } else {
+          // Store session in cross-tab auth
+          if (session) {
+            crossTabAuth.storeTokens({
+              access_token: session.access_token,
+              refresh_token: session.refresh_token,
+              expires_at: session.expires_at,
+              user_id: session.user.id
+            })
+          }
+          
           setSession(session)
           setUser(session?.user ?? null)
           
@@ -79,7 +112,19 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('🔄 Auth state changed:', event, session?.user?.id)
-        console.log('Auth state changed:', event, session?.user?.id)
+        
+        // Update cross-tab auth state
+        if (session) {
+          crossTabAuth.storeTokens({
+            access_token: session.access_token,
+            refresh_token: session.refresh_token,
+            expires_at: session.expires_at,
+            user_id: session.user.id
+          })
+        } else if (event === 'SIGNED_OUT') {
+          crossTabAuth.clearTokens()
+        }
+        
         setSession(session)
         setUser(session?.user ?? null)
         
@@ -118,7 +163,10 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
       }
     )
 
-    return () => subscription.unsubscribe()
+    return () => {
+      subscription.unsubscribe()
+      unsubscribeCrossTab()
+    }
   }, [])
 
   const fetchProfile = async (userId: string) => {
@@ -271,7 +319,8 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
     // Use the instant sign-out utility for immediate feedback
     await instantSignOut.performInstantSignOut({
       onStart: () => {
-        // Immediately clear local state for instant UI feedback
+        // Immediately clear local state and cross-tab auth for instant UI feedback
+        crossTabAuth.clearTokens()
         setUser(null)
         setSession(null)
         setProfile(null)

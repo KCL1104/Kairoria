@@ -1,7 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
-import { AuthDebugger } from '@/lib/auth-debug'
 
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic'
@@ -61,11 +60,18 @@ export async function GET(request: Request) {
             setAll(cookiesToSet) {
               try {
                 cookiesToSet.forEach(({ name, value, options }) => {
-                  console.log('🍪 Setting cookie in callback:', {
-                    name,
-                    hasValue: !!value,
-                    options
-                  })
+                  // Set cookies with enhanced options for better cross-tab support
+                  const enhancedOptions = {
+                    ...options,
+                    httpOnly: true,
+                    secure: process.env.NODE_ENV === 'production',
+                    sameSite: 'lax',
+                    path: '/',
+                    maxAge: name.includes('refresh') ? 30 * 24 * 60 * 60 : 60 * 60
+                  }
+                  
+                  console.log(`🍪 Setting enhanced cookie: ${name}`)
+                  cookieStore.set(name, value, enhancedOptions)
                   cookieStore.set(name, value, options)
                 })
               } catch (error) {

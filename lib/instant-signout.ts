@@ -1,6 +1,7 @@
 "use client"
 
 import { supabase } from '@/lib/supabase-client'
+import { crossTabAuth } from '@/lib/cross-tab-auth'
 
 /**
  * Comprehensive sign-out utility with instant feedback and cleanup
@@ -50,6 +51,9 @@ export class InstantSignOut {
    */
   private clearAuthDataInstantly(): void {
     if (typeof window === 'undefined') return
+
+    // Clear cross-tab auth tokens
+    crossTabAuth.clearTokens()
 
     // 1. Clear localStorage
     const authKeys = [

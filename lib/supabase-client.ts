@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { AuthDebugger } from './auth-debug'
+import { crossTabAuth } from './cross-tab-auth'
 import { Product, Profile, ProductImage } from './data'
 
 // Client-side Supabase client (no server imports)
@@ -33,23 +34,25 @@ export const supabase = supabaseUrl && supabaseAnonKey
       auth: {
         persistSession: true,
         autoRefreshToken: true,
-        detectSessionInUrl: true,
+        detectSessionInUrl: false, // Disable automatic URL detection to handle it ourselves
         storage: typeof window !== 'undefined' ? {
           getItem: (key: string) => {
             try {
               console.log(`📖 Storage GET: ${key}`)
-              // Try localStorage first
-              const value = localStorage.getItem(key)
-              if (value) return value
-
-              // Fallback to cookies
-              if (typeof document !== 'undefined') {
-                const cookies = document.cookie.split(';')
-                const cookie = cookies.find(c => c.trim().startsWith(`${key}=`))
-                if (cookie) {
-                  return decodeURIComponent(cookie.split('=')[1])
+              
+              // Use cross-tab auth for token retrieval
+              if (key === 'sb-access-token' || key === 'sb-refresh-token') {
+                const tokens = crossTabAuth.getStoredTokens()
+                if (tokens) {
+                  if (key === 'sb-access-token') return tokens.access_token
+                  if (key === 'sb-refresh-token') return tokens.refresh_token
                 }
               }
+              
+              // Fallback to direct localStorage access
+              const value = localStorage.getItem(key)
+              if (value) return value
+              
               return null
             } catch (error) {
               console.error('Error getting item from storage:', error)
@@ -59,22 +62,38 @@ export const supabase = supabaseUrl && supabaseAnonKey
           setItem: (key: string, value: string) => {
             try {
               console.log(`📝 Storage SET: ${key} = ${value.substring(0, 50)}...`)
-              // Set in localStorage
-              localStorage.setItem(key, value)
-              
-              // Also set as cookie for server-side access
-              if (typeof document !== 'undefined') {
-                const maxAge = key.includes('refresh') ? 30 * 24 * 60 * 60 : 60 * 60 // 30 days for refresh, 1 hour for access
-                const secure = window.location.protocol === 'https:' ? '; Secure' : ''
-                const cookieString = `${key}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}; SameSite=Lax${secure}`
+
+              // Use cross-tab auth for token storage
+              if (key === 'sb-access-token' || key === 'sb-refresh-token') {
+                const tokens = crossTabAuth.getStoredTokens() || {}
+                const payload: any = {}
                 
-                console.log(`🍪 Setting cookie: ${key}`, {
-                  maxAge,
-                  secure: !!secure,
-                  cookieString: cookieString.substring(0, 100) + '...'
-                })
-                document.cookie = `${key}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}; SameSite=Lax${secure}`
+                if (key === 'sb-access-token') {
+                  payload.access_token = value
+                  
+                  // Extract expiration from JWT if possible
+                  try {
+                    const parts = value.split('.')
+                    if (parts.length === 3) {
+                      const payload = JSON.parse(atob(parts[1]))
+                      if (payload.exp) {
+                        payload.expires_at = payload.exp
+                      }
+                    }
+                  } catch (e) {
+                    console.warn('Could not parse JWT expiration')
+                  }
+                }
+                
+                if (key === 'sb-refresh-token') {
+                  payload.refresh_token = value
+                }
+                
+                crossTabAuth.storeTokens(payload)
               }
+              
+              // Also set in localStorage as fallback
+              localStorage.setItem(key, value)
             } catch (error) {
               console.error('Error setting item in storage:', error)
             }
@@ -82,10 +101,14 @@ export const supabase = supabaseUrl && supabaseAnonKey
           removeItem: (key: string) => {
             try {
               console.log(`🗑️ Storage REMOVE: ${key}`)
-              localStorage.removeItem(key)
-              if (typeof document !== 'undefined') {
-                document.cookie = `${key}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`
+              
+              // Clear from cross-tab auth if it's a token
+              if (key === 'sb-access-token' || key === 'sb-refresh-token') {
+                crossTabAuth.clearTokens()
               }
+              
+              // Also remove from localStorage
+              localStorage.removeItem(key)
             } catch (error) {
               console.error('Error removing item from storage:', error)
             }
