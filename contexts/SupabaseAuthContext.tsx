@@ -4,6 +4,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase-client'
 import { User, Session } from '@supabase/supabase-js'
 import { useRouter } from 'next/navigation'
+import { instantSignOut } from '@/lib/instant-signout'
 
 interface AuthContextType {
   user: User | null
@@ -255,113 +256,23 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
   }
 
   const signOut = async () => {
-    if (!supabase) return
-
-    try {
-      // 1. First invalidate the session server-side
-      const { error } = await supabase.auth.signOut({ scope: 'global' })
-      if (error) {
-        console.error('Supabase sign out error:', error)
-        throw error
-      }
-      
-      // 2. Call backend logout API to handle server-side cleanup
-      try {
-        const response = await fetch('/api/auth/logout', { 
-          method: 'POST',
-          credentials: 'include',
-          cache: 'no-store',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-          }
-        })
-        
-        if (!response.ok) {
-          console.warn('Server logout API returned an error', await response.text())
-        }
-      } catch (apiError) {
-        console.error('Error calling logout API:', apiError)
-        // Continue with client-side logout even if API call fails
-      }
-      
-      // 3. Reset all local state
-      setUser(null)
-      setSession(null)
-      setProfile(null)
-      
-      // 4. Clear ALL authentication-related items from storage
-      if (typeof window !== 'undefined') {
-        // Clear specific Supabase auth items
-        const authItemsToRemove = [
-          'supabase.auth.token',
-          'supabase-auth-token',
-          'sb-access-token',
-          'sb-refresh-token',
-          'supabase-auth-state',
-          'sb-provider-token',
-          'supabase.auth.refreshToken',
-          'supabase.auth.accessToken',
-          'auth-token',
-          'sb-auth-token',
-          'sb-user-token',
-          'sb-provider-token',
-        ]
-        
-        // Remove specific auth keys
-        authItemsToRemove.forEach(key => {
-          localStorage.removeItem(key)
-          sessionStorage.removeItem(key)
-        })
-        
-        // Also scan for any other items that might be auth-related
-        const keysToRemove = []
-        for (let i = 0; i < localStorage.length; i++) {
-          const key = localStorage.key(i)
-          if (key && (
-              key.startsWith('supabase') || 
-              key.startsWith('sb-') || 
-              key.includes('auth') ||
-              key.includes('token')
-          )) {
-            keysToRemove.push(key)
-          }
-        }
-        
-        // Remove collected keys
-        keysToRemove.forEach(key => localStorage.removeItem(key))
-        
-        // Clear all session storage as an extra precaution
-        sessionStorage.clear()
-        
-        // Clear cookies related to authentication
-        document.cookie.split(';').forEach(cookie => {
-          const [name] = cookie.trim().split('=')
-          if (name && (name.includes('supabase') || name.includes('sb-') || name.includes('auth'))) {
-            document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`
-          }
-        })
-      }
-      
-      // 5. Redirect to home page
-      router.push('/')
-      
-      // 6. Optional: Force page reload after a small delay to ensure all state is cleared
-      if (typeof window !== 'undefined') {
-        // Small timeout to allow navigation to start before reload
-        setTimeout(() => window.location.reload(), 100)
-      }
-    } catch (error) {
-      console.error('Error signing out:', error)
-      
-      // Even if there's an error, attempt to clear state and redirect
-      setUser(null)
-      setSession(null)
-      setProfile(null)
-      
-      // Navigate to login page with error parameter
-      router.push('/auth/login?error=signout_failed')
-    }
+    // Use the instant sign-out utility for immediate feedback
+    await instantSignOut.performInstantSignOut({
+      onStart: () => {
+        // Immediately clear local state for instant UI feedback
+        setUser(null)
+        setSession(null)
+        setProfile(null)
+      },
+      onSuccess: () => {
+        console.log('Sign-out completed successfully')
+      },
+      onError: (error) => {
+        console.error('Sign-out error:', error)
+        // Even on error, keep the state cleared to prevent inconsistency
+      },
+      redirectTo: '/'
+    })
   }
 
   const signInWithGoogle = async () => {

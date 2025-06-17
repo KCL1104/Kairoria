@@ -6,6 +6,7 @@ import { useState } from "react"
 import { Menu, X, MessageSquare, User, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/contexts/SupabaseAuthContext"
+import { InstantSignOutButton } from "@/components/auth/InstantSignOutButton"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   DropdownMenu,
@@ -15,39 +16,12 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
-import { useToast } from "@/hooks/use-toast"
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const pathname = usePathname()
-  const { user, profile, signOut, isAuthenticated } = useAuth()
+  const { user, profile, isAuthenticated } = useAuth()
   const router = useRouter()
-  const { toast } = useToast()
-
-  const handleSignOut = async () => {
-    try {
-      // Show loading toast
-      const loadingToast = toast({
-        title: "Signing out...",
-        description: "Please wait while we sign you out",
-      })
-      
-      // Close mobile menu if open
-      setIsMenuOpen(false)
-      
-      // Call the signOut function from auth context
-      await signOut()
-      
-      // The signOut function handles navigation and state cleanup
-    } catch (error) {
-      console.error("Sign out failed:", error)
-      toast({
-        variant: "destructive",
-        title: "Sign out failed",
-        description: "Please try again or reload the page"
-      })
-    }
-  }
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -133,9 +107,13 @@ export default function Navbar() {
                     List New Item
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleSignOut}>
-                    <LogOut className="mr-2 h-4 w-4" />
-                    Sign Out
+                  <DropdownMenuItem asChild>
+                    <InstantSignOutButton 
+                      variant="ghost" 
+                      size="sm"
+                      className="w-full justify-start px-2 py-1.5 h-auto font-normal"
+                      confirmBeforeSignOut={true}
+                    />
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -231,14 +209,11 @@ export default function Navbar() {
                 >
                   List New Item
                 </Link>
-                <Button 
+                <InstantSignOutButton 
                   variant="outline" 
-                  onClick={handleSignOut}
-                  className="justify-start"
-                >
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Sign Out
-                </Button>
+                  className="justify-start w-full"
+                  confirmBeforeSignOut={true}
+                />
               </>
             ) : (
               <>

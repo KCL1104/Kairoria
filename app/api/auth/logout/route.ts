@@ -5,6 +5,14 @@ import { cookies } from 'next/headers';
 // Handler for POST requests to the logout endpoint
 export async function POST(request: Request) {
   try {
+    // Set response headers for immediate feedback
+    const headers = new Headers({
+      'Content-Type': 'application/json',
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    })
+
     // Get Supabase URL and key with flexible naming
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_DATABASE_URL;
     const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -13,7 +21,7 @@ export async function POST(request: Request) {
     if (!supabaseUrl || !supabaseAnonKey) {
       return NextResponse.json(
         { success: false, message: 'Supabase configuration missing' },
-        { status: 500 }
+        { status: 500, headers }
       );
     }
     
@@ -44,8 +52,9 @@ export async function POST(request: Request) {
     // Create response with cookie clearing headers
     const response = NextResponse.json({ 
       success: true,
-      message: 'Logged out successfully' 
-    });
+      message: 'Logged out successfully',
+      timestamp: new Date().toISOString()
+    }, { headers });
     
     // Clear all potential auth cookies
     const cookiesToClear = [
@@ -62,25 +71,22 @@ export async function POST(request: Request) {
     ];
     
     cookiesToClear.forEach(name => {
-      // Set each cookie to expire immediately
-      // Include various path options to ensure all cookies are cleared
-      cookieStore.set(name, '', { 
-        expires: new Date(0),
-        path: '/',
-        maxAge: 0,
-        secure: true,
-        httpOnly: true,
-        sameSite: 'strict'
-      });
-      
-      // Also try with lax same-site policy
-      cookieStore.set(name, '', { 
-        expires: new Date(0),
-        path: '/',
-        maxAge: 0,
-        secure: true,
-        httpOnly: true,
-        sameSite: 'lax'
+      // Clear cookies with multiple configurations to ensure complete removal
+      const clearConfigs = [
+        { path: '/', domain: undefined },
+        { path: '/', domain: `.${new URL(request.url).hostname}` },
+        { path: '/', domain: new URL(request.url).hostname },
+      ];
+
+      clearConfigs.forEach(config => {
+        response.cookies.set(name, '', {
+          expires: new Date(0),
+          maxAge: 0,
+          secure: process.env.NODE_ENV === 'production',
+          httpOnly: true,
+          sameSite: 'lax',
+          ...config
+        });
       });
     });
     
@@ -90,7 +96,13 @@ export async function POST(request: Request) {
     console.error('Logout error:', error);
     return NextResponse.json(
       { success: false, message: 'Error processing logout' },
-      { status: 500 }
+      { 
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache'
+        }
+      }
     );
   }
 }
