@@ -1,4 +1,5 @@
-import { createClient } from '@supabase/supabase-js'
+import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 
 // Force dynamic rendering for this route
@@ -35,20 +36,39 @@ export async function GET(request: Request) {
         return NextResponse.redirect(`${requestUrl.origin}/auth/login?error=config_error`)
       }
 
-      const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-    auth: {
-      // Set session to persist for 1 month (30 days)
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: true
-    }
-  })
+      const supabase = createServerClient(
+        supabaseUrl,
+        supabaseAnonKey,
+        {
+          cookies: {
+            getAll() {
+              const cookieStore = cookies()
+              return cookieStore.getAll()
+            },
+            setAll(cookiesToSet) {
+              const cookieStore = cookies()
+              cookiesToSet.forEach(({ name, value, options }) => {
+                cookieStore.set(name, value, options)
+              })
+            },
+          },
+          auth: {
+            // Set session to persist for 1 month (30 days)
+            persistSession: true, // This will be handled by the cookie store in ssr client
+            autoRefreshToken: true,
+            detectSessionInUrl: true
+          }
+        }
+      )
       const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
       
       if (exchangeError) {
         console.error('Code exchange error:', exchangeError)
         return NextResponse.redirect(`${requestUrl.origin}/auth/login?error=exchange_failed`)
       }
+
+      // After successful exchange, the session should be in the cookies.
+      // The middleware will pick it up on the next request.
 
       // Always redirect to home page after successful authentication
       return NextResponse.redirect(`${requestUrl.origin}/`)
