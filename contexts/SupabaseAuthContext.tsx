@@ -3,7 +3,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase-client'
 import { User, Session } from '@supabase/supabase-js'
-import { useWallet } from '@solana/wallet-adapter-react'
 import { useRouter } from 'next/navigation'
 
 interface AuthContextType {
@@ -16,7 +15,6 @@ interface AuthContextType {
   signOut: () => Promise<void>
   signInWithGoogle: () => Promise<{ error: any }>
   signInWithTwitter: () => Promise<{ error: any }>
-  signInWithSolana: () => Promise<{ error: any }>
   resetPassword: (email: string) => Promise<{ error: any }>
   sendEmailConfirmation: (email: string) => Promise<{ error: any }>
   isAuthenticated: boolean
@@ -46,7 +44,6 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
 
     const getInitialSession = async () => {
       try {
-        if (!supabase) return
         const { data: { session }, error } = await supabase.auth.getSession()
         
         if (error) {
@@ -99,6 +96,8 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
               }
             }, 500) // Increased delay to ensure profile fetch completes
           }
+        } else {
+          setProfile(null)
         }
         
         // Only set loading to false after profile processing is complete
@@ -401,55 +400,6 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
     }
   }
 
-  const signInWithSolana = async () => {
-    if (!supabase) {
-      return { error: new Error('Supabase client not available') }
-    }
-
-    try {
-      const { publicKey, signMessage } = useWallet()
-      if (!publicKey || !signMessage) {
-        return { error: new Error('Wallet not connected') }
-      }
-
-      // Create a message to sign for authentication
-      const message = `Sign this message to authenticate with Kairoria: ${Date.now()}`
-      const encodedMessage = new TextEncoder().encode(message)
-      
-      // Sign the message with the wallet
-      const signature = await signMessage(encodedMessage)
-      
-      // Use the wallet's public key as a unique identifier
-      const walletAddress = publicKey.toString()
-      
-      // Create a custom auth session with Supabase
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: `${walletAddress}@solana.wallet`,
-        password: signature.toString(),
-      })
-
-      // If user doesn't exist, create them
-      if (error && error.message.includes('Invalid login credentials')) {
-        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-          email: `${walletAddress}@solana.wallet`,
-          password: signature.toString(),
-          options: {
-            data: {
-              full_name: `Solana Wallet ${walletAddress.slice(0, 8)}...`,
-              wallet_address: walletAddress,
-              auth_provider: 'solana',
-            },
-          },
-        })
-        return { error: signUpError }
-      }
-
-      return { error }
-    } catch (error) {
-      return { error }
-    }
-  }
-
   const resetPassword = async (email: string) => {
     if (!supabase) {
       return { error: new Error('Supabase client not available') }
@@ -497,7 +447,6 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
     signOut,
     signInWithGoogle,
     signInWithTwitter,
-    signInWithSolana,
     resetPassword,
     sendEmailConfirmation,
     isAuthenticated: !!user,

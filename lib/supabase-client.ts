@@ -26,36 +26,53 @@ if (!supabaseAnonKey) {
 export const supabase = supabaseUrl && supabaseAnonKey 
   ? createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
-        // Set session to persist for 1 month (30 days)
         persistSession: true,
         autoRefreshToken: true,
         detectSessionInUrl: true,
         storage: typeof window !== 'undefined' ? {
           getItem: (key: string) => {
-            // Try to get from cookies first, then localStorage
-            if (typeof document !== 'undefined') {
-              const cookies = document.cookie.split(';')
-              const cookie = cookies.find(c => c.trim().startsWith(`${key}=`))
-              if (cookie) {
-                return cookie.split('=')[1]
+            try {
+              // Try localStorage first
+              const value = localStorage.getItem(key)
+              if (value) return value
+
+              // Fallback to cookies
+              if (typeof document !== 'undefined') {
+                const cookies = document.cookie.split(';')
+                const cookie = cookies.find(c => c.trim().startsWith(`${key}=`))
+                if (cookie) {
+                  return decodeURIComponent(cookie.split('=')[1])
+                }
               }
+              return null
+            } catch (error) {
+              console.error('Error getting item from storage:', error)
+              return null
             }
-            return localStorage.getItem(key)
           },
           setItem: (key: string, value: string) => {
-            // Set both in localStorage and cookies
-            localStorage.setItem(key, value)
-            if (typeof document !== 'undefined') {
-              // Set cookie with proper attributes
-              const maxAge = 30 * 24 * 60 * 60 // 30 days in seconds
-              document.cookie = `${key}=${value}; path=/; max-age=${maxAge}; SameSite=Lax; Secure=${window.location.protocol === 'https:'}`
+            try {
+              // Set in localStorage
+              localStorage.setItem(key, value)
+              
+              // Also set as cookie for server-side access
+              if (typeof document !== 'undefined') {
+                const maxAge = key.includes('refresh') ? 30 * 24 * 60 * 60 : 60 * 60 // 30 days for refresh, 1 hour for access
+                const secure = window.location.protocol === 'https:' ? '; Secure' : ''
+                document.cookie = `${key}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}; SameSite=Lax${secure}`
+              }
+            } catch (error) {
+              console.error('Error setting item in storage:', error)
             }
           },
           removeItem: (key: string) => {
-            localStorage.removeItem(key)
-            if (typeof document !== 'undefined') {
-              // Remove cookie by setting it to expire
-              document.cookie = `${key}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`
+            try {
+              localStorage.removeItem(key)
+              if (typeof document !== 'undefined') {
+                document.cookie = `${key}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`
+              }
+            } catch (error) {
+              console.error('Error removing item from storage:', error)
             }
           }
         } : undefined

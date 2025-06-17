@@ -2,9 +2,8 @@
 const nextConfig = {
   images: {
     unoptimized: true,
+    domains: ['images.pexels.com', 'pexels.com'],
   },
-  // Removed trailingSlash: true to enable middleware functionality
-  // trailingSlash: true,
   eslint: {
     // This allows production builds to successfully complete even with ESLint errors
     ignoreDuringBuilds: true,
@@ -22,6 +21,9 @@ const nextConfig = {
         ...config.resolve.fallback,
         encoding: false,
         'pino-pretty': false,
+        fs: false,
+        net: false,
+        tls: false,
       }
     }
     
@@ -30,9 +32,14 @@ const nextConfig = {
       { module: /node_modules\/@supabase\/realtime-js/ },
       { module: /node_modules\/node-fetch/ },
       { module: /node_modules\/pino/ },
+      { module: /node_modules\/encoding/ },
     ]
     
     return config
+  },
+  // Add experimental features for better performance
+  experimental: {
+    optimizePackageImports: ['@supabase/supabase-js'],
   },
 }
 

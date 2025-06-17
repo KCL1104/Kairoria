@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr' 
 
-// 輔助函數：更新 session 並取得使用者 
+// Helper function to update session and get user
 async function updateSessionAndGetUser(request: NextRequest) { 
   let response = NextResponse.next({ 
     request: { 
@@ -9,9 +9,17 @@ async function updateSessionAndGetUser(request: NextRequest) {
     }, 
   }) 
 
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    console.error('Missing Supabase environment variables')
+    return { response, supabase: null, user: null }
+  }
+
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseUrl,
+    supabaseAnonKey,
     {
       cookies: {
         getAll() {
@@ -34,12 +42,16 @@ async function updateSessionAndGetUser(request: NextRequest) {
     }
   ) 
 
-  const { data: { user } } = await supabase.auth.getUser() 
-
-  return { response, supabase, user } 
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    return { response, supabase, user }
+  } catch (error) {
+    console.error('Error getting user in middleware:', error)
+    return { response, supabase, user: null }
+  }
 } 
 
-// 簡化的檢查函數 - 檢查是否完全完成註冊 
+// Simplified check function - check if fully registered
 function isFullyRegistered(profile: any): boolean { 
   return !!( 
     profile?.full_name && 
@@ -50,47 +62,56 @@ function isFullyRegistered(profile: any): boolean {
   ) 
 } 
 
-// 路由定義 
-const publicRoutes = ['/', '/about', '/contact', '/marketplace'] // 公開路由 
-const authRoutes = ['/auth/login', '/auth/signup', '/auth/reset-password'] 
+// Route definitions
+const publicRoutes = ['/', '/about', '/contact', '/marketplace', '/how-it-works', '/sustainability', '/terms', '/privacy', '/cookies']
+const authRoutes = ['/auth/login', '/auth/register', '/auth/reset-password', '/auth/forgot-password', '/auth/verify', '/auth/callback']
 const completeSignupRoute = '/complete-signup' 
-const protectedRoutes = ['/profile', '/messages', '/dashboard', '/settings', '/admin'] 
+const protectedRoutes = ['/profile', '/messages', '/dashboard', '/settings', '/admin']
  
- 
- export async function middleware(request: NextRequest) { 
+export async function middleware(request: NextRequest) { 
   const { response, supabase, user } = await updateSessionAndGetUser(request) 
   const path = request.nextUrl.pathname 
 
-  // 判斷路由類型 
-  const isPublicRoute = publicRoutes.some(route => path === route) 
+  // Skip middleware for static files and API routes
+  if (
+    path.startsWith('/_next/') ||
+    path.startsWith('/api/') ||
+    path.includes('.') ||
+    path.startsWith('/favicon')
+  ) {
+    return response
+  }
+
+  // Determine route types
+  const isPublicRoute = publicRoutes.some(route => path === route || path.startsWith(route + '/'))
   const isAuthRoute = authRoutes.some(route => path.startsWith(route)) 
   const isCompleteSignupRoute = path === completeSignupRoute 
   const isProtectedRoute = protectedRoutes.some(route => path.startsWith(route)) 
 
   console.log(`[Middleware] Path: ${path}, User: ${user?.id ? 'logged in' : 'not logged in'}`) 
 
-  // 規則 1: 未登入使用者 
+  // Rule 1: Unauthenticated users
   if (!user) { 
-    // 允許訪問公開路由和登入頁面 
+    // Allow access to public routes and auth routes
     if (isPublicRoute || isAuthRoute) { 
       return response 
     } 
     
-    // 嘗試訪問受保護路由 → 導向登入 
+    // Redirect to login for protected routes
     const redirectUrl = new URL('/auth/login', request.url) 
     redirectUrl.searchParams.set('callbackUrl', path) 
     return NextResponse.redirect(redirectUrl) 
   } 
 
-  // 規則 2: 已登入使用者不應訪問登入頁面 
-  if (user && isAuthRoute) { 
+  // Rule 2: Authenticated users shouldn't access auth routes
+  if (user && isAuthRoute && !path.includes('/callback')) { 
     return NextResponse.redirect(new URL('/', request.url)) 
   } 
 
-  // 規則 3: 已登入使用者的註冊狀態檢查 
-  if (user) { 
+  // Rule 3: Check registration status for authenticated users
+  if (user && supabase) { 
     try { 
-      // 獲取用戶 profile 
+      // Get user profile
       const { data: profile, error } = await supabase 
         .from('profiles') 
         .select('full_name, phone, location, is_email_verified, is_phone_verified') 
@@ -99,7 +120,7 @@ const protectedRoutes = ['/profile', '/messages', '/dashboard', '/settings', '/a
 
       if (error && error.code !== 'PGRST116') { 
         console.error('Profile fetch error:', error) 
-        return NextResponse.redirect(new URL('/?error=profile_error', request.url)) 
+        return response // Continue without profile check on error
       } 
 
       const profileData = profile || {} 
@@ -107,46 +128,46 @@ const protectedRoutes = ['/profile', '/messages', '/dashboard', '/settings', '/a
 
       console.log(`[Middleware] User ${user.id} fully registered: ${fullyRegistered}`) 
 
-      // 如果已完全註冊 
+      // If fully registered
       if (fullyRegistered) { 
-        // 如果在 complete-signup 頁面，重定向到首頁或返回URL 
+        // Redirect away from complete-signup page
         if (isCompleteSignupRoute) { 
           const returnUrl = request.nextUrl.searchParams.get('return') 
           return NextResponse.redirect(new URL(returnUrl || '/', request.url)) 
         } 
-        // 否則放行 
+        // Allow access to all routes
         return response 
       } 
 
-      // 如果未完全註冊 
+      // If not fully registered
       if (!fullyRegistered) { 
-        // 如果已經在 complete-signup 頁面，允許停留 
+        // Allow staying on complete-signup page
         if (isCompleteSignupRoute) { 
           return response 
         } 
         
-        // 如果訪問受保護路由，導向 complete-signup 
+        // Redirect protected routes to complete-signup
         if (isProtectedRoute) { 
           const redirectUrl = new URL(completeSignupRoute, request.url) 
           redirectUrl.searchParams.set('return', path) 
           return NextResponse.redirect(redirectUrl) 
         } 
         
-        // 訪問公開路由，允許訪問 
+        // Allow access to public routes
         return response 
       } 
 
     } catch (e: any) { 
       console.error('Middleware exception:', e.message) 
-      return NextResponse.redirect(new URL('/?error=middleware_error', request.url)) 
+      return response // Continue on error
     } 
   } 
 
   return response 
 } 
  
- export const config = { 
-   matcher: [ 
-     '/((?!api|_next/static|_next/image|favicon.ico|.*\.(?:svg|png|jpg|jpeg|gif|webp)$).*)', 
-   ], 
- }
+export const config = { 
+  matcher: [ 
+    '/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)', 
+  ], 
+}
