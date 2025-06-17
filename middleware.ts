@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr' 
+import { AuthDebugger } from '@/lib/auth-debug'
 
 // Helper function to update session and get user
 async function updateSessionAndGetUser(request: NextRequest) { 
@@ -44,6 +45,11 @@ async function updateSessionAndGetUser(request: NextRequest) {
 
   try {
     const { data: { user } } = await supabase.auth.getUser()
+    console.log('🔍 Middleware - User check:', {
+      path: request.nextUrl.pathname,
+      hasUser: !!user,
+      userId: user?.id
+    })
     return { response, supabase, user }
   } catch (error) {
     console.error('Error getting user in middleware:', error)
@@ -71,6 +77,7 @@ const protectedRoutes = ['/profile', '/messages', '/dashboard', '/settings', '/a
 export async function middleware(request: NextRequest) { 
   const { response, supabase, user } = await updateSessionAndGetUser(request) 
   const path = request.nextUrl.pathname 
+  console.log(`🔍 [Middleware] Processing: ${path}`)
 
   // Skip middleware for static files and API routes
   if (
@@ -79,6 +86,7 @@ export async function middleware(request: NextRequest) {
     path.includes('.') ||
     path.startsWith('/favicon')
   ) {
+    console.log(`⏭️ [Middleware] Skipping: ${path}`)
     return response
   }
 
@@ -88,7 +96,7 @@ export async function middleware(request: NextRequest) {
   const isCompleteSignupRoute = path === completeSignupRoute 
   const isProtectedRoute = protectedRoutes.some(route => path.startsWith(route)) 
 
-  console.log(`[Middleware] Path: ${path}, User: ${user?.id ? 'logged in' : 'not logged in'}`) 
+  console.log(`🔍 [Middleware] Path: ${path}, User: ${user?.id ? 'logged in' : 'not logged in'}`) 
 
   // Rule 1: Unauthenticated users
   if (!user) { 
@@ -96,6 +104,7 @@ export async function middleware(request: NextRequest) {
     if (isPublicRoute || isAuthRoute) { 
       return response 
     } 
+    console.log(`🔒 [Middleware] Redirecting unauthenticated user to login`)
     
     // Redirect to login for protected routes
     const redirectUrl = new URL('/auth/login', request.url) 
@@ -105,6 +114,7 @@ export async function middleware(request: NextRequest) {
 
   // Rule 2: Authenticated users shouldn't access auth routes
   if (user && isAuthRoute && !path.includes('/callback')) { 
+    console.log(`🔄 [Middleware] Redirecting authenticated user away from auth route`)
     return NextResponse.redirect(new URL('/', request.url)) 
   } 
 
@@ -112,6 +122,7 @@ export async function middleware(request: NextRequest) {
   if (user && supabase) { 
     try { 
       // Get user profile
+      console.log(`👤 [Middleware] Fetching profile for user: ${user.id}`)
       const { data: profile, error } = await supabase 
         .from('profiles') 
         .select('full_name, phone, location, is_email_verified, is_phone_verified') 
@@ -119,6 +130,10 @@ export async function middleware(request: NextRequest) {
         .single() 
 
       if (error && error.code !== 'PGRST116') { 
+        console.error('❌ [Middleware] Profile fetch error:', {
+          code: error.code,
+          message: error.message
+        })
         console.error('Profile fetch error:', error) 
         return response // Continue without profile check on error
       } 
@@ -126,7 +141,7 @@ export async function middleware(request: NextRequest) {
       const profileData = profile || {} 
       const fullyRegistered = isFullyRegistered(profileData) 
 
-      console.log(`[Middleware] User ${user.id} fully registered: ${fullyRegistered}`) 
+      console.log(`✅ [Middleware] User ${user.id} fully registered: ${fullyRegistered}`) 
 
       // If fully registered
       if (fullyRegistered) { 
@@ -134,6 +149,7 @@ export async function middleware(request: NextRequest) {
         if (isCompleteSignupRoute) { 
           const returnUrl = request.nextUrl.searchParams.get('return') 
           return NextResponse.redirect(new URL(returnUrl || '/', request.url)) 
+          console.log(`🔄 [Middleware] Redirecting fully registered user away from complete-signup`)
         } 
         // Allow access to all routes
         return response 
@@ -142,6 +158,7 @@ export async function middleware(request: NextRequest) {
       // If not fully registered
       if (!fullyRegistered) { 
         // Allow staying on complete-signup page
+        console.log(`📝 [Middleware] User not fully registered, profile:`, profileData)
         if (isCompleteSignupRoute) { 
           return response 
         } 
@@ -149,6 +166,7 @@ export async function middleware(request: NextRequest) {
         // Redirect protected routes to complete-signup
         if (isProtectedRoute) { 
           const redirectUrl = new URL(completeSignupRoute, request.url) 
+          console.log(`🔄 [Middleware] Redirecting incomplete user to complete-signup`)
           redirectUrl.searchParams.set('return', path) 
           return NextResponse.redirect(redirectUrl) 
         } 
@@ -158,7 +176,7 @@ export async function middleware(request: NextRequest) {
       } 
 
     } catch (e: any) { 
-      console.error('Middleware exception:', e.message) 
+      console.error('❌ [Middleware] Exception:', e.message) 
       return response // Continue on error
     } 
   } 

@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
+import { AuthDebugger } from '@/lib/auth-debug'
 
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic'
@@ -10,6 +11,13 @@ export async function GET(request: Request) {
   const code = requestUrl.searchParams.get('code')
   const error = requestUrl.searchParams.get('error')
   const errorDescription = requestUrl.searchParams.get('error_description')
+
+  console.log('🔄 OAuth Callback - Request received:', {
+    code: code ? 'present' : 'missing',
+    error,
+    errorDescription,
+    url: requestUrl.toString()
+  })
 
   // Handle OAuth errors
   if (error) {
@@ -32,6 +40,10 @@ export async function GET(request: Request) {
       const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
       
       if (!supabaseUrl || !supabaseAnonKey) {
+        console.error('❌ Missing Supabase environment variables:', {
+          hasUrl: !!supabaseUrl,
+          hasKey: !!supabaseAnonKey
+        })
         console.error('Missing Supabase environment variables')
         return NextResponse.redirect(`${requestUrl.origin}/auth/login?error=config_error`)
       }
@@ -49,6 +61,11 @@ export async function GET(request: Request) {
             setAll(cookiesToSet) {
               try {
                 cookiesToSet.forEach(({ name, value, options }) => {
+                  console.log('🍪 Setting cookie in callback:', {
+                    name,
+                    hasValue: !!value,
+                    options
+                  })
                   cookieStore.set(name, value, options)
                 })
               } catch (error) {
@@ -70,8 +87,23 @@ export async function GET(request: Request) {
       const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
       
       if (exchangeError) {
+        console.error('❌ Code exchange error:', {
+          message: exchangeError.message,
+          status: exchangeError.status,
+          code: exchangeError.code
+        })
         console.error('Code exchange error:', exchangeError)
         return NextResponse.redirect(`${requestUrl.origin}/auth/login?error=exchange_failed`)
+      } else {
+        console.log('✅ Code exchange successful')
+        
+        // Verify session was created
+        const { data: { session } } = await supabase.auth.getSession()
+        console.log('🔐 Session after exchange:', {
+          hasSession: !!session,
+          hasUser: !!session?.user,
+          userId: session?.user?.id
+        })
       }
 
       // After successful exchange, the session should be in the cookies.
@@ -81,6 +113,7 @@ export async function GET(request: Request) {
       return NextResponse.redirect(`${requestUrl.origin}/`)
       
     } catch (error) {
+      console.error('❌ Callback processing error:', error)
       console.error('Callback error:', error)
       return NextResponse.redirect(`${requestUrl.origin}/auth/login?error=callback_error`)
     }

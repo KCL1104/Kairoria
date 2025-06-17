@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { AuthDebugger } from './auth-debug'
 import { Product, Profile, ProductImage } from './data'
 
 // Client-side Supabase client (no server imports)
@@ -7,12 +8,16 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
 // Debug logging for environment variables
 if (typeof window !== 'undefined') {
+  console.log('🔧 Supabase Client Initialization')
   console.log('Supabase Environment Check:', {
     hasUrl: !!supabaseUrl,
     hasKey: !!supabaseAnonKey,
     urlStart: supabaseUrl?.substring(0, 20),
     keyStart: supabaseAnonKey?.substring(0, 20)
   })
+  
+  // Log initial auth state
+  setTimeout(() => AuthDebugger.logAuthState('Client Initialization'), 1000)
 }
 
 if (!supabaseUrl) {
@@ -32,6 +37,7 @@ export const supabase = supabaseUrl && supabaseAnonKey
         storage: typeof window !== 'undefined' ? {
           getItem: (key: string) => {
             try {
+              console.log(`📖 Storage GET: ${key}`)
               // Try localStorage first
               const value = localStorage.getItem(key)
               if (value) return value
@@ -52,6 +58,7 @@ export const supabase = supabaseUrl && supabaseAnonKey
           },
           setItem: (key: string, value: string) => {
             try {
+              console.log(`📝 Storage SET: ${key} = ${value.substring(0, 50)}...`)
               // Set in localStorage
               localStorage.setItem(key, value)
               
@@ -59,6 +66,13 @@ export const supabase = supabaseUrl && supabaseAnonKey
               if (typeof document !== 'undefined') {
                 const maxAge = key.includes('refresh') ? 30 * 24 * 60 * 60 : 60 * 60 // 30 days for refresh, 1 hour for access
                 const secure = window.location.protocol === 'https:' ? '; Secure' : ''
+                const cookieString = `${key}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}; SameSite=Lax${secure}`
+                
+                console.log(`🍪 Setting cookie: ${key}`, {
+                  maxAge,
+                  secure: !!secure,
+                  cookieString: cookieString.substring(0, 100) + '...'
+                })
                 document.cookie = `${key}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}; SameSite=Lax${secure}`
               }
             } catch (error) {
@@ -67,6 +81,7 @@ export const supabase = supabaseUrl && supabaseAnonKey
           },
           removeItem: (key: string) => {
             try {
+              console.log(`🗑️ Storage REMOVE: ${key}`)
               localStorage.removeItem(key)
               if (typeof document !== 'undefined') {
                 document.cookie = `${key}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`

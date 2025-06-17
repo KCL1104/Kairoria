@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase-client'
 import { User, Session } from '@supabase/supabase-js'
+import { AuthDebugger } from '@/lib/auth-debug'
 import { useRouter } from 'next/navigation'
 import { instantSignOut } from '@/lib/instant-signout'
 
@@ -45,6 +46,8 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
 
     const getInitialSession = async () => {
       try {
+        console.log('🔄 Getting initial session...')
+        AuthDebugger.logAuthState('Initial Session Check')
         const { data: { session }, error } = await supabase.auth.getSession()
         
         if (error) {
@@ -52,6 +55,12 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
         } else {
           setSession(session)
           setUser(session?.user ?? null)
+          
+          console.log('📊 Initial session result:', {
+            hasSession: !!session,
+            hasUser: !!session?.user,
+            userId: session?.user?.id
+          })
           
           if (session?.user) {
             await fetchProfile(session.user.id)
@@ -69,6 +78,7 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('🔄 Auth state changed:', event, session?.user?.id)
         console.log('Auth state changed:', event, session?.user?.id)
         setSession(session)
         setUser(session?.user ?? null)
@@ -78,6 +88,8 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
           
           // After successful authentication, check if we need to redirect away from auth routes
           if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+            console.log('✅ User signed in, checking for redirect...')
+            AuthDebugger.logAuthState('After Sign In')
             // Small delay to ensure profile is fetched
             setTimeout(() => {
               const currentPath = window.location.pathname
@@ -280,12 +292,20 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
       return { error: new Error('Supabase client not available') }
     }
 
+    console.log('🔄 Starting Google OAuth...')
+
     try {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
         },
+      })
+      
+      console.log('🔄 Google OAuth initiated:', {
+        hasData: !!data,
+        hasError: !!error,
+        errorMessage: error?.message
       })
       return { error }
     } catch (error) {
