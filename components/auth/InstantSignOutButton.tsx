@@ -17,6 +17,7 @@ import {
 import { useInstantSignOut } from '@/hooks/use-instant-signout'
 import { cn } from '@/lib/utils'
 
+// Define the props for the sign-out button
 interface InstantSignOutButtonProps {
   variant?: 'default' | 'outline' | 'ghost' | 'destructive'
   size?: 'sm' | 'default' | 'lg'
@@ -54,18 +55,25 @@ export function InstantSignOutButton({
   const handleSignOut = async () => {
     clearError()
     
-    if (confirmBeforeSignOut && !showConfirmDialog) {
+    // Show confirmation dialog if enabled
+    if (confirmBeforeSignOut && !showConfirmDialog && !isSigningOut) {
       setShowConfirmDialog(true)
       return
     }
 
-    await signOut()
+    // Sign out with redirect to home page with success message
+    await signOut({
+      redirectTo: '/?signout=success'
+    })
     setShowConfirmDialog(false)
   }
 
   const handleForceSignOut = async () => {
     clearError()
-    await forceSignOut()
+    // Force sign out with redirect to home page with success message
+    await forceSignOut({
+      redirectTo: '/?signout=success'
+    })
     setShowConfirmDialog(false)
   }
 

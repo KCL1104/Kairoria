@@ -3,6 +3,21 @@
 import { supabase } from '@/lib/supabase-client'
 import { crossTabAuth } from '@/lib/cross-tab-auth'
 
+// List of all possible auth-related cookies to clear during sign-out
+const AUTH_COOKIES_TO_CLEAR = [
+  'sb-access-token',
+  'sb-refresh-token',
+  'sb-user-id',
+  'supabase-auth-token',
+  '__supabase_session',
+  '__supabase_auth',
+  'supabase-user-id',
+  'supabase-user-email',
+  'sb-user-token',
+  'sb-provider-token',
+  'sb-auth-token'
+]
+
 /**
  * Comprehensive sign-out utility with instant feedback and cleanup
  */
@@ -98,6 +113,7 @@ export class InstantSignOut {
     const cookiesToClear = [
       'sb-access-token',
       'sb-refresh-token',
+      'sb-user-id',
       'supabase-auth-token',
       '__supabase_session',
       '__supabase_auth',
@@ -108,7 +124,7 @@ export class InstantSignOut {
       'sb-auth-token'
     ]
 
-    cookiesToClear.forEach(name => {
+    AUTH_COOKIES_TO_CLEAR.forEach(name => {
       // Clear with different path and domain combinations
       const clearOptions = [
         `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`,
@@ -200,7 +216,7 @@ export class InstantSignOut {
   private async performServerLogout(): Promise<void> {
     try {
       const response = await fetch('/api/auth/logout', {
-        method: 'POST',
+        method: 'DELETE', // Changed to DELETE for better semantics
         credentials: 'include',
         cache: 'no-store',
         headers: {
@@ -226,10 +242,25 @@ export class InstantSignOut {
   private async performSupabaseLogout(): Promise<void> {
     if (!supabase) return
 
+    // Get the current session before signing out
+    const { data: { session } } = await supabase.auth.getSession()
+    const userId = session?.user?.id
+
     try {
-      const { error } = await supabase.auth.signOut({ scope: 'global' })
+      // Sign out with global scope to invalidate all sessions
+      const { error } = await supabase.auth.signOut({ 
+        scope: 'global',
+        options: {
+          // Force server-side session invalidation
+          sessionOnly: false
+        }
+      })
+      
       if (error) {
         console.warn('Supabase logout error:', error)
+      } else if (userId) {
+        // Log successful sign-out
+        console.log(`Successfully signed out user: ${userId}`)
       }
     } catch (error) {
       console.warn('Supabase logout failed:', error)

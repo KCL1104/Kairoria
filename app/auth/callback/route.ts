@@ -62,12 +62,11 @@ export async function GET(request: Request) {
                 cookiesToSet.forEach(({ name, value, options }) => {
                   // Set cookies with enhanced options for better cross-tab support
                   const enhancedOptions = {
-                    ...options,
                     path: '/',
                     httpOnly: true,
                     secure: process.env.NODE_ENV === 'production',
                     sameSite: 'lax' as const,
-                    maxAge: name.includes('refresh') ? 30 * 24 * 60 * 60 : 60 * 60
+                    maxAge: name.includes('refresh') ? 30 * 24 * 60 * 60 : 60 * 60 * 24 // 30 days for refresh, 24 hours for access
                   }
                   
                   logAuthEvent('setting_cookie', { name })
@@ -94,8 +93,8 @@ export async function GET(request: Request) {
       if (exchangeError) {
         logAuthEvent('code_exchange_error', {
           message: exchangeError.message,
-          status: exchangeError.status,
-          code: exchangeError.code
+          status: exchangeError.status || 'unknown',
+          code: exchangeError.code || 'unknown'
         })
         return NextResponse.redirect(`${requestUrl.origin}/auth/login?error=exchange_failed`)
       } else {
@@ -105,8 +104,29 @@ export async function GET(request: Request) {
         const { data: { session } } = await supabase.auth.getSession()
         logAuthEvent('session_after_exchange', {
           hasSession: !!session,
-          hasUser: !!session?.user,
-          userId: session?.user?.id
+          hasUser: !!session?.user
+        })
+        
+        // Store user ID in a separate cookie for easier access
+        if (session?.user?.id) {
+          cookieStore.set('sb-user-id', session.user.id, {
+            path: '/',
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            maxAge: 60 * 60 * 24 * 30 // 30 days
+          })
+          
+          logAuthEvent('user_id_cookie_set', { userId: session.user.id })
+        }
+        
+        // Verify cookies were set
+        const cookies = cookieStore.getAll()
+        logAuthEvent('cookies_after_exchange', {
+          cookieCount: cookies.length,
+          hasAccessToken: cookies.some(c => c.name === 'sb-access-token'),
+          hasRefreshToken: cookies.some(c => c.name === 'sb-refresh-token'),
+          hasUserId: cookies.some(c => c.name === 'sb-user-id')
         })
       }
 

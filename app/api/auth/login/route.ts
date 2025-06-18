@@ -112,16 +112,22 @@ export async function POST(request: NextRequest) {
     // Set session cookies for server-side authentication
     const cookieStore = cookies();
     
-    // Set access token cookie with enhanced security options
+    // Set access token cookie (24 hours)
     response.cookies.set('sb-access-token', data.session.access_token, {
       ...AUTH_COOKIE_OPTIONS,
       maxAge: 60 * 60 * 24 // 24 hours for access token
     });
 
-    // Set refresh token cookie
+    // Set refresh token cookie (30 days)
     response.cookies.set('sb-refresh-token', data.session.refresh_token, {
       ...AUTH_COOKIE_OPTIONS,
       maxAge: 60 * 60 * 24 * 30 // 30 days for refresh token
+    });
+    
+    // Set user ID cookie for easier access
+    response.cookies.set('sb-user-id', data.user.id, {
+      ...AUTH_COOKIE_OPTIONS,
+      maxAge: 60 * 60 * 24 * 30 // 30 days
     });
 
     logAuthEvent('login_successful', { userId: data.user.id, email })

@@ -1,12 +1,14 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Link from "next/link"
-import { Search, Sliders, Map, ArrowRight, Loader2 } from "lucide-react"
+import { Search, Sliders, Map, ArrowRight, Loader2, CheckCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useToast } from "@/hooks/use-toast"
+import { useSearchParams } from "next/navigation"
 import { ProductCard } from "@/components/marketplace/product-card"
 import { fetchProducts, fetchUniqueCategories, supabase } from '@/lib/supabase-client'
 import { Product, Profile, getCategoryIcon, ProductImage, convertFromStorageAmount } from '@/lib/data'
@@ -22,6 +24,32 @@ export default function HomePage() {
   const [categories, setCategories] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
+  const { toast } = useToast()
+  const searchParams = useSearchParams()
+
+  // Check for sign-out success message
+  const checkSignOutSuccess = useCallback(() => {
+    const signout = searchParams.get('signout')
+    if (signout === 'success') {
+      toast({
+        title: "Successfully signed out",
+        description: "You have been securely signed out of your account",
+        variant: "success"
+      })
+      
+      // Remove the query parameter from URL
+      if (typeof window !== 'undefined') {
+        const url = new URL(window.location.href)
+        url.searchParams.delete('signout')
+        window.history.replaceState({}, document.title, url.toString())
+      }
+    }
+  }, [searchParams, toast])
+
+  // Check for sign-out success on mount
+  useEffect(() => {
+    checkSignOutSuccess()
+  }, [checkSignOutSuccess])
 
   useEffect(() => {
     const loadData = async () => {

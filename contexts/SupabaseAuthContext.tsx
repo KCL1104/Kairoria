@@ -419,6 +419,7 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
   const signOut = async () => {
     // Use the instant sign-out utility for immediate feedback
     await instantSignOut.performInstantSignOut({
+      redirectTo: '/?signout=success',
       onStart: () => {
         logAuthEvent('signout_start', { userId: user?.id })
         // Immediately clear local state and cross-tab auth for instant UI feedback
@@ -435,8 +436,7 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
         console.error('Sign-out error:', error)
         logAuthEvent('signout_error', { error: error.message })
         // Even on error, keep the state cleared to prevent inconsistency
-      },
-      redirectTo: '/'
+      }
     })
   }
 
@@ -448,12 +448,21 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
     logAuthEvent('google_signin_attempt')
 
     console.log('🔄 Starting Google OAuth...')
+    
+    // Clear any existing tokens to prevent conflicts
+    crossTabAuth.clearTokens()
 
     try {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
+          queryParams: {
+            // Request offline access to get refresh token
+            access_type: 'offline',
+            // Force consent screen to ensure refresh token is always provided
+            prompt: 'consent'
+          }
         },
       })
       

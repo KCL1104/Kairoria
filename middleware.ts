@@ -104,7 +104,7 @@ export async function middleware(request: NextRequest) {
       let { data: profile, error } = await supabase 
         .from('profiles') 
         .select('full_name, phone, location, is_email_verified, is_phone_verified') 
-        .eq('id', user.id) 
+        .eq('id', user.id)
         .single() 
 
       // If profile doesn't exist, try to create it
@@ -150,9 +150,11 @@ export async function middleware(request: NextRequest) {
       } 
 
       const profileData = profile || {} 
-      const fullyRegistered = isProfileComplete(profileData) 
+      const fullyRegistered = isProfileComplete(profileData)
+      const missingFields = !fullyRegistered ? getMissingProfileFields(profileData) : []
 
-      console.log(`✅ [Middleware] User ${user.id} fully registered: ${fullyRegistered}`) 
+      console.log(`✅ [Middleware] User ${user.id} fully registered: ${fullyRegistered}`, 
+        fullyRegistered ? '' : `Missing fields: ${missingFields.join(', ')}`)
 
       // If fully registered
       if (fullyRegistered) { 
@@ -171,9 +173,9 @@ export async function middleware(request: NextRequest) {
         // Allow staying on complete-signup page
         console.log(`📝 [Middleware] User not fully registered, profile:`, profileData)
         logAuthEvent('incomplete_profile', { 
-          userId: user.id,
-          path,
-          profileStatus: profileData
+          userId: user.id, 
+          path, 
+          missingFields
         })
         
         if (isCompleteSignupRoute) { 

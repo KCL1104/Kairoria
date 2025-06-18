@@ -4,7 +4,7 @@ import { cookies } from 'next/headers';
 import { logAuthEvent } from '@/lib/auth-utils';
 
 // Handler for POST requests to the logout endpoint
-export async function POST(request: Request) {
+export async function DELETE(request: Request) {
   try {
     logAuthEvent('logout_attempt')
     
@@ -65,8 +65,10 @@ export async function POST(request: Request) {
     
     // Clear all potential auth cookies
     const cookiesToClear = [
+      // Supabase auth cookies
       'sb-access-token',
       'sb-refresh-token',
+      'sb-user-id',
       'supabase-auth-token',
       '__supabase_session',
       '__supabase_auth',
@@ -77,26 +79,44 @@ export async function POST(request: Request) {
       'sb-auth-token'
     ];
     
+    // Clear cookies with multiple configurations to ensure complete removal
     cookiesToClear.forEach(name => {
-      // Clear cookies with multiple configurations to ensure complete removal
-      response.cookies.set(name, '', {
-        path: '/',
-        expires: new Date(0),
-        maxAge: 0,
-        secure: process.env.NODE_ENV === 'production',
-        httpOnly: true,
-        sameSite: 'lax'
-      });
-      
-      // Also clear with domain for cross-subdomain support
-      response.cookies.set(name, '', {
-        path: '/',
-        domain: `.${new URL(request.url).hostname}`,
-        expires: new Date(0),
-        maxAge: 0,
-        secure: process.env.NODE_ENV === 'production',
-        httpOnly: true,
-        sameSite: 'lax'
+      // Clear cookie configurations
+      const clearConfigs = [
+        // Basic path-only config
+        {
+          path: '/',
+          expires: new Date(0),
+          maxAge: 0,
+          secure: process.env.NODE_ENV === 'production',
+          httpOnly: true,
+          sameSite: 'lax' as const
+        },
+        // With domain for cross-subdomain support
+        {
+          path: '/',
+          domain: `.${new URL(request.url).hostname}`,
+          expires: new Date(0),
+          maxAge: 0,
+          secure: process.env.NODE_ENV === 'production',
+          httpOnly: true,
+          sameSite: 'lax' as const
+        },
+        // Root domain only
+        {
+          path: '/',
+          domain: new URL(request.url).hostname,
+          expires: new Date(0),
+          maxAge: 0,
+          secure: process.env.NODE_ENV === 'production',
+          httpOnly: true,
+          sameSite: 'lax' as const
+        }
+      ];
+
+      // Apply all configurations to ensure cookie is cleared
+      clearConfigs.forEach(config => {
+        response.cookies.set(name, '', config);
       });
     });
     
@@ -118,3 +138,6 @@ export async function POST(request: Request) {
     );
   }
 }
+
+// Support POST method for backward compatibility
+export const POST = DELETE;

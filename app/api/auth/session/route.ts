@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSecureServerClient } from '@/lib/auth-server'
-import { logAuthEvent } from '@/lib/auth-utils'
+import { logAuthEvent, isValidJWT } from '@/lib/auth-utils'
 
 /**
  * API route to get the current session status
@@ -9,6 +9,20 @@ import { logAuthEvent } from '@/lib/auth-utils'
 export async function GET(request: NextRequest) {
   try {
     const supabase = createSecureServerClient()
+    
+    // Check for direct token in cookies
+    const accessToken = request.cookies.get('sb-access-token')?.value
+    const refreshToken = request.cookies.get('sb-refresh-token')?.value
+    const userId = request.cookies.get('sb-user-id')?.value
+    
+    // Log token presence for debugging
+    logAuthEvent('session_api_check', { 
+      hasAccessToken: !!accessToken,
+      hasRefreshToken: !!refreshToken,
+      hasUserId: !!userId,
+      isAccessTokenValid: accessToken ? isValidJWT(accessToken) : false
+    })
+    
     const { data: { session }, error } = await supabase.auth.getSession()
     
     if (error) {
@@ -40,8 +54,7 @@ export async function GET(request: NextRequest) {
         authenticated: true,
         user: {
           id: session.user.id,
-          email: session.user.email,
-          email_confirmed: !!session.user.email_confirmed_at
+          email: session.user.email
         },
         expires_at: session.expires_at
       },

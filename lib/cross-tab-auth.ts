@@ -9,8 +9,8 @@ import { logAuthEvent } from '@/lib/auth-utils'
 interface AuthTokens {
   access_token: string
   refresh_token: string
-  expires_at: number
-  user_id: string
+  expires_at?: number
+  user_id?: string
 }
 
 interface AuthEvent {
@@ -142,7 +142,11 @@ export class CrossTabAuth {
       // Store in multiple locations for redundancy
       this.setSecureStorage('sb-access-token', updatedTokens.access_token || '')
       this.setSecureStorage('sb-refresh-token', updatedTokens.refresh_token || '')
-      this.setSecureStorage('sb-user-id', updatedTokens.user_id || '')
+      
+      // Store user ID if available
+      if (updatedTokens.user_id) {
+        this.setSecureStorage('sb-user-id', updatedTokens.user_id)
+      }
       
       // Store complete auth state
       const tokenInfo = {
@@ -290,11 +294,10 @@ export class CrossTabAuth {
     // Also store as cookie for redundancy and server access
     if (typeof document !== 'undefined') {
       const maxAge = key.includes('refresh') ? 30 * 24 * 60 * 60 : 60 * 60 // 30 days for refresh, 1 hour for access
-      const secure = window.location.protocol === 'https:' ? '; Secure' : ''
-      const domain = window.location.hostname
+      const secure = window.location.protocol === 'https:'
 
-      // Set cookie with domain to ensure it works across subdomains
-      document.cookie = `${key}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}; SameSite=Lax${secure}`
+      // Set cookie with enhanced security options
+      document.cookie = `${key}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}; SameSite=Lax${secure ? '; Secure' : ''}; HttpOnly`
     }
   }
 
@@ -331,11 +334,16 @@ export class CrossTabAuth {
     
     // Remove from cookies
     if (typeof document !== 'undefined') {
-      document.cookie = `${key}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`
+      // Multiple cookie clearing strategies for maximum effectiveness
+      const clearOptions = [
+        `${key}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`,
+        `${key}=; path=/; domain=${window.location.hostname}; expires=Thu, 01 Jan 1970 00:00:00 GMT`,
+        `${key}=; path=/; domain=.${window.location.hostname}; expires=Thu, 01 Jan 1970 00:00:00 GMT`
+      ]
       
-      // Also try with domain
-      const domain = window.location.hostname
-      document.cookie = `${key}=; path=/; domain=${domain}; expires=Thu, 01 Jan 1970 00:00:00 GMT`
+      clearOptions.forEach(option => {
+        document.cookie = option
+      })
     }
   }
 

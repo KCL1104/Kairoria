@@ -12,10 +12,12 @@ interface UseInstantSignOutReturn {
   signOut: (options?: {
     redirectTo?: string
     showToast?: boolean
+    clearCookies?: boolean
   }) => Promise<void>
   forceSignOut: (options?: {
     redirectTo?: string
     showToast?: boolean
+    clearCookies?: boolean
   }) => Promise<void>
   registerPendingOperation: (operationId: string) => void
   completePendingOperation: (operationId: string) => void
@@ -47,13 +49,15 @@ export function useInstantSignOut(): UseInstantSignOutReturn {
   const signOut = useCallback(async (options: {
     redirectTo?: string
     showToast?: boolean
+    clearCookies?: boolean
   } = {}) => {
-    const { redirectTo = '/', showToast = true } = options
+    const { redirectTo = '/', showToast = true, clearCookies = true } = options
 
     setError(null)
 
     const result = await instantSignOut.performInstantSignOut({
       redirectTo,
+      skipPendingCheck: false,
       onStart: () => {
         setIsSigningOut(true)
         if (showToast) {
@@ -93,13 +97,15 @@ export function useInstantSignOut(): UseInstantSignOutReturn {
   const forceSignOut = useCallback(async (options: {
     redirectTo?: string
     showToast?: boolean
+    clearCookies?: boolean
   } = {}) => {
-    const { redirectTo = '/', showToast = true } = options
+    const { redirectTo = '/', showToast = true, clearCookies = true } = options
 
     setError(null)
 
     const result = await instantSignOut.forceSignOut({
       redirectTo,
+      skipPendingCheck: true,
       onStart: () => {
         setIsSigningOut(true)
         if (showToast) {
