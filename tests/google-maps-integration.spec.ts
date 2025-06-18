@@ -37,7 +37,7 @@ test.describe('Google Maps Integration', () => {
     // Step 9: Verify map controls are present (fullscreen, camera controls)
     // Note: These controls are within the Google Maps iframe and may not be directly accessible
     // We verify the map container and basic structure instead
-    const mapRegion = page.getByRole('region', { name: '地圖' });
+    const mapRegion = page.getByRole('region', { name: 'Map' });
     await expect(mapRegion).toBeVisible();
     
     // Step 10: Verify the Available Items counter shows '(0)'

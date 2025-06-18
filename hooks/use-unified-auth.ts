@@ -4,15 +4,13 @@ import { useState } from 'react'
 import { logAuthEvent } from '@/lib/auth-utils'
 
 /**
- * 統一認證類型定義
+ * Unified authentication type definitions
  */
 export interface LoginCredentials {
-  loginType: 'password' | 'oauth' | 'magic_link' | 'phone'
+  loginType: 'password' | 'oauth'
   email?: string
   password?: string
   provider?: 'google' | 'facebook' | 'github' | 'apple'
-  phone?: string
-  token?: string
   redirectTo?: string
 }
 
@@ -43,8 +41,8 @@ export interface SupportedLoginType {
 }
 
 /**
- * 統一認證 Hook
- * 提供所有登入類型的統一介面
+ * Unified authentication hook
+ * Provides unified interface for email/password and Google OAuth authentication
  */
 export function useUnifiedAuth() {
   const [isLoading, setIsLoading] = useState(false)
@@ -52,7 +50,7 @@ export function useUnifiedAuth() {
   const [supportedTypes, setSupportedTypes] = useState<SupportedLoginType[]>([])
 
   /**
-   * 統一登入方法
+   * Unified login method
    */
   const login = async (credentials: LoginCredentials): Promise<LoginResponse> => {
     setIsLoading(true)
@@ -81,9 +79,9 @@ export function useUnifiedAuth() {
           userId: result.user?.id 
         })
         
-        // 對於 OAuth 登入，可能需要重定向
+        // For OAuth login, may need to redirect
         if (credentials.loginType === 'oauth' && result.session) {
-          // OAuth 成功，但可能需要處理重定向
+          // OAuth success, but may need to handle redirection
           window.location.href = credentials.redirectTo || '/'
         }
       }
@@ -107,7 +105,7 @@ export function useUnifiedAuth() {
   }
 
   /**
-   * 密碼登入
+   * Password login
    */
   const loginWithPassword = async (email: string, password: string) => {
     return await login({
@@ -118,7 +116,7 @@ export function useUnifiedAuth() {
   }
 
   /**
-   * OAuth 登入
+   * OAuth login
    */
   const loginWithOAuth = async (
     provider: 'google' | 'facebook' | 'github' | 'apple',
@@ -132,36 +130,14 @@ export function useUnifiedAuth() {
   }
 
   /**
-   * Google OAuth 登入（便捷方法）
+   * Google OAuth login (convenience method)
    */
   const loginWithGoogle = async (redirectTo?: string) => {
     return await loginWithOAuth('google', redirectTo)
   }
 
   /**
-   * 魔法連結登入
-   */
-  const loginWithMagicLink = async (email: string, redirectTo?: string) => {
-    return await login({
-      loginType: 'magic_link',
-      email,
-      redirectTo
-    })
-  }
-
-  /**
-   * 手機號碼登入
-   */
-  const loginWithPhone = async (phone: string, token: string) => {
-    return await login({
-      loginType: 'phone',
-      phone,
-      token
-    })
-  }
-
-  /**
-   * 獲取支援的登入類型
+   * Get supported login types
    */
   const getSupportedLoginTypes = async () => {
     try {
@@ -184,7 +160,7 @@ export function useUnifiedAuth() {
   }
 
   /**
-   * 驗證登入憑證
+   * Validate login credentials
    */
   const validateCredentials = (credentials: LoginCredentials): string[] => {
     const errors: string[] = []
@@ -205,18 +181,6 @@ export function useUnifiedAuth() {
         if (!credentials.provider) errors.push('OAuth provider is required')
         break
         
-      case 'magic_link':
-        if (!credentials.email) errors.push('Email is required')
-        if (credentials.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(credentials.email)) {
-          errors.push('Invalid email format')
-        }
-        break
-        
-      case 'phone':
-        if (!credentials.phone) errors.push('Phone number is required')
-        if (!credentials.token) errors.push('Verification token is required')
-        break
-        
       default:
         errors.push('Invalid login type')
     }
@@ -225,25 +189,23 @@ export function useUnifiedAuth() {
   }
 
   /**
-   * 清除錯誤狀態
+   * Clear error state
    */
   const clearError = () => {
     setError(null)
   }
 
   return {
-    // 狀態
+    // State
     isLoading,
     error,
     supportedTypes,
     
-    // 方法
+    // Methods
     login,
     loginWithPassword,
     loginWithOAuth,
     loginWithGoogle,
-    loginWithMagicLink,
-    loginWithPhone,
     getSupportedLoginTypes,
     validateCredentials,
     clearError,
@@ -251,6 +213,6 @@ export function useUnifiedAuth() {
 }
 
 /**
- * 預設導出便捷方法
+ * Default export convenience method
  */
 export default useUnifiedAuth

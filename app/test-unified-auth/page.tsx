@@ -9,8 +9,8 @@ import { UnifiedLoginForm } from '@/components/auth/UnifiedLoginForm'
 import { CheckCircle, XCircle, Info } from 'lucide-react'
 
 /**
- * 統一認證系統測試頁面
- * 展示如何使用統一登入 API 和組件
+ * Unified authentication system test page
+ * Demonstrates how to use unified login API and components
  */
 export default function TestUnifiedAuthPage() {
   const [loginResult, setLoginResult] = useState<any>(null)
@@ -20,63 +20,62 @@ export default function TestUnifiedAuthPage() {
   const handleLoginSuccess = (user: any) => {
     setLoginResult(user)
     setLoginError(null)
-    console.log('登入成功:', user)
+    console.log('Login successful:', user)
   }
 
   const handleLoginError = (error: string) => {
     setLoginError(error)
     setLoginResult(null)
-    console.error('登入失敗:', error)
+    console.error('Login failed:', error)
   }
 
-  const resetDemo = () => {
+  const resetTest = () => {
     setLoginResult(null)
     setLoginError(null)
-    setShowDemo(true)
   }
+
+  const resetDemo = resetTest
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-6xl">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-4">統一認證系統測試</h1>
-        <p className="text-gray-600 mb-6">
-          這個頁面展示了統一登入 API 的功能，支援多種認證方式的統一介面。
-        </p>
+        <h1 className="text-3xl font-bold mb-4">Unified Authentication System Test</h1>
+            <p className="text-gray-600">
+              This page demonstrates the unified login API functionality with a unified interface supporting multiple authentication methods.
+            </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* 左側：功能說明 */}
+        {/* Left side: Feature description */}
         <div className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Info className="h-5 w-5" />
-                統一登入 API 功能
+                Unified Login API Features
               </CardTitle>
               <CardDescription>
-                一個 API 端點處理所有登入類型
+                One API endpoint handles all login types
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <h4 className="font-semibold mb-2">支援的登入方式：</h4>
+                <h4 className="font-semibold mb-2">Supported login methods:</h4>
                 <div className="flex flex-wrap gap-2">
-                  <Badge variant="secondary">密碼登入</Badge>
+                  <Badge variant="secondary">Password Login</Badge>
                   <Badge variant="secondary">Google OAuth</Badge>
-                  <Badge variant="secondary">魔法連結</Badge>
-                  <Badge variant="secondary">手機驗證</Badge>
                 </div>
               </div>
               
               <div>
-                <h4 className="font-semibold mb-2">API 端點：</h4>
+                <h4 className="font-semibold mb-2">API Endpoint:</h4>
                 <code className="bg-gray-100 px-2 py-1 rounded text-sm">
                   POST /api/auth/unified-login
                 </code>
               </div>
               
               <div>
-                <h4 className="font-semibold mb-2">請求格式：</h4>
+                <h4 className="font-semibold mb-2">Request format:</h4>
                 <pre className="bg-gray-100 p-3 rounded text-xs overflow-x-auto">
 {`{
   "loginType": "password",
@@ -87,7 +86,7 @@ export default function TestUnifiedAuthPage() {
               </div>
               
               <div>
-                <h4 className="font-semibold mb-2">OAuth 請求格式：</h4>
+                <h4 className="font-semibold mb-2">OAuth request format:</h4>
                 <pre className="bg-gray-100 p-3 rounded text-xs overflow-x-auto">
 {`{
   "loginType": "oauth",
@@ -101,32 +100,32 @@ export default function TestUnifiedAuthPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>測試帳號</CardTitle>
+              <CardTitle>Test Account</CardTitle>
               <CardDescription>
-                使用以下測試帳號進行登入測試
+                Use the following test account for login testing
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
                 <div>
-                  <strong>電子郵件：</strong> 
+                  <strong>Email:</strong> 
                   <code className="bg-gray-100 px-2 py-1 rounded ml-2">testuser@example.com</code>
                 </div>
                 <div>
-                  <strong>密碼：</strong> 
+                  <strong>Password:</strong> 
                   <code className="bg-gray-100 px-2 py-1 rounded ml-2">Abcd_123</code>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* 登入結果顯示 */}
+          {/* Login result display */}
           {loginResult && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-green-600">
                   <CheckCircle className="h-5 w-5" />
-                  登入成功
+                  Login Successful
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -134,7 +133,7 @@ export default function TestUnifiedAuthPage() {
                   {JSON.stringify(loginResult, null, 2)}
                 </pre>
                 <Button onClick={resetDemo} className="mt-4" variant="outline">
-                  重新測試
+                  Test Again
                 </Button>
               </CardContent>
             </Card>
@@ -145,7 +144,7 @@ export default function TestUnifiedAuthPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-red-600">
                   <XCircle className="h-5 w-5" />
-                  登入失敗
+                  Login Failed
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -153,14 +152,14 @@ export default function TestUnifiedAuthPage() {
                   <AlertDescription>{loginError}</AlertDescription>
                 </Alert>
                 <Button onClick={resetDemo} className="mt-4" variant="outline">
-                  重新測試
+                  Test Again
                 </Button>
               </CardContent>
             </Card>
           )}
         </div>
 
-        {/* 右側：登入表單 */}
+        {/* Right side: Login form */}
         <div>
           {showDemo && (
             <UnifiedLoginForm
@@ -173,46 +172,46 @@ export default function TestUnifiedAuthPage() {
         </div>
       </div>
 
-      {/* 底部：使用說明 */}
+      {/* Bottom: Usage instructions */}
       <div className="mt-12">
         <Card>
           <CardHeader>
-            <CardTitle>使用說明</CardTitle>
+            <CardTitle>Usage Instructions</CardTitle>
             <CardDescription>
-              如何在您的應用中使用統一認證系統
+              How to use the unified authentication system in your application
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <h4 className="font-semibold mb-2">1. 使用 Hook：</h4>
+              <h4 className="font-semibold mb-2">1. Using Hook:</h4>
               <pre className="bg-gray-100 p-3 rounded text-sm overflow-x-auto">
 {`import useUnifiedAuth from '@/hooks/use-unified-auth'
 
 const { loginWithPassword, loginWithGoogle } = useUnifiedAuth()
 
-// 密碼登入
+// Password login
 const result = await loginWithPassword('user@example.com', 'password')
 
-// Google OAuth 登入
+// Google OAuth login
 const result = await loginWithGoogle('/dashboard')`}
               </pre>
             </div>
             
             <div>
-              <h4 className="font-semibold mb-2">2. 使用組件：</h4>
+              <h4 className="font-semibold mb-2">2. Using Component:</h4>
               <pre className="bg-gray-100 p-3 rounded text-sm overflow-x-auto">
 {`import { UnifiedLoginForm } from '@/components/auth/UnifiedLoginForm'
 
 <UnifiedLoginForm
-  onSuccess={(user) => console.log('登入成功', user)}
-  onError={(error) => console.error('登入失敗', error)}
+  onSuccess={(user) => console.log('Login successful', user)}
+  onError={(error) => console.error('Login failed', error)}
   redirectTo="/dashboard"
 />`}
               </pre>
             </div>
             
             <div>
-              <h4 className="font-semibold mb-2">3. 直接調用 API：</h4>
+              <h4 className="font-semibold mb-2">3. Direct API Call:</h4>
               <pre className="bg-gray-100 p-3 rounded text-sm overflow-x-auto">
 {`const response = await fetch('/api/auth/unified-login', {
   method: 'POST',

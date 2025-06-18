@@ -4,14 +4,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { AUTH_COOKIE_OPTIONS, logAuthEvent } from '@/lib/auth-utils'
 
 /**
- * 統一登入 API 端點
- * 處理所有登入類型：密碼登入、OAuth、魔法連結等
+ * Unified login API endpoint
+ * Handles all login types: password login, OAuth, magic link, etc.
  */
 export async function POST(request: NextRequest) {
   try {
     logAuthEvent('unified_login_attempt')
     
-    // 創建 Supabase 客戶端
+    // Create Supabase client
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
     const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 創建響應對象用於處理 cookies
+    // Create response object for handling cookies
     let response = NextResponse.json({ success: false })
     
     const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
@@ -41,8 +41,8 @@ export async function POST(request: NextRequest) {
               ...AUTH_COOKIE_OPTIONS,
               domain: undefined,
               maxAge: name.includes('refresh') 
-                ? 60 * 60 * 24 * 30 // 30 天 refresh token
-                : 60 * 60           // 1 小時 access token
+                ? 60 * 60 * 24 * 30 // 30 days refresh token
+                : 60 * 60           // 1 hour access token
             }
             
             response.cookies.set(name, value, enhancedOptions)
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { loginType, ...credentials } = body
 
-    // 驗證登入類型
+    // Validate login type
     if (!loginType) {
       logAuthEvent('unified_login_validation_error', { error: 'Missing login type' })
       return NextResponse.json(
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
     let authResult
     let loginMethod = ''
 
-    // 根據登入類型處理不同的認證方式
+    // Handle different authentication methods based on login type
     switch (loginType) {
       case 'password':
         authResult = await handlePasswordLogin(supabase, credentials)
@@ -78,25 +78,15 @@ export async function POST(request: NextRequest) {
         
       case 'oauth':
         authResult = await handleOAuthLogin(supabase, credentials, request)
-        loginMethod = `oauth_${credentials.provider || 'unknown'}`
-        break
-        
-      case 'magic_link':
-        authResult = await handleMagicLinkLogin(supabase, credentials)
-        loginMethod = 'magic_link'
-        break
-        
-      case 'phone':
-        authResult = await handlePhoneLogin(supabase, credentials)
-        loginMethod = 'phone'
+        loginMethod = 'oauth'
         break
         
       default:
-        logAuthEvent('unified_login_unsupported_type', { loginType })
+        logAuthEvent('unified_login_validation_error', { error: 'Invalid login type', loginType })
         return NextResponse.json(
           { 
             success: false, 
-            message: `Unsupported login type: ${loginType}` 
+            message: 'Invalid login type' 
           },
           { status: 400 }
         )
@@ -131,10 +121,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 獲取用戶資料
+    // Get user profile data
     const userProfile = await fetchUserProfile(supabase, authResult.data.user.id)
 
-    // 更新響應內容
+    // Update response content
     response = NextResponse.json({
       success: true,
       message: 'Login successful',
@@ -174,7 +164,7 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * 處理密碼登入
+ * Handle password login
  */
 async function handlePasswordLogin(supabase: any, credentials: any) {
   const { email, password } = credentials
@@ -192,7 +182,7 @@ async function handlePasswordLogin(supabase: any, credentials: any) {
 }
 
 /**
- * 處理 OAuth 登入
+ * Handle OAuth login
  */
 async function handleOAuthLogin(supabase: any, credentials: any, request: NextRequest) {
   const { provider, redirectTo } = credentials
@@ -219,46 +209,7 @@ async function handleOAuthLogin(supabase: any, credentials: any, request: NextRe
 }
 
 /**
- * 處理魔法連結登入
- */
-async function handleMagicLinkLogin(supabase: any, credentials: any) {
-  const { email, redirectTo } = credentials
-
-  if (!email) {
-    return {
-      error: { message: 'Email is required for magic link login' }
-    }
-  }
-
-  return await supabase.auth.signInWithOtp({
-    email,
-    options: {
-      emailRedirectTo: redirectTo
-    }
-  })
-}
-
-/**
- * 處理手機號碼登入
- */
-async function handlePhoneLogin(supabase: any, credentials: any) {
-  const { phone, token } = credentials
-
-  if (!phone || !token) {
-    return {
-      error: { message: 'Phone number and verification token are required' }
-    }
-  }
-
-  return await supabase.auth.verifyOtp({
-    phone,
-    token,
-    type: 'sms'
-  })
-}
-
-/**
- * 獲取用戶資料
+ * Get user profile data
  */
 async function fetchUserProfile(supabase: any, userId: string) {
   try {
@@ -277,7 +228,7 @@ async function fetchUserProfile(supabase: any, userId: string) {
 }
 
 /**
- * GET 方法用於獲取支援的登入類型
+ * GET method for retrieving supported login types
  */
 export async function GET() {
   return NextResponse.json({
@@ -285,30 +236,17 @@ export async function GET() {
     supportedLoginTypes: [
       {
         type: 'password',
-        name: '密碼登入',
-        description: '使用電子郵件和密碼登入',
+        name: 'Password Login',
+        description: 'Login using email and password',
         requiredFields: ['email', 'password']
       },
       {
         type: 'oauth',
-        name: 'OAuth 登入',
-        description: '使用第三方服務登入（Google、Facebook 等）',
+        name: 'OAuth Login',
+        description: 'Login using third-party services (Google, Facebook, etc.)',
         requiredFields: ['provider'],
         optionalFields: ['redirectTo'],
         supportedProviders: ['google', 'facebook', 'github', 'apple']
-      },
-      {
-        type: 'magic_link',
-        name: '魔法連結',
-        description: '透過電子郵件發送登入連結',
-        requiredFields: ['email'],
-        optionalFields: ['redirectTo']
-      },
-      {
-        type: 'phone',
-        name: '手機驗證',
-        description: '使用手機號碼和驗證碼登入',
-        requiredFields: ['phone', 'token']
       }
     ]
   })

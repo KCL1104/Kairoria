@@ -1,11 +1,9 @@
 'use client'
 
-import { PhoneInput } from "@/components/ui/phone-input"
 import { useState, useEffect, useRef } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
@@ -13,7 +11,6 @@ import { supabase } from "@/lib/supabase-client"
 import { auth, RecaptchaVerifier, signInWithPhoneNumber, isFirebaseConfigured } from "@/lib/firebase"
 import type { ConfirmationResult } from "firebase/auth"
 import { Check, Mail, Phone, Shield, User, MapPin, Loader2 } from "lucide-react"
-import { logAuthEvent } from "@/lib/auth-utils"
 import { useAuth } from "@/contexts/SupabaseAuthContext"
 
 interface ProfileData {
@@ -22,7 +19,6 @@ interface ProfileData {
   location: string
   is_email_verified: boolean
   is_phone_verified: boolean
-  country_code?: string
 }
 
 export default function CompleteSignupPage() {
@@ -31,14 +27,10 @@ export default function CompleteSignupPage() {
     phone: '',
     location: '',
     is_email_verified: false,
-    is_phone_verified: false,
-    country_code: ''
+    is_phone_verified: false
   })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  
-  // Debug state
-  const [debugInfo, setDebugInfo] = useState<string | null>(null)
   
   // Email verification states
   const [emailResendCooldown, setEmailResendCooldown] = useState(0)
@@ -54,10 +46,10 @@ export default function CompleteSignupPage() {
   const { toast } = useToast()
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { user, profile: authProfile } = useAuth()
+  const { user } = useAuth()
   const returnUrl = searchParams.get('return') || '/'
 
-  // 檢查是否所有步驟都完成
+  // Check if all steps are completed
   const isFullyComplete = () => {
     return !!(
       profile.full_name &&
@@ -88,10 +80,8 @@ export default function CompleteSignupPage() {
   // Load profile data
   useEffect(() => {
     async function loadProfile() {
-      logAuthEvent('complete_signup_load', { userId: user?.id })
       try {
         if (!supabase || !user) {
-          setDebugInfo(`No Supabase client or user: ${!!supabase}, ${!!user}`)
           return
         }
 
@@ -101,19 +91,14 @@ export default function CompleteSignupPage() {
           .eq('id', user.id)
           .single()
 
-        setDebugInfo(`Profile fetch result: ${!!profileData}, error: ${!!profileError}`)
-
         if (profileData) {
           setProfile({
             full_name: profileData.full_name || '',
             phone: profileData.phone || '',
             location: profileData.location || '',
             is_email_verified: profileData.is_email_verified || false,
-            is_phone_verified: profileData.is_phone_verified || false,
-            country_code: profileData.country_code || ''
+            is_phone_verified: profileData.is_phone_verified || false
           })
-          
-          logAuthEvent('profile_loaded', { userId: user.id, isComplete: isFullyComplete() })
           
           if (profileData.is_phone_verified) {
             setPhoneVerificationStep('verified')
@@ -147,10 +132,7 @@ export default function CompleteSignupPage() {
 
   // Save profile data
   const saveProfileData = async () => {
-    const phoneNumber = profile.phone.replace(/\D/g, '')
-    logAuthEvent('profile_save_attempt', { userId: user?.id })
-    
-    if (!profile.full_name || !phoneNumber || !profile.location) {
+    if (!profile.full_name || !profile.phone || !profile.location) {
       toast({
         variant: "destructive",
         title: "Missing information",
@@ -161,12 +143,11 @@ export default function CompleteSignupPage() {
 
     setSaving(true)
     try {
-      const { error } = await supabase
+      const { error } = await supabase!
         .from('profiles')
         .update({
           full_name: profile.full_name,
           phone: profile.phone,
-          country_code: profile.country_code,
           location: profile.location
         })
         .eq('id', user?.id)
@@ -174,7 +155,6 @@ export default function CompleteSignupPage() {
       if (error) throw error
 
       toast({
-        variant: "success",
         title: "Profile updated",
         description: "Your profile information has been saved"
       })
@@ -182,7 +162,6 @@ export default function CompleteSignupPage() {
     } catch (error) {
       console.error('Error saving profile:', error)
       toast({
-        variant: "destructive",
         variant: "destructive",
         title: "Update failed",
         description: "Failed to save profile information"
@@ -195,7 +174,6 @@ export default function CompleteSignupPage() {
   // Email verification
   const sendEmailVerification = async () => {
     if (!supabase || !user?.email) {
-      logAuthEvent('email_verification_error', { error: 'No Supabase client or email' })
       toast({
         variant: "destructive",
         title: "Email verification unavailable",
@@ -205,7 +183,6 @@ export default function CompleteSignupPage() {
     }
 
     try {
-      logAuthEvent('email_verification_attempt', { email: user.email })
       const { error } = await supabase.auth.resend({
         type: 'signup',
         email: user.email
@@ -214,7 +191,6 @@ export default function CompleteSignupPage() {
       if (error) throw error
 
       setEmailResendCooldown(60)
-      logAuthEvent('email_verification_sent', { email: user.email })
       toast({
         title: "Verification email sent",
         description: "Please check your email for the verification link"
@@ -224,7 +200,6 @@ export default function CompleteSignupPage() {
       console.error('Error sending email verification:', error)
       toast({
         variant: "destructive",
-        variant: "destructive",
         title: "Email verification failed",
         description: "Failed to send verification email. Please try again."
       })
@@ -233,9 +208,7 @@ export default function CompleteSignupPage() {
 
   // Phone verification
   const sendPhoneVerification = async () => {
-    const phoneNumber = profile.phone.replace(/\D/g, '')
-    logAuthEvent('phone_verification_attempt', { phone: profile.phone })
-    if (!phoneNumber || !recaptchaVerifier || !auth) {
+    if (!profile.phone || !recaptchaVerifier || !auth) {
       toast({
         variant: "destructive",
         title: "Phone verification unavailable",
@@ -248,13 +221,11 @@ export default function CompleteSignupPage() {
     await saveProfileData()
 
     try {
-      // Use the full phone number with country code for Firebase
       const result = await signInWithPhoneNumber(auth, profile.phone, recaptchaVerifier)
       setConfirmationResult(result)
       setPhoneVerificationStep('code-sent')
       setPhoneResendCooldown(60)
       
-      logAuthEvent('phone_verification_sent', { phone: profile.phone })
       toast({
         title: "Verification code sent",
         description: "Please check your phone for the verification code"
@@ -264,7 +235,6 @@ export default function CompleteSignupPage() {
       console.error('Error sending phone verification:', error)
       toast({
         variant: "destructive",
-        variant: "destructive",
         title: "Phone verification failed",
         description: "Failed to send verification code"
       })
@@ -273,12 +243,11 @@ export default function CompleteSignupPage() {
 
   const verifyPhoneCode = async () => {
     if (!confirmationResult || !verificationCode) return
-    logAuthEvent('phone_verification_confirm_attempt')
 
     try {
       await confirmationResult.confirm(verificationCode)
       
-      const { error } = await supabase
+      const { error } = await supabase!
         .from('profiles')
         .update({ is_phone_verified: true })
         .eq('id', user?.id)
@@ -288,7 +257,6 @@ export default function CompleteSignupPage() {
       setPhoneVerificationStep('verified')
       setProfile(prev => ({ ...prev, is_phone_verified: true }))
       
-      logAuthEvent('phone_verification_confirmed', { userId: user?.id })
       toast({
         title: "Phone verified",
         description: "Your phone number has been successfully verified"
@@ -297,7 +265,6 @@ export default function CompleteSignupPage() {
     } catch (error) {
       console.error('Error verifying code:', error)
       toast({
-        variant: "destructive",
         variant: "destructive",
         title: "Invalid code",
         description: "The verification code is incorrect"
@@ -308,21 +275,19 @@ export default function CompleteSignupPage() {
   // Check email verification status
   useEffect(() => {
     const checkEmailVerification = async () => {
-      logAuthEvent('email_verification_check', { userId: user?.id })
       if (!supabase || !user) return
       
       try {
-        const { data: { user: currentUser } } = await supabase.auth.getUser()
+        const { data: { user: currentUser } } = await supabase!.auth.getUser()
         
         if (currentUser?.email_confirmed_at && !profile.is_email_verified) {
-          const { error } = await supabase
+          const { error } = await supabase!
             .from('profiles')
             .update({ is_email_verified: true })
             .eq('id', user.id)
 
           if (!error) {
             setProfile(prev => ({ ...prev, is_email_verified: true }))
-            logAuthEvent('email_verification_confirmed', { userId: user.id })
             toast({
               title: "Email verified",
               description: "Your email has been successfully verified"
@@ -331,7 +296,6 @@ export default function CompleteSignupPage() {
         }
       } catch (error) {
         console.error('Error checking email verification:', error)
-        logAuthEvent('email_verification_check_error', { error: String(error) })
       }
     }
 
@@ -349,11 +313,6 @@ export default function CompleteSignupPage() {
   }, [user, profile.is_email_verified])
 
   const handleComplete = async () => {
-    logAuthEvent('profile_completion_attempt', { 
-      userId: user?.id,
-      isComplete: isFullyComplete()
-    })
-    
     if (!isFullyComplete()) {
       toast({
         variant: "destructive",
@@ -363,7 +322,6 @@ export default function CompleteSignupPage() {
       return
     }
 
-    logAuthEvent('profile_completion_success', { userId: user?.id, redirectTo: returnUrl })
     router.push(returnUrl)
   }
 
@@ -377,19 +335,6 @@ export default function CompleteSignupPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4">
-      {/* Debug info for development */}
-      {process.env.NODE_ENV === 'development' && debugInfo && (
-        <Alert className="max-w-2xl mx-auto mb-4">
-          <AlertDescription>
-            <strong>Debug Info:</strong> {debugInfo}
-            <br />
-            <strong>User:</strong> {user?.id || 'Not logged in'}
-            <br />
-            <strong>Auth Profile:</strong> {authProfile ? 'Loaded' : 'Not loaded'}
-          </AlertDescription>
-        </Alert>
-      )}
-      
       <div className="max-w-2xl mx-auto">
         <Card>
           <CardHeader className="text-center">
@@ -435,12 +380,11 @@ export default function CompleteSignupPage() {
                 
                 <div>
                   <Label htmlFor="phone">Phone Number</Label>
-                  <PhoneInput
+                  <Input
+                    id="phone"
                     value={profile.phone}
-                    onChange={(value) => setProfile({ ...profile, phone: value })}
-                    onCountryChange={(country) => setProfile({ ...profile, country_code: country.code })}
-                    placeholder="Enter your phone number"
-                    required
+                    onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
+                    placeholder="+886 912 345 678"
                   />
                 </div>
                 
@@ -456,7 +400,7 @@ export default function CompleteSignupPage() {
                 
                 <Button
                   onClick={saveProfileData}
-                  disabled={saving || !profile.full_name || !profile.phone.replace(/\D/g, '') || !profile.location}
+                  disabled={saving || !profile.full_name || !profile.phone || !profile.location}
                   className="w-full"
                 >
                   {saving ? (
@@ -560,11 +504,11 @@ export default function CompleteSignupPage() {
               ) : (
                 <div className="space-y-3">
                   <p className="text-sm text-gray-600">
-                    We'll send a verification code to <strong>{profile.phone}</strong>
+                    We'll send a verification code to your phone number
                   </p>
                   <Button
-                    onClick={sendPhoneVerification} 
-                    disabled={!profile.phone.replace(/\D/g, '')}
+                    onClick={sendPhoneVerification}
+                    disabled={!profile.phone}
                     variant="outline"
                     size="sm"
                     className="w-full"
