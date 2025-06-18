@@ -41,3 +41,16 @@ next-env.d.ts
 /.trae
 # Local Netlify folder
 .netlify
+
+# 測試結果
+test-results/
+
+# Deno 檔案 (如果不使用 Deno)
+deno.lock
+
+# 重複檔案模式
+**/copy
+**/*copy*
+**/*.backup
+**/*.bak
+**/*.old

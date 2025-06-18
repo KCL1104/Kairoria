@@ -22,7 +22,7 @@ async function updateSessionAndGetUser(request: NextRequest) {
     return { response, supabase, user }
   } catch (error) {
     console.error('Error getting user in middleware:', error)
-    return { response, supabase, user: null }
+    return { response, supabase: null, user: null }
   }
 } 
 
