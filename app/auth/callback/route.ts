@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
+import { logAuthEvent } from '@/lib/auth-utils'
 
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic'
@@ -11,7 +12,7 @@ export async function GET(request: Request) {
   const error = requestUrl.searchParams.get('error')
   const errorDescription = requestUrl.searchParams.get('error_description')
 
-  console.log('🔄 OAuth Callback - Request received:', {
+  logAuthEvent('oauth_callback_received', {
     code: code ? 'present' : 'missing',
     error,
     errorDescription,
@@ -20,7 +21,7 @@ export async function GET(request: Request) {
 
   // Handle OAuth errors
   if (error) {
-    console.error('OAuth error:', error, errorDescription)
+    logAuthEvent('oauth_error', { error, errorDescription })
     
     // Handle specific error types
     if (error === 'access_denied') {
@@ -39,11 +40,10 @@ export async function GET(request: Request) {
       const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
       
       if (!supabaseUrl || !supabaseAnonKey) {
-        console.error('❌ Missing Supabase environment variables:', {
+        logAuthEvent('oauth_config_error', {
           hasUrl: !!supabaseUrl,
           hasKey: !!supabaseAnonKey
         })
-        console.error('Missing Supabase environment variables')
         return NextResponse.redirect(`${requestUrl.origin}/auth/login?error=config_error`)
       }
 
@@ -63,14 +63,14 @@ export async function GET(request: Request) {
                   // Set cookies with enhanced options for better cross-tab support
                   const enhancedOptions = {
                     ...options,
+                    path: '/',
                     httpOnly: true,
                     secure: process.env.NODE_ENV === 'production',
-                    sameSite: 'lax',
-                    path: '/',
+                    sameSite: 'lax' as const,
                     maxAge: name.includes('refresh') ? 30 * 24 * 60 * 60 : 60 * 60
                   }
                   
-                  console.log(`🍪 Setting enhanced cookie: ${name}`)
+                  logAuthEvent('setting_cookie', { name })
                   cookieStore.set(name, value, enhancedOptions)
                   cookieStore.set(name, value, options)
                 })
@@ -93,19 +93,18 @@ export async function GET(request: Request) {
       const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
       
       if (exchangeError) {
-        console.error('❌ Code exchange error:', {
+        logAuthEvent('code_exchange_error', {
           message: exchangeError.message,
           status: exchangeError.status,
           code: exchangeError.code
         })
-        console.error('Code exchange error:', exchangeError)
         return NextResponse.redirect(`${requestUrl.origin}/auth/login?error=exchange_failed`)
       } else {
-        console.log('✅ Code exchange successful')
+        logAuthEvent('code_exchange_success')
         
         // Verify session was created
         const { data: { session } } = await supabase.auth.getSession()
-        console.log('🔐 Session after exchange:', {
+        logAuthEvent('session_after_exchange', {
           hasSession: !!session,
           hasUser: !!session?.user,
           userId: session?.user?.id
@@ -119,8 +118,7 @@ export async function GET(request: Request) {
       return NextResponse.redirect(`${requestUrl.origin}/`)
       
     } catch (error) {
-      console.error('❌ Callback processing error:', error)
-      console.error('Callback error:', error)
+      logAuthEvent('callback_error', { error: String(error) })
       return NextResponse.redirect(`${requestUrl.origin}/auth/login?error=callback_error`)
     }
   }

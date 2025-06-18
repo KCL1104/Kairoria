@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server'
-import { createMiddlewareClient, logAuthEvent } from '@/lib/auth-utils'
+import { createMiddlewareClient } from '@/lib/auth-server'
+import { logAuthEvent } from '@/lib/auth-utils'
 import { AuthDebugger } from '@/lib/auth-debug'
 
 // Helper function to update session and get user

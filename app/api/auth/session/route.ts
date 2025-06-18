@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createSecureServerClient, logAuthEvent } from '@/lib/auth-utils'
+import { createSecureServerClient } from '@/lib/auth-server'
+import { logAuthEvent } from '@/lib/auth-utils'
 
 /**
  * API route to get the current session status
