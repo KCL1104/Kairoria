@@ -81,8 +81,6 @@ export async function GET(request: Request) {
             },
           },
           auth: {
-            persistSession: true,
-            autoRefreshToken: true,
             detectSessionInUrl: true
           }
         }
@@ -107,26 +105,12 @@ export async function GET(request: Request) {
           hasUser: !!session?.user
         })
         
-        // Store user ID in a separate cookie for easier access
-        if (session?.user?.id) {
-          cookieStore.set('sb-user-id', session.user.id, {
-            path: '/',
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax',
-            maxAge: 60 * 60 // 1 hour to match session duration
-          })
-          
-          logAuthEvent('user_id_cookie_set', { userId: session.user.id })
-        }
-        
         // Verify cookies were set
         const cookies = cookieStore.getAll()
         logAuthEvent('cookies_after_exchange', {
           cookieCount: cookies.length,
           hasAccessToken: cookies.some(c => c.name === 'sb-access-token'),
-          hasRefreshToken: cookies.some(c => c.name === 'sb-refresh-token'),
-          hasUserId: cookies.some(c => c.name === 'sb-user-id')
+          hasRefreshToken: cookies.some(c => c.name === 'sb-refresh-token')
         })
       }
 

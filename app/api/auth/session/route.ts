@@ -13,13 +13,11 @@ export async function GET(request: NextRequest) {
     // Check for direct token in cookies
     const accessToken = request.cookies.get('sb-access-token')?.value
     const refreshToken = request.cookies.get('sb-refresh-token')?.value
-    const userId = request.cookies.get('sb-user-id')?.value
     
     // Log token presence for debugging
     logAuthEvent('session_api_check', { 
       hasAccessToken: !!accessToken,
       hasRefreshToken: !!refreshToken,
-      hasUserId: !!userId,
       isAccessTokenValid: accessToken ? isValidJWT(accessToken) : false
     })
     

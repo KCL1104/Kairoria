@@ -13,6 +13,7 @@ interface AuthContextType {
   session: Session | null
   isLoading: boolean
   isProfileLoading: boolean
+  // Legacy auth methods - consider using UnifiedLoginForm component or /api/auth/unified-login endpoint
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: any }>
   signIn: (email: string, password: string) => Promise<{ error: any }>
   signOut: () => Promise<void>
@@ -203,7 +204,7 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
         console.log('🔄 Getting initial session...')
         logAuthEvent('session_init_start')
         AuthDebugger.logAuthState('Initial Session Check')
-        const { data: { session }, error } = await supabase.auth.getSession()
+        const { data: { session }, error } = await supabase!.auth.getSession()
         
         if (error) {
           console.error('Error getting session:', error)
@@ -371,7 +372,7 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
       setProfile(null)
       
       // Sign out from Supabase
-      await supabase.auth.signOut()
+      await supabase!.auth.signOut()
       
       console.log('Sign-out completed successfully')
       logAuthEvent('signout_success')

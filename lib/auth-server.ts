@@ -46,10 +46,6 @@ export function createSecureServerClient() {
           })
         },
       },
-      auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-      }
     }
   )
 }
@@ -91,10 +87,6 @@ export function createMiddlewareClient(request: NextRequest, response: NextRespo
           })
         },
       },
-      auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-      }
     }
   )
 }

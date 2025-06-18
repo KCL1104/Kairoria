@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { createMiddlewareClient } from '@/lib/auth-server'
-import { logAuthEvent, isProfileComplete } from '@/lib/auth-utils'
+import { logAuthEvent, isProfileComplete, getMissingProfileFields } from '@/lib/auth-utils'
 import { AuthDebugger } from '@/lib/auth-debug'
 
 // Helper function to update session and get user
@@ -29,7 +29,7 @@ async function updateSessionAndGetUser(request: NextRequest) {
 
 // Route definitions
 const publicRoutes = ['/', '/about', '/contact', '/marketplace', '/how-it-works', '/sustainability', '/terms', '/privacy', '/cookies']
-const authRoutes = ['/auth/login', '/auth/register', '/auth/reset-password', '/auth/forgot-password', '/auth/verify', '/auth/callback', '/auth/google-oauth-fix', '/auth/oauth-config']
+const authRoutes = ['/auth/login', '/auth/register', '/auth/reset-password', '/auth/forgot-password', '/auth/verify', '/auth/callback', '/auth/google-oauth-fix', '/auth/oauth-config', '/test-unified-auth']
 const completeSignupRoute = '/complete-signup' 
 const protectedRoutes = ['/profile', '/messages', '/dashboard', '/settings', '/admin', '/profile/listings']
 const debugRoutes = ['/debug-auth']

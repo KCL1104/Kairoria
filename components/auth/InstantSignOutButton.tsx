@@ -15,6 +15,7 @@ interface InstantSignOutButtonProps {
   showText?: boolean
   className?: string
   children?: React.ReactNode
+  confirmBeforeSignOut?: boolean
 }
 
 export function InstantSignOutButton({
@@ -23,7 +24,8 @@ export function InstantSignOutButton({
   showIcon = true,
   showText = true,
   className,
-  children
+  children,
+  confirmBeforeSignOut = false
 }: InstantSignOutButtonProps) {
   const [isSigningOut, setIsSigningOut] = useState(false)
   const router = useRouter()

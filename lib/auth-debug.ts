@@ -73,7 +73,7 @@ export class AuthDebugger {
       if (key.includes('supabase') || key.includes('auth') || key.includes('token')) {
         console.log(`📝 LocalStorage SET: ${key} = ${value.substring(0, 50)}...`)
       }
-      return originalSetItem.apply(this, arguments)
+      return originalSetItem.apply(this, [key, value])
     }
 
     // Monitor cookie changes

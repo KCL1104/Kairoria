@@ -78,7 +78,6 @@ export async function DELETE(request: Request) {
       // Supabase auth cookies
       'sb-access-token',
       'sb-refresh-token',
-      'sb-user-id',
       'supabase-auth-token',
       '__supabase_session',
       '__supabase_auth',
