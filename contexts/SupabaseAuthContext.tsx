@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase-client'
 import { User, Session } from '@supabase/supabase-js'
 import { AuthDebugger } from '@/lib/auth-debug'
 import { crossTabAuth } from '@/lib/cross-tab-auth'
-import { logAuthEvent } from '@/lib/auth-utils'
+import { logAuthEvent, isProfileComplete } from '@/lib/auth-utils'
 import { useRouter } from 'next/navigation'
 import { instantSignOut } from '@/lib/instant-signout'
 
@@ -203,10 +203,11 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
       console.log('Profile fetch response:', { data, error })
       
       if (error) {
-        console.error('Error fetching profile:', error)
-        console.error('Profile error details:', {
-          code: error.code
+        console.error('Error fetching profile:', {
+          code: error.code,
+          message: error.message
         })
+        
         logAuthEvent('profile_fetch_error', { 
           userId, 
           errorCode: error.code,
@@ -216,6 +217,7 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
         // If profile doesn't exist (PGRST116), try to create it
         if (error.code === 'PGRST116') {
           console.log('Profile not found, attempting to create one...')
+          logAuthEvent('profile_not_found_creating', { userId })
           await createProfileIfNotExists(userId)
         } else {
           // For other errors, set profile to null to prevent infinite loading
@@ -224,6 +226,15 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
       } else {
         console.log('Profile fetched successfully:', data)
         setProfile(data)
+        
+        // Check if profile is complete and log the status
+        const complete = isProfileComplete(data)
+        logAuthEvent('profile_status', { 
+          userId,
+          isComplete: complete,
+          missingFields: !complete ? getMissingFields(data) : []
+        })
+        
         logAuthEvent('profile_fetch_success', { userId })
       }
     } catch (error) {
@@ -236,6 +247,22 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
     }
   }
 
+  // Helper to identify missing profile fields
+  const getMissingFields = (profile: any): string[] => {
+    const missingFields = []
+    
+    if (!profile?.full_name) missingFields.push('full_name')
+    if (!profile?.phone) missingFields.push('phone')
+    if (!profile?.location) missingFields.push('location')
+    if (profile?.is_email_verified !== true) missingFields.push('email_verification')
+    if (profile?.is_phone_verified !== true) missingFields.push('phone_verification')
+    
+    return missingFields
+  }
+
+  /**
+   * Create a profile if it doesn't exist yet
+   */
   const createProfileIfNotExists = async (userId: string) => {
     if (!supabase) {
       setProfile(null)

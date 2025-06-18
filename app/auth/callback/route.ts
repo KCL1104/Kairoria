@@ -72,7 +72,6 @@ export async function GET(request: Request) {
                   
                   logAuthEvent('setting_cookie', { name })
                   cookieStore.set(name, value, enhancedOptions)
-                  cookieStore.set(name, value, options)
                 })
               } catch (error) {
                 // The `setAll` method was called from a Server Component.

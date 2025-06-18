@@ -35,6 +35,7 @@ export function createSecureServerClient() {
             const enhancedOptions = {
               ...options,
               ...AUTH_COOKIE_OPTIONS,
+              domain: undefined, // Remove domain to ensure cookies work on all environments
               // Set appropriate max age based on token type
               maxAge: name.includes('refresh') 
                 ? 60 * 60 * 24 * 30 // 30 days for refresh token
@@ -78,6 +79,7 @@ export function createMiddlewareClient(request: NextRequest, response: NextRespo
             const enhancedOptions = {
               ...options,
               ...AUTH_COOKIE_OPTIONS,
+              domain: undefined, // Remove domain to ensure cookies work on all environments
               // Set appropriate max age based on token type
               maxAge: name.includes('refresh') 
                 ? 60 * 60 * 24 * 30 // 30 days for refresh token

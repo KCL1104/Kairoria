@@ -142,6 +142,7 @@ export class CrossTabAuth {
       // Store in multiple locations for redundancy
       this.setSecureStorage('sb-access-token', updatedTokens.access_token || '')
       this.setSecureStorage('sb-refresh-token', updatedTokens.refresh_token || '')
+      this.setSecureStorage('sb-user-id', updatedTokens.user_id || '')
       
       // Store complete auth state
       const tokenInfo = {
@@ -185,13 +186,14 @@ export class CrossTabAuth {
       // Fallback to individual token storage
       const accessToken = this.getSecureStorage('sb-access-token')
       const refreshToken = this.getSecureStorage('sb-refresh-token')
+      const userId = this.getSecureStorage('sb-user-id')
       
       if (accessToken && refreshToken) {
         return {
           access_token: accessToken,
           refresh_token: refreshToken,
           expires_at: 0, // Unknown expiry
-          user_id: ''
+          user_id: userId || ''
         }
       }
 
