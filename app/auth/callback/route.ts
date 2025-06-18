@@ -60,13 +60,13 @@ export async function GET(request: Request) {
             setAll(cookiesToSet) {
               try {
                 cookiesToSet.forEach(({ name, value, options }) => {
-                  // Set cookies with enhanced options for better cross-tab support
+                  // Set cookies with enhanced options for 1-hour session
                   const enhancedOptions = {
                     path: '/',
                     httpOnly: true,
                     secure: process.env.NODE_ENV === 'production',
                     sameSite: 'lax' as const,
-                    maxAge: name.includes('refresh') ? 30 * 24 * 60 * 60 : 60 * 60 * 24 // 30 days for refresh, 24 hours for access
+                    maxAge: name.includes('refresh') ? 30 * 24 * 60 * 60 : 60 * 60 // 30 days for refresh, 1 hour for access
                   }
                   
                   logAuthEvent('setting_cookie', { name })
@@ -114,7 +114,7 @@ export async function GET(request: Request) {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'lax',
-            maxAge: 60 * 60 * 24 * 30 // 30 days
+            maxAge: 60 * 60 // 1 hour to match session duration
           })
           
           logAuthEvent('user_id_cookie_set', { userId: session.user.id })

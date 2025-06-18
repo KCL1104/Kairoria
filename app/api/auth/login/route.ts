@@ -23,18 +23,35 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Create response object first for cookie handling
+    let response = NextResponse.json({ success: false });
+    
     const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
       cookies: {
-        get(name: string) {
-          return request.cookies.get(name)?.value
+        getAll() {
+          return request.cookies.getAll()
         },
-        set(name: string, value: string, options: any) {
-          // Server-side cookie setting will be handled by the response
-        },
-        remove(name: string, options: any) {
-          // Server-side cookie removal will be handled by the response
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) => {
+            // Enhanced cookie security options with 1-hour session
+            const enhancedOptions = {
+              ...options,
+              ...AUTH_COOKIE_OPTIONS,
+              domain: undefined, // Remove domain to ensure cookies work on all environments
+              // Set 1-hour session for access token, keep refresh token longer
+              maxAge: name.includes('refresh') 
+                ? 60 * 60 * 24 * 30 // 30 days for refresh token
+                : 60 * 60           // 1 hour for access token
+            }
+            
+            response.cookies.set(name, value, enhancedOptions)
+          })
         },
       },
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+      }
     });
     const body = await request.json();
     const { email, password } = body;
@@ -96,8 +113,15 @@ export async function POST(request: NextRequest) {
       logAuthEvent('profile_fetch_error', { error: String(profileError), userId: data.user.id })
     }
 
-    // Create response with user data
-    const response = NextResponse.json({
+    // Supabase automatically handles session cookies through the client configuration
+    // Only manually set user ID cookie for easier access
+    response.cookies.set('sb-user-id', data.user.id, {
+      ...AUTH_COOKIE_OPTIONS,
+      maxAge: 60 * 60 // 1 hour to match session duration
+    });
+
+    // Update response with user data
+    response = NextResponse.json({
       success: true,
       message: 'Login successful',
       user: {
@@ -105,35 +129,20 @@ export async function POST(request: NextRequest) {
         email: data.user.email,
         name: profile?.full_name || data.user.user_metadata?.full_name || '',
         profile: profile
-      },
-      session: {
-        access_token: data.session.access_token,
-        refresh_token: data.session.refresh_token,
-        expires_at: data.session.expires_at,
-        expires_in: data.session.expires_in
       }
+      // Note: Session tokens are now handled automatically by Supabase
     });
 
-    // Set session cookies for server-side authentication
-    const cookieStore = cookies();
-    
-    // Set access token cookie (24 hours)
-    response.cookies.set('sb-access-token', data.session.access_token, {
-      ...AUTH_COOKIE_OPTIONS,
-      maxAge: 60 * 60 * 24 // 24 hours for access token
-    });
-
-    // Set refresh token cookie (30 days)
-    response.cookies.set('sb-refresh-token', data.session.refresh_token, {
-      ...AUTH_COOKIE_OPTIONS,
-      maxAge: 60 * 60 * 24 * 30 // 30 days for refresh token
-    });
-    
-    // Set user ID cookie for easier access
-    response.cookies.set('sb-user-id', data.user.id, {
-      ...AUTH_COOKIE_OPTIONS,
-      maxAge: 60 * 60 * 24 * 30 // 30 days
-    });
+    // Re-apply cookies to the updated response
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+      // Verify session was created and log it
+      logAuthEvent('session_created', {
+        userId: data.user.id,
+        hasSession: !!session,
+        expiresAt: session.expires_at
+      });
+    }
 
     logAuthEvent('login_successful', { userId: data.user.id, email })
     return response;

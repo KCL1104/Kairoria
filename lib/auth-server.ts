@@ -36,10 +36,10 @@ export function createSecureServerClient() {
               ...options,
               ...AUTH_COOKIE_OPTIONS,
               domain: undefined, // Remove domain to ensure cookies work on all environments
-              // Set appropriate max age based on token type
+              // Set 1-hour session for access token, keep refresh token longer
               maxAge: name.includes('refresh') 
                 ? 60 * 60 * 24 * 30 // 30 days for refresh token
-                : 60 * 60 * 24      // 24 hours for access token
+                : 60 * 60           // 1 hour for access token
             }
             
             cookieStore.set(name, value, enhancedOptions)
@@ -80,10 +80,10 @@ export function createMiddlewareClient(request: NextRequest, response: NextRespo
               ...options,
               ...AUTH_COOKIE_OPTIONS,
               domain: undefined, // Remove domain to ensure cookies work on all environments
-              // Set appropriate max age based on token type
+              // Set 1-hour session for access token, keep refresh token longer
               maxAge: name.includes('refresh') 
                 ? 60 * 60 * 24 * 30 // 30 days for refresh token
-                : 60 * 60 * 24      // 24 hours for access token
+                : 60 * 60           // 1 hour for access token
             }
             
             request.cookies.set(name, value)
