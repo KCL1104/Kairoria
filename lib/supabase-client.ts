@@ -1,9 +1,8 @@
-import { createClient } from '@supabase/supabase-js'
+import { createBrowserClient } from '@supabase/ssr'
 import { AuthDebugger } from './auth-debug'
-import { crossTabAuth } from './cross-tab-auth'
 import { Product, Profile, ProductImage } from './data'
 
-// Client-side Supabase client (no server imports)
+// Client-side Supabase client using @supabase/ssr
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_DATABASE_URL
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
@@ -30,92 +29,7 @@ if (!supabaseAnonKey) {
 }
 
 export const supabase = supabaseUrl && supabaseAnonKey 
-  ? createClient(supabaseUrl, supabaseAnonKey, {
-      auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-        detectSessionInUrl: false, // Disable automatic URL detection to handle it ourselves
-        storage: typeof window !== 'undefined' ? {
-          getItem: (key: string) => {
-            try {
-              console.log(`📖 Storage GET: ${key}`)
-              
-              // Use cross-tab auth for token retrieval
-              if (key === 'sb-access-token' || key === 'sb-refresh-token') {
-                const tokens = crossTabAuth.getStoredTokens()
-                if (tokens) {
-                  if (key === 'sb-access-token') return tokens.access_token
-                  if (key === 'sb-refresh-token') return tokens.refresh_token
-                }
-              }
-              
-              // Fallback to direct localStorage access
-              const value = localStorage.getItem(key)
-              if (value) return value
-              
-              return null
-            } catch (error) {
-              console.error('Error getting item from storage:', error)
-              return null
-            }
-          },
-          setItem: (key: string, value: string) => {
-            try {
-              console.log(`📝 Storage SET: ${key} = ${value.substring(0, 50)}...`)
-
-              // Use cross-tab auth for token storage
-              if (key === 'sb-access-token' || key === 'sb-refresh-token') {
-                const tokens = crossTabAuth.getStoredTokens() || {}
-                const payload: any = {}
-                
-                if (key === 'sb-access-token') {
-                  payload.access_token = value
-                  
-                  // Extract expiration from JWT if possible
-                  try {
-                    const parts = value.split('.')
-                    if (parts.length === 3) {
-                      const payload = JSON.parse(atob(parts[1]))
-                      if (payload.exp) {
-                        payload.expires_at = payload.exp
-                      }
-                    }
-                  } catch (e) {
-                    console.warn('Could not parse JWT expiration')
-                  }
-                }
-                
-                if (key === 'sb-refresh-token') {
-                  payload.refresh_token = value
-                }
-                
-                crossTabAuth.storeTokens(payload)
-              }
-              
-              // Also set in localStorage as fallback
-              localStorage.setItem(key, value)
-            } catch (error) {
-              console.error('Error setting item in storage:', error)
-            }
-          },
-          removeItem: (key: string) => {
-            try {
-              console.log(`🗑️ Storage REMOVE: ${key}`)
-              
-              // Clear from cross-tab auth if it's a token
-              if (key === 'sb-access-token' || key === 'sb-refresh-token') {
-                crossTabAuth.clearTokens()
-              }
-              
-              // Also remove from localStorage
-              localStorage.removeItem(key)
-            } catch (error) {
-              console.error('Error removing item from storage:', error)
-            }
-          }
-        } : undefined
-      }
-    }) 
+  ? createBrowserClient(supabaseUrl, supabaseAnonKey)
   : null
 
 if (!supabase && typeof window !== 'undefined') {

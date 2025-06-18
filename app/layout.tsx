@@ -3,8 +3,8 @@ import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import { ThemeProvider } from '@/components/theme-provider'
 import { SupabaseAuthProvider } from '@/contexts/SupabaseAuthContext'
-import { CrossTabAuthProvider } from '@/components/cross-tab-auth-provider'
-import { SolanaWalletProvider } from '@/contexts/SolanaWalletProvider'
+
+
 import { Toaster } from '@/components/ui/toaster'
 import Navbar from '@/components/layout/navbar'
 import Footer from '@/components/layout/footer'
@@ -35,16 +35,12 @@ export default function RootLayout({
           forcedTheme="light"
           disableTransitionOnChange
         >
-          <SolanaWalletProvider>
-            <CrossTabAuthProvider>
-              <SupabaseAuthProvider>
-                <Navbar />
-                <main className="flex-1">{children}</main>
-                <Footer />
-                <Toaster />
-              </SupabaseAuthProvider>
-            </CrossTabAuthProvider>
-          </SolanaWalletProvider>
+            <SupabaseAuthProvider>
+              <Navbar />
+              <main className="flex-1">{children}</main>
+              <Footer />
+              <Toaster />
+            </SupabaseAuthProvider>
         </ThemeProvider>
       </body>
     </html>

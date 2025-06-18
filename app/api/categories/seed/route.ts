@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { createServerClient } from '@supabase/ssr'
 
 const BASIC_CATEGORIES = [
   'Electronics',
@@ -34,8 +34,18 @@ export async function POST(request: NextRequest) {
     }
 
     // Use service role key for admin operations
-    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-      auth: { persistSession: false }
+    const supabase = createServerClient(supabaseUrl, supabaseServiceKey, {
+      cookies: {
+        get(name: string) {
+          return request.headers.get('cookie')?.split(`${name}=`)[1]?.split(';')[0]
+        },
+        set(name: string, value: string, options: any) {
+          // Server-side cookie setting will be handled by the response
+        },
+        remove(name: string, options: any) {
+          // Server-side cookie removal will be handled by the response
+        },
+      },
     })
 
     // Check if categories already exist
@@ -88,4 +98,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     )
   }
-} 
+}

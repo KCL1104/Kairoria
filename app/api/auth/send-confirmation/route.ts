@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createServerClient } from '@supabase/ssr';
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,13 +17,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      auth: {
-        // Set session to persist for 1 month (30 days)
-        persistSession: true,
-        autoRefreshToken: true,
-        detectSessionInUrl: true
-      }
+    const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+      cookies: {
+        get(name: string) {
+          return request.cookies.get(name)?.value
+        },
+        set(name: string, value: string, options: any) {
+          // Server-side cookie setting will be handled by the response
+        },
+        remove(name: string, options: any) {
+          // Server-side cookie removal will be handled by the response
+        },
+      },
     });
     const body = await request.json();
     const { email } = body;

@@ -39,7 +39,7 @@ const nextConfig = {
   },
   // Add experimental features for better performance
   experimental: {
-    optimizePackageImports: ['@supabase/supabase-js'],
+    optimizePackageImports: ['@supabase/ssr'],
   },
 }
 

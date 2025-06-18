@@ -71,29 +71,37 @@ sequenceDiagram
 **Symptoms**: Tokens stored for email login but not OAuth
 
 ```javascript
-// ❌ INCORRECT - Inconsistent storage
-const supabaseEmail = createClient(url, key, {
-  auth: { persistSession: true }
-})
+// ❌ INCORRECT - Using legacy @supabase/supabase-js
+import { createClient } from '@supabase/supabase-js' // ❌ Legacy approach
 
-const supabaseOAuth = createClient(url, key, {
-  auth: { persistSession: false } // Different config!
+const supabase = createClient(url, key, {
+  auth: { persistSession: true }
 })
 ```
 
-**Solution**: Use consistent configuration
+**Solution**: Use @supabase/ssr for better session management
 ```javascript
-// ✅ CORRECT - Consistent storage config
-const authConfig = {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: true,
-    storage: customStorage // Use same storage for both
-  }
-}
+// ✅ CORRECT - Using @supabase/ssr
+import { createBrowserClient } from '@supabase/ssr'
 
-const supabase = createClient(url, key, authConfig)
+// For client-side
+const supabase = createBrowserClient(url, key)
+
+// For server-side
+import { createServerClient } from '@supabase/ssr'
+const supabase = createServerClient(url, key, {
+  cookies: {
+    get(name: string) {
+      return request.cookies.get(name)?.value
+    },
+    set(name: string, value: string, options: any) {
+      // Handle cookie setting
+    },
+    remove(name: string, options: any) {
+      // Handle cookie removal
+    },
+  },
+})
 ```
 
 ### Issue 2: Missing Callback URL Configuration
@@ -144,7 +152,19 @@ export async function GET(request: Request) {
   const code = searchParams.get('code')
   
   if (code) {
-    const supabase = createServerClient(/* config */)
+    const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+      cookies: {
+        get(name: string) {
+          return request.cookies.get(name)?.value
+        },
+        set(name: string, value: string, options: any) {
+          // Handle cookie setting
+        },
+        remove(name: string, options: any) {
+          // Handle cookie removal
+        },
+      },
+    })
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     
     if (error) {
@@ -180,7 +200,7 @@ console.log('Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL)
 console.log('Supabase Anon Key:', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.substring(0, 20) + '...')
 
 // Verify client initialization
-const supabase = createClient(supabaseUrl, supabaseAnonKey)
+const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey)
 console.log('Supabase client initialized:', !!supabase)
 ```
 
@@ -257,7 +277,19 @@ const debugStorage = {
 ```javascript
 // Middleware debugging
 export async function middleware(request) {
-  const supabase = createServerClient(/* config */)
+  const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+    cookies: {
+      get(name: string) {
+        return request.cookies.get(name)?.value
+      },
+      set(name: string, value: string, options: any) {
+        // Handle cookie setting in middleware
+      },
+      remove(name: string, options: any) {
+        // Handle cookie removal in middleware
+      },
+    },
+  })
   const { data: { session } } = await supabase.auth.getSession()
   
   console.log('Middleware - Path:', request.nextUrl.pathname)
@@ -477,22 +509,25 @@ async function verifySessionPersistence() {
 }
 ```
 
-### Step 4: Test Cross-Tab Authentication
+### Step 4: Test Session Synchronization
 ```javascript
-async function verifyCrossTabAuth() {
+async function verifySessionSync() {
   // 1. Login in current tab
   await supabase.auth.signInWithPassword({
     email: 'test@example.com',
     password: 'password123'
   })
   
-  // 2. Open new tab and check authentication
-  const newTab = window.open(window.location.origin, '_blank')
+  // 2. Listen for auth state changes
+  supabase.auth.onAuthStateChange((event, session) => {
+    console.log('Auth event:', event)
+    console.log('Session updated:', !!session)
+  })
   
-  // 3. In the new tab, check if user is authenticated
-  // (This would need to be verified manually or with automated testing)
-  console.log('✅ Cross-tab verification:')
-  console.log('Open new tab and check if user is automatically authenticated')
+  // 3. Test session persistence across page reloads
+  console.log('✅ Session synchronization:')
+  console.log('Session will persist across page reloads and new tabs')
+  console.log('@supabase/ssr handles session management automatically')
 }
 ```
 

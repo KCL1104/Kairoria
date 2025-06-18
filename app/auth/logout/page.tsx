@@ -1,8 +1,8 @@
-"use client"
+'use client'
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { instantSignOut } from '@/lib/instant-signout'
+import { createBrowserClient } from '@supabase/ssr'
 import { CheckCircle, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
@@ -18,93 +18,78 @@ export default function LogoutPage() {
         setStatus('loading')
         setMessage('Securely signing you out...')
         
-        // Use instant sign-out for immediate feedback
-        const result = await instantSignOut.performInstantSignOut({
-          redirectTo: '/',
-          onStart: () => {
-            setMessage('Clearing session data...')
-          },
-          onSuccess: () => {
-            setStatus('success')
-            setMessage('You have been successfully signed out.')
-          },
-          onError: (error) => {
-            setStatus('error')
-            setMessage('There was a problem signing you out. Please try again.')
-          }
-        })
+        const supabase = createBrowserClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+        )
         
-        // If redirect didn't happen, show success and redirect manually
-        if (result.success) {
-          setTimeout(() => {
-            router.push('/')
-          }, 1000)
-        }
+        await supabase.auth.signOut()
+        
+        setStatus('success')
+        setMessage('You have been successfully signed out.')
+        
+        // Redirect to home page after a short delay
+        setTimeout(() => {
+          router.push('/?signout=success')
+        }, 2000)
+        
       } catch (error) {
-        console.error('Failed to sign out:', error)
+        console.error('Logout error:', error)
         setStatus('error')
-        setMessage('There was a problem signing you out. Please try again.')
+        setMessage('An error occurred while signing out. Please try again.')
       }
     }
 
     performLogout()
   }, [router])
 
-  const retryLogout = async () => {
-    setStatus('loading')
-    setMessage('Retrying sign out...')
-    
-    try {
-      await instantSignOut.forceSignOut({
-        redirectTo: '/',
-        onSuccess: () => {
-          setStatus('success')
-          setMessage('Successfully signed out.')
-        }
-      })
-    } catch (error) {
-      setStatus('error')
-      setMessage('Sign out failed again. Please try refreshing the page.')
-    }
-  }
-
   return (
-    <div className="container max-w-lg py-10">
-      <div className="flex justify-center items-center min-h-[400px]">
-        <div className="text-center p-8 border rounded-lg w-full max-w-md shadow-sm">
-          {status === 'loading' && (
-            <>
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-              <h1 className="text-xl font-semibold mt-4 mb-2">Signing Out</h1>
-              <p className="text-muted-foreground">{message}</p>
-            </>
-          )}
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="max-w-md w-full space-y-8">
+        <div className="text-center">
+          <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full">
+            {status === 'loading' && (
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            )}
+            {status === 'success' && (
+              <CheckCircle className="h-8 w-8 text-green-600" />
+            )}
+            {status === 'error' && (
+              <AlertCircle className="h-8 w-8 text-red-600" />
+            )}
+          </div>
+          
+          <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
+            {status === 'loading' && 'Signing Out'}
+            {status === 'success' && 'Signed Out Successfully'}
+            {status === 'error' && 'Sign Out Error'}
+          </h2>
+          
+          <p className="mt-2 text-sm text-gray-600">
+            {message}
+          </p>
           
           {status === 'success' && (
-            <>
-              <CheckCircle className="h-12 w-12 text-green-500 mx-auto" />
-              <h1 className="text-xl font-semibold mt-4 mb-2">Successfully Signed Out</h1>
-              <p className="text-muted-foreground">{message}</p>
-              <Button asChild className="mt-6">
-                <Link href="/">Return to Home</Link>
-              </Button>
-            </>
+            <p className="mt-2 text-xs text-gray-500">
+              Redirecting you to the home page...
+            </p>
           )}
           
           {status === 'error' && (
-            <>
-              <AlertCircle className="h-12 w-12 text-destructive mx-auto" />
-              <h1 className="text-xl font-semibold mt-4 mb-2">Sign Out Failed</h1>
-              <p className="text-muted-foreground">{message}</p>
-              <div className="flex flex-col space-y-2 mt-6">
-                <Button onClick={retryLogout}>
-                  Try Again
+            <div className="mt-6 space-y-4">
+              <Button
+                onClick={() => window.location.reload()}
+                className="w-full"
+              >
+                Try Again
+              </Button>
+              
+              <Link href="/" className="block">
+                <Button variant="outline" className="w-full">
+                  Return to Home
                 </Button>
-                <Button variant="outline" asChild>
-                  <Link href="/">Return to Home</Link>
-                </Button>
-              </div>
-            </>
+              </Link>
+            </div>
           )}
         </div>
       </div>

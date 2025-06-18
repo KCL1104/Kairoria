@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { AuthDebugger } from '@/lib/auth-debug'
 import { supabase } from '@/lib/supabase-client'
-import { crossTabAuth } from '@/lib/cross-tab-auth'
+
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
@@ -16,7 +16,6 @@ interface AuthState {
   localStorageKeys: string[]
   cookies: string[]
   sessionData?: any
-  crossTabTokens?: any
 }
 
 export default function DebugAuthPage() {
@@ -36,7 +35,6 @@ export default function DebugAuthPage() {
       let userId = undefined
       let email = undefined
       let sessionData = undefined
-      let crossTabTokens = undefined
       
       if (supabase) {
         const { data: { session }, error } = await supabase.auth.getSession()
@@ -48,9 +46,6 @@ export default function DebugAuthPage() {
         
         console.log('Debug - Session check:', { hasSession, hasUser, userId, error })
       }
-      
-      // Check cross-tab auth
-      crossTabTokens = crossTabAuth.getStoredTokens()
       
       // Check localStorage
       const localStorageKeys = []
@@ -84,8 +79,7 @@ export default function DebugAuthPage() {
         email,
         localStorageKeys,
         cookies,
-        sessionData,
-        crossTabTokens
+        sessionData
       })
       
     } catch (error) {
@@ -107,9 +101,7 @@ export default function DebugAuthPage() {
       }
       keysToRemove.forEach(key => localStorage.removeItem(key))
       
-      // Clear cross-tab auth
-      crossTabAuth.clearTokens()
-      
+
       // Clear cookies
       const cookiesToClear = [
         'sb-access-token',
@@ -239,30 +231,6 @@ export default function DebugAuthPage() {
                     </ul>
                   ) : (
                     <span className="text-muted-foreground">No auth-related cookies found</span>
-                  )}
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Cross-Tab Auth State */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Cross-Tab Auth State</CardTitle>
-            <CardDescription>Authentication tokens shared across tabs</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div>
-                <strong>Cross-Tab Tokens:</strong>
-                <div className="mt-2 p-2 bg-muted rounded">
-                  {authState?.crossTabTokens ? (
-                    <pre className="text-xs overflow-auto">
-                      {JSON.stringify(authState.crossTabTokens, null, 2)}
-                    </pre>
-                  ) : (
-                    <span className="text-muted-foreground">No cross-tab tokens found</span>
                   )}
                 </div>
               </div>

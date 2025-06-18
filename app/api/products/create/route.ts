@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { createServerClient } from '@supabase/ssr'
 import { convertToStorageAmount } from '@/lib/data'
 
 export async function POST(request: NextRequest) {
@@ -44,7 +44,18 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+      cookies: {
+        get(name: string) {
+          return request.headers.get('cookie')?.split(`${name}=`)[1]?.split(';')[0]
+        },
+        set(name: string, value: string, options: any) {
+          // Server-side cookie setting will be handled by the response
+        },
+        remove(name: string, options: any) {
+          // Server-side cookie removal will be handled by the response
+        },
+      },
       global: {
         headers: {
           Authorization: authHeader,
@@ -198,4 +209,4 @@ export async function POST(request: NextRequest) {
       }
     )
   }
-} 
+}

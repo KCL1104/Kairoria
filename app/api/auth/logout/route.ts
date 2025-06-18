@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { logAuthEvent } from '@/lib/auth-utils';
 
@@ -37,8 +37,18 @@ export async function DELETE(request: Request) {
     
     // Create admin client for server-side operations
     const adminClient = supabaseServiceKey 
-      ? createClient(supabaseUrl, supabaseServiceKey, {
-          auth: { persistSession: false }
+      ? createServerClient(supabaseUrl, supabaseServiceKey, {
+          cookies: {
+            get(name: string) {
+              return request.headers.get('cookie')?.split(`${name}=`)[1]?.split(';')[0]
+            },
+            set(name: string, value: string, options: any) {
+              // Server-side cookie setting will be handled by the response
+            },
+            remove(name: string, options: any) {
+              // Server-side cookie removal will be handled by the response
+            },
+          },
         })
       : null;
       

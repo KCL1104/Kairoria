@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
+import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
 export async function PATCH(request: NextRequest) {
@@ -16,14 +15,33 @@ export async function PATCH(request: NextRequest) {
       )
     }
 
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
+    const supabaseAdmin = createServerClient(supabaseUrl, supabaseServiceKey, {
+      cookies: {
+        get(name: string) {
+          return request.headers.get('cookie')?.split(`${name}=`)[1]?.split(';')[0]
+        },
+        set(name: string, value: string, options: any) {
+          // Server-side cookie setting will be handled by the response
+        },
+        remove(name: string, options: any) {
+          // Server-side cookie removal will be handled by the response
+        },
+      },
     })
     // Get the user from the session
-    const supabase = createServerComponentClient({ cookies })
+    const supabase = createServerClient(supabaseUrl, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
+      cookies: {
+        get(name: string) {
+          return cookies().get(name)?.value
+        },
+        set(name: string, value: string, options: any) {
+          // Server-side cookie setting will be handled by the response
+        },
+        remove(name: string, options: any) {
+          // Server-side cookie removal will be handled by the response
+        },
+      },
+    })
     const { data: { user }, error: userError } = await supabase.auth.getUser()
 
     if (userError || !user) {
