@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useAuth } from '@/contexts/SupabaseAuthContext'
 import { logAuthEvent } from '@/lib/auth-utils'
 
 /**
@@ -48,6 +49,9 @@ export function useUnifiedAuth() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [supportedTypes, setSupportedTypes] = useState<SupportedLoginType[]>([])
+  
+  // Get signInWithGoogle function from Auth Context
+  const { signInWithGoogle: signInWithGoogleFromContext } = useAuth()
 
   /**
    * Unified login method
@@ -107,12 +111,38 @@ export function useUnifiedAuth() {
   /**
    * Password login
    */
-  const loginWithPassword = async (email: string, password: string) => {
-    return await login({
-      loginType: 'password',
-      email,
-      password
-    })
+  const loginWithPassword = async (email: string, password: string): Promise<LoginResponse> => {
+    setIsLoading(true)
+    setError(null)
+    
+    try {
+      logAuthEvent('unified_auth_attempt', { loginType: 'password' })
+      
+      const response = await fetch('/api/auth/unified-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ loginType: 'password', email, password }),
+      })
+
+      const result: LoginResponse = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Login failed')
+      }
+
+      if (result.success) {
+        logAuthEvent('unified_auth_success', { loginMethod: 'password', userId: result.user?.id })
+      }
+
+      return result
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
+      setError(errorMessage)
+      logAuthEvent('unified_auth_error', { error: errorMessage, loginType: 'password' })
+      return { success: false, message: errorMessage }
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   /**
@@ -130,10 +160,32 @@ export function useUnifiedAuth() {
   }
 
   /**
-   * Google OAuth login (convenience method)
+   * Google OAuth login (directly using Context method)
    */
-  const loginWithGoogle = async (redirectTo?: string) => {
-    return await loginWithOAuth('google', redirectTo)
+  const loginWithGoogle = async () => {
+    setIsLoading(true)
+    setError(null)
+    
+    try {
+      logAuthEvent('google_signin_attempt')
+      const { error } = await signInWithGoogleFromContext() // Use Context function
+      
+      if (error) {
+        throw new Error(error.message)
+      }
+      
+      // Note: OAuth flow will redirect, so this usually won't execute
+      // unless an error occurs
+
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
+      setError(errorMessage)
+      logAuthEvent('google_signin_error', { error: errorMessage })
+    } finally {
+      // In OAuth flow, page will redirect, so setIsLoading(false) might not execute
+      // but keeping it just in case
+      setIsLoading(false)
+    }
   }
 
   /**

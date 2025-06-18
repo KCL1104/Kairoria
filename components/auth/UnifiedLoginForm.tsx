@@ -72,14 +72,13 @@ export function UnifiedLoginForm({
 
   // Handle Google OAuth login
   const handleGoogleLogin = async () => {
-    const result = await loginWithGoogle(redirectTo)
-    
-    if (result.success && result.user) {
-      onSuccess?.(result.user)
-    } else if (!result.success) {
-      onError?.(result.message)
+    try {
+      await loginWithGoogle() // Updated to use new signature without parameters
+      // OAuth flow will redirect, so success handling will happen after redirect
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Google login failed'
+      onError?.(errorMessage)
     }
-    // OAuth may redirect, so we might not get immediate results
   }
 
   return (
