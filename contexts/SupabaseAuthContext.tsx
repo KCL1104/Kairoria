@@ -18,7 +18,6 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<{ error: any }>
   signOut: () => Promise<void>
   signInWithGoogle: () => Promise<{ error: any }>
-  signInWithTwitter: () => Promise<{ error: any }>
   resetPassword: (email: string) => Promise<{ error: any }>
   sendEmailConfirmation: (email: string) => Promise<{ error: any }>
   isAuthenticated: boolean
@@ -449,9 +448,6 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
 
     console.log('🔄 Starting Google OAuth...')
     
-    // Clear any existing tokens to prevent conflicts
-    crossTabAuth.clearTokens()
-
     try {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -481,34 +477,6 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
       return { error }
     } catch (error) {
       logAuthEvent('google_signin_exception', { error: String(error) })
-      return { error }
-    }
-  }
-
-  const signInWithTwitter = async () => {
-    if (!supabase) {
-      return { error: new Error('Supabase client not available') }
-    }
-    
-    logAuthEvent('twitter_signin_attempt')
-
-    try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'twitter',
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-        },
-      })
-      
-      if (error) {
-        logAuthEvent('twitter_signin_error', { error: error.message })
-      } else {
-        logAuthEvent('twitter_signin_initiated')
-      }
-      
-      return { error }
-    } catch (error) {
-      logAuthEvent('twitter_signin_exception', { error: String(error) })
       return { error }
     }
   }
@@ -580,7 +548,6 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
     signIn,
     signOut,
     signInWithGoogle,
-    signInWithTwitter,
     resetPassword,
     sendEmailConfirmation,
     isAuthenticated: !!user,

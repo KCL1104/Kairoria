@@ -5,7 +5,6 @@ import { useState, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { ArrowLeft } from "lucide-react"
 import { useAuth } from "@/contexts/SupabaseAuthContext"
-import { AuthDebugger } from "@/lib/auth-debug"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -61,8 +60,6 @@ export default function LoginPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
-    console.log('🔄 Email login attempt...')
-    AuthDebugger.logAuthState('Before Email Login')
     setIsLoading(true)
     
     try {
@@ -70,7 +67,6 @@ export default function LoginPage() {
       if (!error) {
         // Let auth context and middleware handle redirection
         console.log('Login successful, waiting for auth state update')
-        AuthDebugger.logAuthState('After Email Login')
       } else {
         setError(error.message || "Invalid email or password")
       }
@@ -83,11 +79,8 @@ export default function LoginPage() {
 
   const handleGoogleLogin = async () => {
     setError("")
-    console.log('🔄 Google login attempt...')
-    AuthDebugger.logAuthState('Before Google Login')
     try {
       const { error } = await signInWithGoogle()
-      console.log('🔄 Google login result:', { hasError: !!error, errorMessage: error?.message })
       if (error) {
         setError(error.message || "Google login failed")
       }
