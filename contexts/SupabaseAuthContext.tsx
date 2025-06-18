@@ -1,9 +1,8 @@
 "use client"
 
-import React, { createContext, useContext, useEffect, useState } from 'react'
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase-client'
 import { User, Session } from '@supabase/supabase-js'
-import { AuthDebugger } from '@/lib/auth-debug'
 import { logAuthEvent, isProfileComplete } from '@/lib/auth-utils'
 import { useRouter } from 'next/navigation'
 
@@ -20,11 +19,12 @@ interface AuthContextType {
   signInWithGoogle: () => Promise<{ error: any }>
   resetPassword: (email: string) => Promise<{ error: any }>
   sendEmailConfirmation: (email: string) => Promise<{ error: any }>
+  refreshSession: () => Promise<void>
   isAuthenticated: boolean
   profile: any
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined)
+const SupabaseAuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function SupabaseAuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
@@ -34,8 +34,145 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
   const [isProfileLoading, setIsProfileLoading] = useState(false)
   const router = useRouter()
   
-  // Check if Supabase is configured
-  const isSupabaseConfigured = !!supabase
+  // Helper to identify missing profile fields
+  const getMissingFields = (profile: any): string[] => {
+    const missingFields = []
+    
+    if (!profile.full_name) missingFields.push('full_name')
+    if (!profile.username) missingFields.push('username')
+    if (!profile.bio) missingFields.push('bio')
+    if (!profile.location) missingFields.push('location')
+    
+    return missingFields
+  }
+
+  const createProfileIfNotExistsInternal = useCallback(async (userId: string) => {
+    if (!supabase) {
+      setProfile(null)
+      return
+    }
+
+    try {
+      console.log('🔍 Checking if profile exists for user:', userId)
+      
+      // Check if profile already exists
+      const { data: existingProfile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', userId)
+        .single()
+      
+      if (existingProfile) {
+        console.log('✅ Profile already exists')
+        return
+      }
+
+      console.log('👤 Creating new profile...')
+      
+      // Get user data from auth
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      if (!user) {
+        console.error('❌ No authenticated user found')
+        return
+      }
+
+      // Create profile with basic info
+      const profileData = {
+        id: userId,
+        email: user.email,
+        full_name: user.user_metadata?.full_name || '',
+        username: user.user_metadata?.username || '',
+        bio: '',
+        location: '',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }
+
+      const { data: newProfile, error } = await supabase
+        .from('profiles')
+        .insert([profileData])
+        .select()
+        .single()
+      
+      if (error) {
+        console.error('❌ Error creating profile:', error)
+        setProfile(null)
+      } else {
+        console.log('✅ Profile created successfully:', newProfile)
+        setProfile(newProfile)
+      }
+    } catch (error) {
+        console.error('❌ Exception creating profile:', error)
+        setProfile(null)
+      }
+    }, [])
+
+  // Define fetchProfile at component level to be accessible by all functions
+  const fetchProfileInternal = useCallback(async (userId: string) => {
+    if (!supabase) {
+      console.log('Supabase client not available for profile fetch')
+      return
+    }
+
+    setIsProfileLoading(true)
+    try {
+      console.log('Fetching profile for userId:', userId)
+      logAuthEvent('profile_fetch_start', { userId })
+      
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single()
+      
+      console.log('Profile fetch response:', { data, error })
+      
+      if (error) {
+        console.error('Error fetching profile:', {
+          code: error.code,
+          message: error.message
+        })
+        
+        logAuthEvent('profile_fetch_error', { 
+          userId, 
+          errorCode: error.code,
+          errorMessage: error.message
+        })
+        
+        // If profile doesn't exist (PGRST116), try to create it
+        if (error.code === 'PGRST116') {
+          console.log('Profile not found, attempting to create one...')
+          logAuthEvent('profile_not_found_creating', { userId })
+          await createProfileIfNotExistsInternal(userId)
+        } else {
+          // For other errors, set profile to null to prevent infinite loading
+          setProfile(null)
+        }
+      } else {
+        console.log('Profile fetched successfully:', data)
+        setProfile(data)
+        
+        // Check if profile is complete and log the status
+        const complete = isProfileComplete(data)
+        logAuthEvent('profile_status', { 
+          userId,
+          isComplete: complete,
+          missingFields: !complete ? getMissingFields(data) : []
+        })
+        
+        logAuthEvent('profile_fetch_success', { userId })
+      }
+    } catch (error) {
+      console.error('Profile fetch error:', error)
+      logAuthEvent('profile_fetch_exception', { userId, error: String(error) })
+      // Set profile to null on catch to prevent infinite loading
+      setProfile(null)
+    } finally {
+      setIsProfileLoading(false)
+    }
+  }, [createProfileIfNotExistsInternal])
+
 
   // Initialize auth state
   useEffect(() => {
@@ -48,248 +185,60 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
     
     // @supabase/ssr handles cross-tab auth automatically
 
-    // Define fetchProfile inside useEffect to avoid dependency issues
-    const fetchProfileInternal = async (userId: string) => {
-      if (!supabase) {
-        console.log('Supabase client not available for profile fetch')
-        return
-      }
-
-      setIsProfileLoading(true)
-      try {
-        console.log('Fetching profile for userId:', userId)
-        logAuthEvent('profile_fetch_start', { userId })
-        
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', userId)
-          .single()
-        
-        console.log('Profile fetch response:', { data, error })
-        
-        if (error) {
-          console.error('Error fetching profile:', {
-            code: error.code,
-            message: error.message
-          })
-          
-          logAuthEvent('profile_fetch_error', { 
-            userId, 
-            errorCode: error.code,
-            errorMessage: error.message
-          })
-          
-          // If profile doesn't exist (PGRST116), try to create it
-          if (error.code === 'PGRST116') {
-            console.log('Profile not found, attempting to create one...')
-            logAuthEvent('profile_not_found_creating', { userId })
-            await createProfileIfNotExistsInternal(userId)
-          } else {
-            // For other errors, set profile to null to prevent infinite loading
-            setProfile(null)
-          }
-        } else {
-          console.log('Profile fetched successfully:', data)
-          setProfile(data)
-          
-          // Check if profile is complete and log the status
-          const complete = isProfileComplete(data)
-          logAuthEvent('profile_status', { 
-            userId,
-            isComplete: complete,
-            missingFields: !complete ? getMissingFields(data) : []
-          })
-          
-          logAuthEvent('profile_fetch_success', { userId })
-        }
-      } catch (error) {
-        console.error('Profile fetch error:', error)
-        logAuthEvent('profile_fetch_exception', { userId, error: String(error) })
-        // Set profile to null on catch to prevent infinite loading
-        setProfile(null)
-      } finally {
-        setIsProfileLoading(false)
-      }
-    }
-
-    // Helper to identify missing profile fields
-    const getMissingFields = (profile: any): string[] => {
-      const missingFields = []
+    const handleAuthStateChange = async (event: any, session: any) => {
+      console.log('🔄 Auth state changed:', event, session?.user?.id)
+      logAuthEvent('auth_state_change', { event, userId: session?.user?.id })
       
-      if (!profile?.full_name) missingFields.push('full_name')
-      if (!profile?.phone) missingFields.push('phone')
-      if (!profile?.location) missingFields.push('location')
-      if (profile?.is_email_verified !== true) missingFields.push('email_verification')
-      if (profile?.is_phone_verified !== true) missingFields.push('phone_verification')
+      setSession(session)
+      setUser(session?.user ?? null)
       
-      return missingFields
-    }
-
-    // Create a profile if it doesn't exist yet
-    const createProfileIfNotExistsInternal = async (userId: string) => {
-      if (!supabase) {
-        setProfile(null)
-        return
-      }
-
-      try {
-        // Get current user data
-        const { data: { user }, error: userError } = await supabase.auth.getUser()
-        if (userError || !user) {
-          console.error('Error getting user for profile creation:', userError)
-          logAuthEvent('profile_creation_error', { 
-            userId,
-            error: userError?.message || 'No user found'
-          })
-          setProfile(null)
-          return
-        }
-
-        console.log('Creating profile for user:', {
-          id: userId,
-          email: user.email,
-          full_name: user.user_metadata?.full_name
-        })
-        logAuthEvent('profile_creation_start', { userId })
-
-        // Check if Firebase is configured
-        const isFirebaseConfigured = !!(
-          process.env.NEXT_PUBLIC_FIREBASE_API_KEY &&
-          process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
-        )
-
-        const { data, error } = await supabase
-          .from('profiles')
-          .insert({
-            id: userId,
-            email: user.email,
-            full_name: user.user_metadata?.full_name || null,
-            avatar_url: user.user_metadata?.avatar_url || null,
-            is_email_verified: !isFirebaseConfigured && !!user.email_confirmed_at, // Auto-verify if Firebase not configured and email is verified
-            is_phone_verified: false, // Phone verification will be handled separately
-            bio: null,
-            location: null,
-            phone: null,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          })
-          .select()
-          .single()
-
-        if (error) {
-          console.error('Error creating profile:', error)
-          logAuthEvent('profile_creation_error', { 
-            userId,
-            errorCode: error.code,
-            errorMessage: error.message
-          })
-          // Set profile to null if creation fails to prevent infinite loading
-          setProfile(null)
-        } else {
-          console.log('Profile created successfully:', data)
-          setProfile(data)
-          logAuthEvent('profile_creation_success', { userId })
-        }
-      } catch (error) {
-        console.error('Create profile error:', error)
-        logAuthEvent('profile_creation_exception', { userId, error: String(error) })
-        // Set profile to null on catch to prevent infinite loading
+      if (session?.user) {
+        await fetchProfileInternal(session.user.id)
+      } else {
         setProfile(null)
       }
+      
+      // Only set loading to false after profile processing is complete
+      setIsLoading(false)
     }
 
+    // Get initial session
     const getInitialSession = async () => {
-      try {
-        console.log('🔄 Getting initial session...')
-        logAuthEvent('session_init_start')
-        AuthDebugger.logAuthState('Initial Session Check')
-        const { data: { session }, error } = await supabase!.auth.getSession()
+      console.log('🔄 Getting initial session...')
+      logAuthEvent('session_init_start')
+      
+      const { data: { session }, error } = await supabase.auth.getSession()
+      
+      if (error) {
+        console.error('Error getting initial session:', error)
+        logAuthEvent('session_init_error', { error: error.message })
+      } else {
+        console.log('📊 Initial session result:', {
+          hasSession: !!session,
+          hasUser: !!session?.user
+        })
         
-        if (error) {
-          console.error('Error getting session:', error)
-          logAuthEvent('session_init_error', { error: error.message })
-        } else {
-          setSession(session)
-          setUser(session?.user ?? null)
-          
-          console.log('📊 Initial session result:', {
-            hasSession: !!session,
-            hasUser: !!session?.user
-          })
-          
-          logAuthEvent('session_init_complete', { 
-            hasSession: !!session,
-            userId: session?.user?.id || undefined
-          })
-          
-          if (session?.user) {
-            await fetchProfileInternal(session.user.id)
-          }
-        }
-      } catch (error) {
-        console.error('Session initialization error:', error)
-        logAuthEvent('session_init_exception', { error: String(error) })
-      } finally {
-        setIsLoading(false)
+        logAuthEvent('session_init_complete', { 
+          hasSession: !!session,
+          userId: session?.user?.id || undefined
+        })
+        
+        await handleAuthStateChange('INITIAL_SESSION', session)
       }
     }
 
-    getInitialSession()
-
-    // Listen for auth changes
+    // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('🔄 Auth state changed:', event, session?.user?.id)
-        logAuthEvent('auth_state_change', { event, userId: session?.user?.id })
-        
-        setSession(session)
-        setUser(session?.user ?? null)
-        
-        if (session?.user) {
-          await fetchProfileInternal(session.user.id)
-          
-          // After successful authentication, check if we need to redirect away from auth routes
-          if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-            console.log('✅ User signed in, checking for redirect...')
-            AuthDebugger.logAuthState('After Sign In')
-            logAuthEvent('sign_in_redirect_check')
-            
-            // Small delay to ensure profile is fetched
-            setTimeout(() => {
-              const currentPath = window.location.pathname
-              const isAuthRoute = ['/auth/login', '/auth/register', '/auth/callback'].some(route => 
-                currentPath.startsWith(route)
-              )
-              
-              if (isAuthRoute) {
-                // Check for callbackUrl in the current URL
-                const urlParams = new URLSearchParams(window.location.search)
-                const callbackUrl = urlParams.get('callbackUrl')
-                
-                // If there's a callbackUrl, redirect to it; otherwise go to home
-                // Let middleware handle the redirect logic including profile completion check
-                const redirectUrl = callbackUrl || '/'
-                logAuthEvent('sign_in_redirect', { from: currentPath, to: redirectUrl })
-                window.location.href = redirectUrl
-              }
-            }, 500) // Increased delay to ensure profile fetch completes
-          }
-        } else {
-          setProfile(null)
-        }
-        
-        // Only set loading to false after profile processing is complete
-        setIsLoading(false)
-      }
+      handleAuthStateChange
     )
+
+    // Get initial session
+    getInitialSession()
 
     return () => {
       subscription.unsubscribe()
     }
-  }, [])
-
-
+  }, [fetchProfileInternal])
 
   const signUp = async (email: string, password: string, fullName: string) => {
     if (!supabase) {
@@ -319,14 +268,18 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
       } else {
         logAuthEvent('signup_success', { 
           email,
-          userId: data?.user?.id
+          userId: data.user?.id
         })
       }
       
       return { data, error }
     } catch (error) {
-      logAuthEvent('signup_exception', { email, error: String(error) })
-      return { error }
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      logAuthEvent('signup_exception', { 
+        email,
+        error: errorMessage
+      })
+      return { error: new Error(errorMessage) }
     }
   }
 
@@ -351,80 +304,75 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
       } else {
         logAuthEvent('signin_success', { 
           email,
-          userId: data?.user?.id
+          userId: data.user?.id
         })
       }
       
-      return { error }
+      return { data, error }
     } catch (error) {
-      logAuthEvent('signin_exception', { email, error: String(error) })
-      return { error }
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      logAuthEvent('signin_exception', { 
+        email,
+        error: errorMessage
+      })
+      return { error: new Error(errorMessage) }
     }
   }
 
   const signOut = async () => {
+    if (!supabase) {
+      console.error('Supabase client not available')
+      return
+    }
+    
+    logAuthEvent('signout_attempt')
+
     try {
-      logAuthEvent('signout_start', { userId: user?.id })
+      const { error } = await supabase.auth.signOut()
       
-      // Immediately clear local state for instant UI feedback
-      setUser(null)
-      setSession(null)
-      setProfile(null)
-      
-      // Sign out from Supabase
-      await supabase!.auth.signOut()
-      
-      console.log('Sign-out completed successfully')
-      logAuthEvent('signout_success')
-      
-      // Redirect to home page
-      router.push('/?signout=success')
+      if (error) {
+        logAuthEvent('signout_error', { error: error.message })
+        console.error('Sign out error:', error)
+      } else {
+        logAuthEvent('signout_success')
+        // Clear state immediately
+        setSession(null)
+        setUser(null)
+        setProfile(null)
+      }
     } catch (error) {
-      console.error('Sign-out error:', error)
-      logAuthEvent('signout_error', { error: error instanceof Error ? error.message : String(error) })
-      // Even on error, keep the state cleared to prevent inconsistency
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      logAuthEvent('signout_exception', { error: errorMessage })
+      console.error('Sign out exception:', errorMessage)
     }
   }
 
-  const signInWithGoogle = async () => {
+  const signInWithGoogle = async (redirectTo?: string) => {
     if (!supabase) {
       return { error: new Error('Supabase client not available') }
     }
     
     logAuthEvent('google_signin_attempt')
 
-    console.log('🔄 Starting Google OAuth...')
-    
     try {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-          queryParams: {
-            // Request offline access to get refresh token
-            access_type: 'offline',
-            // Force consent screen to ensure refresh token is always provided
-            prompt: 'consent'
-          }
+          redirectTo: redirectTo || `${window.location.origin}/auth/callback`,
         },
-      })
-      
-      console.log('🔄 Google OAuth initiated:', {
-        hasData: !!data,
-        hasError: !!error,
-        errorMessage: error?.message
       })
       
       if (error) {
         logAuthEvent('google_signin_error', { error: error.message })
       } else {
-        logAuthEvent('google_signin_initiated')
+        logAuthEvent('google_signin_success')
       }
       
-      return { error }
+      return { data, error }
     } catch (error) {
-      logAuthEvent('google_signin_exception', { error: String(error) })
-      return { error }
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      logAuthEvent('google_signin_exception', { error: errorMessage })
+      return { error: new Error(errorMessage) }
     }
   }
 
@@ -441,48 +389,63 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
       })
       
       if (error) {
-        logAuthEvent('password_reset_error', { email, error: error.message })
+        logAuthEvent('password_reset_error', { 
+          email,
+          error: error.message
+        })
       } else {
-        logAuthEvent('password_reset_email_sent', { email })
+        logAuthEvent('password_reset_success', { email })
       }
       
-      return { error }
+      return { data, error }
     } catch (error) {
-      logAuthEvent('password_reset_exception', { email, error: String(error) })
-      return { error }
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      logAuthEvent('password_reset_exception', { 
+        email,
+        error: errorMessage
+      })
+      return { error: new Error(errorMessage) }
     }
   }
 
-  const sendEmailConfirmation = async (email: string) => {
+  const refreshSession = async () => {
+    if (!supabase) {
+      console.warn('❌ Supabase client not available for session refresh')
+      return
+    }
+    
     try {
-      logAuthEvent('email_confirmation_attempt', { email })
+      console.log('🔄 Manually refreshing session...')
+      logAuthEvent('manual_session_refresh_start')
       
-      const response = await fetch('/api/auth/send-confirmation', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email }),
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        logAuthEvent('email_confirmation_error', { 
-          email, 
-          error: data.message || 'Failed to send confirmation email'
+      const { data: { session }, error } = await supabase.auth.getSession()
+      
+      if (error) {
+        console.error('Error refreshing session:', error)
+        logAuthEvent('manual_session_refresh_error', { error: error.message })
+      } else {
+        setSession(session)
+        setUser(session?.user ?? null)
+        
+        console.log('📊 Session refresh result:', {
+          hasSession: !!session,
+          hasUser: !!session?.user
         })
-        return { error: new Error(data.message || 'Failed to send confirmation email') }
+        
+        logAuthEvent('manual_session_refresh_complete', { 
+          hasSession: !!session,
+          userId: session?.user?.id || undefined
+        })
+        
+        if (session?.user) {
+          await fetchProfileInternal(session.user.id)
+        } else {
+          setProfile(null)
+        }
       }
-
-      logAuthEvent('email_confirmation_sent', { email })
-      return { error: null }
     } catch (error) {
-      logAuthEvent('email_confirmation_exception', { 
-        email, 
-        error: error instanceof Error ? error.message : String(error)
-      })
-      return { error: error instanceof Error ? error : new Error('Failed to send confirmation email') }
+      console.error('Session refresh exception:', error)
+      logAuthEvent('manual_session_refresh_exception', { error: String(error) })
     }
   }
 
@@ -496,20 +459,60 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
     signOut,
     signInWithGoogle,
     resetPassword,
-    sendEmailConfirmation,
+    sendEmailConfirmation: async (email: string) => {
+      try {
+        logAuthEvent('email_confirmation_attempt', { email })
+        
+        const response = await fetch('/api/auth/send-confirmation', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ email }),
+        })
+
+        const data = await response.json()
+
+        if (!response.ok) {
+          logAuthEvent('email_confirmation_error', { 
+            email, 
+            error: data.message || 'Failed to send confirmation email'
+          })
+          return { error: new Error(data.message || 'Failed to send confirmation email') }
+        }
+
+        logAuthEvent('email_confirmation_sent', { email })
+        return { error: null }
+      } catch (error) {
+        logAuthEvent('email_confirmation_exception', { 
+          email, 
+          error: error instanceof Error ? error.message : String(error)
+        })
+        return { error: error instanceof Error ? error : new Error('Failed to send confirmation email') }
+      }
+    },
+    refreshSession,
     isAuthenticated: !!user,
     profile,
   }
 
   return (
-    <AuthContext.Provider value={value}>
+    <SupabaseAuthContext.Provider value={value}>
       {children}
-    </AuthContext.Provider>
+    </SupabaseAuthContext.Provider>
   )
 }
 
+export const useSupabaseAuth = () => {
+  const context = useContext(SupabaseAuthContext)
+  if (context === undefined) {
+    throw new Error('useSupabaseAuth must be used within a SupabaseAuthProvider')
+  }
+  return context
+}
+
 export function useAuth() {
-  const context = useContext(AuthContext)
+  const context = useContext(SupabaseAuthContext)
   if (context === undefined) {
     throw new Error('useAuth must be used within a SupabaseAuthProvider')
   }

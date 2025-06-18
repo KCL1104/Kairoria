@@ -29,10 +29,10 @@ async function updateSessionAndGetUser(request: NextRequest) {
 
 // Route definitions
 const publicRoutes = ['/', '/about', '/contact', '/marketplace', '/how-it-works', '/sustainability', '/terms', '/privacy', '/cookies']
-const authRoutes = ['/auth/login', '/auth/register', '/auth/reset-password', '/auth/forgot-password', '/auth/verify', '/auth/callback', '/auth/google-oauth-fix', '/auth/oauth-config', '/test-unified-auth']
+const authRoutes = ['/auth/login', '/auth/register', '/auth/reset-password', '/auth/forgot-password', '/auth/verify', '/auth/callback', '/auth/google-oauth-fix', '/auth/oauth-config']
 const completeSignupRoute = '/complete-signup' 
 const protectedRoutes = ['/profile', '/messages', '/dashboard', '/settings', '/admin', '/profile/listings']
-const debugRoutes = ['/debug-auth']
+const debugRoutes = ['/debug-auth', '/test-unified-auth']
  
 export async function middleware(request: NextRequest) { 
   const { response, supabase, user } = await updateSessionAndGetUser(request) 

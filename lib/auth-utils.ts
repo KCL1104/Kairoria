@@ -6,7 +6,7 @@
 // Cookie configuration for secure token storage
 export const AUTH_COOKIE_OPTIONS = {
   path: '/',
-  httpOnly: true,         // Prevents JavaScript access
+  httpOnly: false,       // Allow JavaScript access for client-side auth state
   secure: process.env.NODE_ENV === 'production',
   sameSite: 'lax' as const, // Protects against CSRF
   maxAge: 60 * 60 * 24 * 30,  // 30 days default
@@ -57,10 +57,24 @@ export function getMissingProfileFields(profile: any): string[] {
 }
 
 /**
- * Validate a JWT token format
+ * Check if a token is too long and might need chunking
+ */
+export function isTokenTooLong(token: string): boolean {
+  const MAX_COOKIE_SIZE = 3800 // Same limit as in auth-server.ts
+  return token && token.length > MAX_COOKIE_SIZE
+}
+
+/**
+ * Validate a JWT token format with length check
  */
 export function isValidJWT(token: string): boolean {
   if (!token) return false
+  
+  // First check token length
+  if (isTokenTooLong(token)) {
+    console.warn(`⚠️ Token is very long (${token.length} chars), may need chunking`)
+    // Don't reject long tokens, but log the warning
+  }
   
   // JWT format: header.payload.signature
   const parts = token.split('.')

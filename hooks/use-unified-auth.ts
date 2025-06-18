@@ -50,8 +50,8 @@ export function useUnifiedAuth() {
   const [error, setError] = useState<string | null>(null)
   const [supportedTypes, setSupportedTypes] = useState<SupportedLoginType[]>([])
   
-  // Get signInWithGoogle function from Auth Context
-  const { signInWithGoogle: signInWithGoogleFromContext } = useAuth()
+  // Get signInWithGoogle and refreshSession functions from Auth Context
+  const { signInWithGoogle: signInWithGoogleFromContext, refreshSession } = useAuth()
 
   /**
    * Unified login method
@@ -132,6 +132,9 @@ export function useUnifiedAuth() {
 
       if (result.success) {
         logAuthEvent('unified_auth_success', { loginMethod: 'password', userId: result.user?.id })
+        
+        // Refresh the session to update frontend auth state
+        await refreshSession()
       }
 
       return result

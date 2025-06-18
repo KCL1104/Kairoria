@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
 import { AUTH_COOKIE_OPTIONS, logAuthEvent } from '@/lib/auth-utils'
+import { createSecureServerClient } from '@/lib/auth-server'
 
 /**
  * Unified login API endpoint
@@ -29,27 +30,8 @@ export async function POST(request: NextRequest) {
     // Create response object for handling cookies
     let response = NextResponse.json({ success: false })
     
-    const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll()
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => {
-            const enhancedOptions = {
-              ...options,
-              ...AUTH_COOKIE_OPTIONS,
-              domain: undefined,
-              maxAge: name.includes('refresh') 
-                ? 60 * 60 * 24 * 30 // 30 days refresh token
-                : 60 * 60           // 1 hour access token
-            }
-            
-            response.cookies.set(name, value, enhancedOptions)
-          })
-        },
-      },
-    })
+    // Use the unified secure server client to ensure consistent cookie handling
+    const supabase = createSecureServerClient(response)
 
     const body = await request.json()
     const { loginType, ...credentials } = body

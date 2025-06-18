@@ -29,7 +29,78 @@ if (!supabaseAnonKey) {
 }
 
 export const supabase = supabaseUrl && supabaseAnonKey 
-  ? createBrowserClient(supabaseUrl, supabaseAnonKey)
+  ? createBrowserClient(supabaseUrl, supabaseAnonKey, {
+      cookies: {
+        get(name: string) {
+          if (typeof document === 'undefined') return undefined
+          
+          // First try to get the cookie directly
+          const value = `; ${document.cookie}`
+          const parts = value.split(`; ${name}=`)
+          if (parts.length === 2) {
+            const directValue = parts.pop()?.split(';').shift()
+            if (directValue) return directValue
+          }
+          
+          // If not found and it's an auth-token, try to get chunked cookies
+          if (name.includes('auth-token')) {
+            const chunks: string[] = []
+            let chunkIndex = 0
+            
+            while (true) {
+              const chunkName = `${name}.${chunkIndex}`
+              const chunkParts = value.split(`; ${chunkName}=`)
+              
+              if (chunkParts.length === 2) {
+                const chunkValue = chunkParts.pop()?.split(';').shift()
+                if (chunkValue) {
+                  chunks.push(chunkValue)
+                  chunkIndex++
+                } else {
+                  break
+                }
+              } else {
+                break
+              }
+            }
+            
+            if (chunks.length > 0) {
+              console.log(`🍪 Reconstructed chunked cookie ${name} from ${chunks.length} chunks`)
+              return chunks.join('')
+            }
+          }
+          
+          return undefined
+        },
+        set(name: string, value: string, options: any) {
+          if (typeof document === 'undefined') return
+          let cookieString = `${name}=${value}`
+          
+          if (options?.maxAge) {
+            cookieString += `; max-age=${options.maxAge}`
+          }
+          if (options?.path) {
+            cookieString += `; path=${options.path}`
+          }
+          if (options?.secure) {
+            cookieString += '; secure'
+          }
+          if (options?.sameSite) {
+            cookieString += `; samesite=${options.sameSite}`
+          }
+          if (options?.httpOnly) {
+            // HttpOnly cannot be set from client-side JavaScript
+            // This is handled by server-side components
+          }
+          
+          document.cookie = cookieString
+        },
+        remove(name: string, options: any) {
+          if (typeof document === 'undefined') return
+          this.set(name, '', { ...options, maxAge: 0 })
+        }
+      }
+    })
   : null
 
 if (!supabase && typeof window !== 'undefined') {

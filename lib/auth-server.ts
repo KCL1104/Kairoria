@@ -6,12 +6,13 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
-import { AUTH_COOKIE_OPTIONS } from './auth-utils'
+import { AUTH_COOKIE_OPTIONS, isTokenTooLong, isValidJWT } from './auth-utils'
 
 /**
  * Create a Supabase server client with secure cookie handling
+ * @param response Optional NextResponse object for API routes to set cookies
  */
-export function createSecureServerClient() {
+export function createSecureServerClient(response?: any) {
   const cookieStore = cookies()
   
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_DATABASE_URL
@@ -42,7 +43,38 @@ export function createSecureServerClient() {
                 : 60 * 60           // 1 hour for access token
             }
             
-            cookieStore.set(name, value, enhancedOptions)
+            // Check token length and split if necessary (cookie size limit ~4KB)
+            const MAX_COOKIE_SIZE = 3800 // Leave some buffer for cookie metadata
+            
+            if (value && value.length > MAX_COOKIE_SIZE && name.includes('auth-token')) {
+              console.log(`🍪 Token too long (${value.length} chars), splitting into chunks for ${name}`)
+              
+              // Split the token into chunks
+              const chunks = []
+              for (let i = 0; i < value.length; i += MAX_COOKIE_SIZE) {
+                chunks.push(value.substring(i, i + MAX_COOKIE_SIZE))
+              }
+              
+              // Set each chunk as a separate cookie
+              chunks.forEach((chunk, index) => {
+                const chunkName = `${name}.${index}`
+                cookieStore.set(chunkName, chunk, enhancedOptions)
+                
+                if (response && response.cookies) {
+                  response.cookies.set(chunkName, chunk, enhancedOptions)
+                }
+              })
+              
+              console.log(`🍪 Split ${name} into ${chunks.length} chunks`)
+            } else {
+              // Normal cookie setting for tokens under size limit
+              cookieStore.set(name, value, enhancedOptions)
+              
+              // Also set on response object if provided (for API routes)
+              if (response && response.cookies) {
+                response.cookies.set(name, value, enhancedOptions)
+              }
+            }
           })
         },
       },
@@ -82,8 +114,31 @@ export function createMiddlewareClient(request: NextRequest, response: NextRespo
                 : 60 * 60           // 1 hour for access token
             }
             
-            request.cookies.set(name, value)
-            response.cookies.set(name, value, enhancedOptions)
+            // Check token length and split if necessary (cookie size limit ~4KB)
+            const MAX_COOKIE_SIZE = 3800 // Leave some buffer for cookie metadata
+            
+            if (value && value.length > MAX_COOKIE_SIZE && name.includes('auth-token')) {
+              console.log(`🍪 Token too long (${value.length} chars), splitting into chunks for ${name}`)
+              
+              // Split the token into chunks
+              const chunks = []
+              for (let i = 0; i < value.length; i += MAX_COOKIE_SIZE) {
+                chunks.push(value.substring(i, i + MAX_COOKIE_SIZE))
+              }
+              
+              // Set each chunk as a separate cookie
+              chunks.forEach((chunk, index) => {
+                const chunkName = `${name}.${index}`
+                request.cookies.set(chunkName, chunk)
+                response.cookies.set(chunkName, chunk, enhancedOptions)
+              })
+              
+              console.log(`🍪 Split ${name} into ${chunks.length} chunks`)
+            } else {
+              // Normal cookie setting for tokens under size limit
+              request.cookies.set(name, value)
+              response.cookies.set(name, value, enhancedOptions)
+            }
           })
         },
       },
@@ -97,6 +152,25 @@ export function createMiddlewareClient(request: NextRequest, response: NextRespo
  */
 export async function validateAuthToken() {
   try {
+    // Pre-check: Get access token from cookies to validate length and format
+    const cookieStore = cookies()
+    const accessToken = cookieStore.get('sb-access-token')?.value
+    
+    if (accessToken) {
+      // Check token length first
+      if (isTokenTooLong(accessToken)) {
+        console.log(`🔍 Access token is long (${accessToken.length} chars), checking if chunked...`)
+      }
+      
+      // Validate JWT format
+      if (!isValidJWT(accessToken)) {
+        console.warn('⚠️ Invalid JWT format detected, token may be corrupted or chunked')
+        // Continue with Supabase validation as it might handle chunked tokens
+      } else {
+        console.log('✅ Token format validation passed')
+      }
+    }
+    
     const supabase = createSecureServerClient()
     const { data: { user }, error } = await supabase.auth.getUser()
     
@@ -105,6 +179,7 @@ export async function validateAuthToken() {
       return null
     }
     
+    console.log('✅ Token validation successful for user:', user.id)
     return user
   } catch (error) {
     console.error('Token validation error:', error)
