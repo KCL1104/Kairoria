@@ -63,7 +63,7 @@ export default function TestUnifiedAuthPage() {
                 <h4 className="font-semibold mb-2">Supported login methods:</h4>
                 <div className="flex flex-wrap gap-2">
                   <Badge variant="secondary">Password Login</Badge>
-                  <Badge variant="secondary">Google OAuth</Badge>
+                  {/* <Badge variant="secondary">Google OAuth</Badge> */}
                 </div>
               </div>
               
@@ -192,8 +192,8 @@ const { loginWithPassword, loginWithGoogle } = useUnifiedAuth()
 // Password login
 const result = await loginWithPassword('user@example.com', 'password')
 
-// Google OAuth login
-const result = await loginWithGoogle('/dashboard')`}
+// Google OAuth login (temporarily disabled)
+// const result = await loginWithGoogle('/dashboard')`}
               </pre>
             </div>
             

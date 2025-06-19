@@ -19,6 +19,7 @@ export interface LoginResponse {
   success: boolean
   message: string
   loginMethod?: string
+  redirectUrl?: string
   user?: {
     id: string
     email: string
@@ -83,10 +84,15 @@ export function useUnifiedAuth() {
           userId: result.user?.id 
         })
         
-        // For OAuth login, may need to redirect
-        if (credentials.loginType === 'oauth' && result.session) {
-          // OAuth success, but may need to handle redirection
-          window.location.href = credentials.redirectTo || '/'
+        // Handle OAuth redirect
+        if (credentials.loginType === 'oauth' && result.redirectUrl) {
+          window.location.href = result.redirectUrl
+          return result
+        }
+        
+        // For password login, refresh session immediately
+        if (credentials.loginType === 'password') {
+          await refreshSession()
         }
       }
 
@@ -163,32 +169,10 @@ export function useUnifiedAuth() {
   }
 
   /**
-   * Google OAuth login (directly using Context method)
+   * Google OAuth login (using unified API)
    */
   const loginWithGoogle = async () => {
-    setIsLoading(true)
-    setError(null)
-    
-    try {
-      logAuthEvent('google_signin_attempt')
-      const { error } = await signInWithGoogleFromContext() // Use Context function
-      
-      if (error) {
-        throw new Error(error.message)
-      }
-      
-      // Note: OAuth flow will redirect, so this usually won't execute
-      // unless an error occurs
-
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
-      setError(errorMessage)
-      logAuthEvent('google_signin_error', { error: errorMessage })
-    } finally {
-      // In OAuth flow, page will redirect, so setIsLoading(false) might not execute
-      // but keeping it just in case
-      setIsLoading(false)
-    }
+    return await loginWithOAuth('google', `${window.location.origin}/auth/callback`)
   }
 
   /**

@@ -318,9 +318,10 @@ export default function DebugAuthPage() {
               <Button onClick={checkAuthState}>
                 Refresh Auth State
               </Button>
-              <Button onClick={testGoogleAuth} variant="outline">
+              {/* Google OAuth test button temporarily hidden */}
+              {/* <Button onClick={testGoogleAuth} variant="outline">
                 Test Google OAuth
-              </Button>
+              </Button> */}
               <Button 
                 onClick={() => {
                   if (supabase) {
@@ -353,10 +354,10 @@ export default function DebugAuthPage() {
           <CardContent>
             <div className="space-y-2 text-sm">
               <p>1. Open browser developer tools (F12) and go to the Console tab</p>
-              <p>2. Try logging in with Google OAuth and watch the console logs</p>
+              <p>2. Try logging in with email/password and watch the console logs</p>
               <p>3. Check the Application/Storage tab to see cookies and localStorage</p>
               <p>4. Use the "Log to Console" button to see detailed auth state</p>
-              <p>5. If tokens are missing, check the Network tab during OAuth flow</p>
+              <p>5. If tokens are missing, check the Network tab during authentication flow</p>
             </div>
           </CardContent>
         </Card>

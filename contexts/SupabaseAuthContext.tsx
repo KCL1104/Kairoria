@@ -174,29 +174,39 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
   }, [createProfileIfNotExistsInternal])
 
 
+  // Define handleAuthStateChange as a callback
+  const handleAuthStateChange = useCallback(async (event: any, session: any) => {
+    console.log('🔄 Auth state changed:', event, session?.user?.id)
+    logAuthEvent('auth_state_change', { event, userId: session?.user?.id })
+    
+    setSession(session)
+    setUser(session?.user ?? null)
+    
+    if (session?.user) {
+      await fetchProfileInternal(session.user.id)
+    } else {
+      setProfile(null)
+    }
+    
+    // For OAuth success, ensure state is properly updated
+    if (event === 'OAUTH_SUCCESS' || event === 'INITIAL_SESSION') {
+      // Force a re-render to update UI components
+      setIsLoading(false)
+      // Small delay to ensure all state updates are processed
+      setTimeout(() => {
+        setIsLoading(false)
+      }, 100)
+    } else {
+      setIsLoading(false)
+    }
+  }, [fetchProfileInternal])
+
   // Initialize auth state
   useEffect(() => {
     if (!supabase) {
       console.warn('❌ Supabase client not available')
       setIsLoading(false)
       return
-    }
-
-    const handleAuthStateChange = async (event: any, session: any) => {
-      console.log('🔄 Auth state changed:', event, session?.user?.id)
-      logAuthEvent('auth_state_change', { event, userId: session?.user?.id })
-      
-      setSession(session)
-      setUser(session?.user ?? null)
-      
-      if (session?.user) {
-        await fetchProfileInternal(session.user.id)
-      } else {
-        setProfile(null)
-      }
-      
-      // Only set loading to false after profile processing is complete
-      setIsLoading(false)
     }
 
     const getInitialSession = async () => {
@@ -265,6 +275,46 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
       subscription.unsubscribe()
     }
   }, [fetchProfileInternal])
+
+  // Additional OAuth success detection
+  useEffect(() => {
+    const handleOAuthSuccess = async () => {
+      const urlParams = new URLSearchParams(window.location.search)
+      if (urlParams.get('auth') === 'success') {
+        console.log('🔄 OAuth success detected, forcing session refresh...')
+        logAuthEvent('oauth_success_detected')
+        
+        // Multiple attempts to get session
+        let attempts = 0
+        const maxAttempts = 5
+        
+        while (attempts < maxAttempts) {
+          try {
+            const { data: { session } } = await supabase!.auth.getSession()
+            if (session) {
+              console.log('✅ OAuth session retrieved successfully')
+              logAuthEvent('oauth_session_retrieved', { userId: session.user.id })
+              await handleAuthStateChange('OAUTH_SUCCESS', session)
+              return
+            }
+          } catch (error) {
+            console.error('Error getting OAuth session:', error)
+          }
+          
+          attempts++
+          await new Promise(resolve => setTimeout(resolve, 300))
+        }
+        
+        console.warn('⚠️ Failed to retrieve OAuth session after multiple attempts')
+        logAuthEvent('oauth_session_retrieval_failed')
+      }
+    }
+
+    // Only run on client side
+    if (typeof window !== 'undefined') {
+      handleOAuthSuccess()
+    }
+  }, [handleAuthStateChange])
 
   const signUp = async (email: string, password: string, fullName: string) => {
     if (!supabase) {

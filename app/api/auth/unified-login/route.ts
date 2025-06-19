@@ -59,8 +59,19 @@ export async function POST(request: NextRequest) {
         break
         
       case 'oauth':
-        authResult = await handleOAuthLogin(supabase, credentials, request)
-        loginMethod = 'oauth'
+        // OAuth requires special handling since it redirects
+        const oauthResult = await handleOAuthLogin(supabase, credentials, request)
+        if (oauthResult.data?.url) {
+          // Return redirect URL for OAuth
+          return NextResponse.json({
+            success: true,
+            message: 'OAuth redirect initiated',
+            redirectUrl: oauthResult.data.url
+          })
+        } else if (oauthResult.error) {
+          authResult = oauthResult
+          loginMethod = 'oauth'
+        }
         break
         
       default:
