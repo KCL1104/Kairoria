@@ -204,9 +204,29 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
       logAuthEvent('session_init_start')
       
       try {
-        // Add a small delay for OAuth callback to complete
+        // Add enhanced delay and retry mechanism for OAuth callback
         if (window.location.pathname === '/auth/callback') {
-          await new Promise(resolve => setTimeout(resolve, 100))
+          await new Promise(resolve => setTimeout(resolve, 500))
+          
+          // Retry mechanism for OAuth callback
+          let retryCount = 0
+          const maxRetries = 3
+          let session = null
+          
+          while (retryCount < maxRetries) {
+            const { data: { session: currentSession } } = await supabase!.auth.getSession()
+            if (currentSession) {
+              session = currentSession
+              break
+            }
+            await new Promise(resolve => setTimeout(resolve, 200))
+            retryCount++
+          }
+          
+          if (session) {
+            await handleAuthStateChange('INITIAL_SESSION', session)
+            return
+          }
         }
         
         const { data: { session }, error } = await supabase!.auth.getSession()

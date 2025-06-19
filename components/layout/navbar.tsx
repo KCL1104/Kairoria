@@ -1,8 +1,8 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
-import { useState } from "react"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
+import { useState, useEffect } from "react"
 import { Menu, X, MessageSquare, User, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/contexts/SupabaseAuthContext"
@@ -20,8 +20,25 @@ import { cn } from "@/lib/utils"
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const pathname = usePathname()
-  const { user, profile, isAuthenticated } = useAuth()
+  const searchParams = useSearchParams()
+  const { user, profile, isAuthenticated, refreshSession } = useAuth()
   const router = useRouter()
+
+  // Handle OAuth callback success
+  useEffect(() => {
+    if (pathname === '/' && searchParams.get('auth') === 'success') {
+      // Clear the URL parameters
+      const url = new URL(window.location.href)
+      url.searchParams.delete('auth')
+      url.searchParams.delete('t')
+      window.history.replaceState({}, '', url.toString())
+      
+      // Refresh auth session after a brief delay
+      setTimeout(() => {
+        refreshSession()
+      }, 500)
+    }
+  }, [pathname, searchParams, refreshSession])
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">

@@ -117,8 +117,8 @@ export async function GET(request: Request) {
       // After successful exchange, the session should be in the cookies.
       // The middleware will pick it up on the next request.
 
-      // Always redirect to home page after successful authentication
-      return NextResponse.redirect(`${requestUrl.origin}/`)
+      // Always redirect to home page after successful authentication with a refresh parameter
+      return NextResponse.redirect(`${requestUrl.origin}/?auth=success&t=${Date.now()}`)
       
     } catch (error) {
       logAuthEvent('callback_error', { error: String(error) })
