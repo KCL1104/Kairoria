@@ -61,7 +61,7 @@ export function getMissingProfileFields(profile: any): string[] {
  */
 export function isTokenTooLong(token: string): boolean {
   const MAX_COOKIE_SIZE = 3800 // Same limit as in auth-server.ts
-  return token && token.length > MAX_COOKIE_SIZE
+  return !!token && token.length > MAX_COOKIE_SIZE
 }
 
 /**

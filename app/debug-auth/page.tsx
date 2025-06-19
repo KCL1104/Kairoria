@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { AuthDebugger } from '@/lib/auth-debug'
 import { supabase } from '@/lib/supabase-client'
+import { getSupabaseCookieNames } from '@/lib/supabase-cookies'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -16,6 +17,8 @@ interface AuthState {
   localStorageKeys: string[]
   cookies: string[]
   sessionData?: any
+  supabaseCookies?: string[]
+  cookieConfig?: { authToken: string; projectRef: string }
 }
 
 export default function DebugAuthPage() {
@@ -58,7 +61,27 @@ export default function DebugAuthPage() {
         }
       }
       
-      // Check cookies
+      // Add cookie configuration check
+      const { authToken, projectRef } = getSupabaseCookieNames()
+      console.log('Cookie configuration:', {
+        projectRef,
+        expectedCookieName: authToken
+      })
+      
+      // Show all Supabase-related cookies
+      const supabaseCookies = []
+      if (typeof window !== 'undefined') {
+        const allCookies = document.cookie.split(';')
+        for (const cookie of allCookies) {
+          const [name] = cookie.trim().split('=')
+          if (name && name.startsWith('sb-')) {
+            supabaseCookies.push(name)
+          }
+        }
+      }
+      console.log('Found Supabase cookies:', supabaseCookies)
+      
+      // Check cookies (legacy check for backward compatibility)
       const cookies = []
       if (typeof window !== 'undefined') {
         const cookieString = document.cookie
@@ -79,7 +102,9 @@ export default function DebugAuthPage() {
         email,
         localStorageKeys,
         cookies,
-        sessionData
+        sessionData,
+        supabaseCookies,
+        cookieConfig: { authToken, projectRef }
       })
       
     } catch (error) {
@@ -221,7 +246,36 @@ export default function DebugAuthPage() {
               </div>
               
               <div>
-                <strong>Cookies:</strong>
+                <strong>Cookie Configuration:</strong>
+                <div className="mt-2 p-2 bg-muted rounded">
+                  {authState?.cookieConfig ? (
+                    <div className="space-y-1">
+                      <div className="text-sm font-mono">Project Ref: {authState.cookieConfig.projectRef}</div>
+                      <div className="text-sm font-mono">Expected Cookie: {authState.cookieConfig.authToken}</div>
+                    </div>
+                  ) : (
+                    <span className="text-muted-foreground">Cookie configuration not available</span>
+                  )}
+                </div>
+              </div>
+              
+              <div>
+                <strong>Supabase Cookies (sb-*):</strong>
+                <div className="mt-2 p-2 bg-muted rounded">
+                  {authState?.supabaseCookies?.length ? (
+                    <ul className="list-disc list-inside">
+                      {authState.supabaseCookies.map(cookie => (
+                        <li key={cookie} className="text-sm font-mono">{cookie}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <span className="text-muted-foreground">No Supabase cookies found</span>
+                  )}
+                </div>
+              </div>
+              
+              <div>
+                <strong>All Auth-related Cookies:</strong>
                 <div className="mt-2 p-2 bg-muted rounded">
                   {authState?.cookies.length ? (
                     <ul className="list-disc list-inside">

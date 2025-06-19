@@ -1,5 +1,6 @@
 import { createBrowserClient } from '@supabase/ssr'
 import { AuthDebugger } from './auth-debug'
+import { getSupabaseCookieNames } from './supabase-cookies'
 import { Product, Profile, ProductImage } from './data'
 
 // Client-side Supabase client using @supabase/ssr
@@ -28,52 +29,66 @@ if (!supabaseAnonKey) {
   console.error('Missing NEXT_PUBLIC_SUPABASE_ANON_KEY environment variable')
 }
 
-export const supabase = supabaseUrl && supabaseAnonKey 
+export const supabase = supabaseUrl && supabaseAnonKey
   ? createBrowserClient(supabaseUrl, supabaseAnonKey, {
       cookies: {
         get(name: string) {
           if (typeof document === 'undefined') return undefined
           
-          // First try to get the cookie directly
-          const value = `; ${document.cookie}`
-          const parts = value.split(`; ${name}=`)
-          if (parts.length === 2) {
-            const directValue = parts.pop()?.split(';').shift()
-            if (directValue) return directValue
-          }
+          const { authToken, authTokenPattern } = getSupabaseCookieNames()
           
-          // If not found and it's an auth-token, try to get chunked cookies
-          if (name.includes('auth-token')) {
+          // Check if this is the main auth token
+          if (name === authToken) {
+            // First try direct access
+            const cookies = document.cookie.split(';')
+            
+            // Look for the exact cookie
+            for (const cookie of cookies) {
+              const [cookieName, cookieValue] = cookie.trim().split('=')
+              if (cookieName === name) {
+                return cookieValue
+              }
+            }
+            
+            // If not found, check for chunked cookies
             const chunks: string[] = []
             let chunkIndex = 0
             
             while (true) {
               const chunkName = `${name}.${chunkIndex}`
-              const chunkParts = value.split(`; ${chunkName}=`)
+              let found = false
               
-              if (chunkParts.length === 2) {
-                const chunkValue = chunkParts.pop()?.split(';').shift()
-                if (chunkValue) {
-                  chunks.push(chunkValue)
-                  chunkIndex++
-                } else {
+              for (const cookie of cookies) {
+                const [cookieName, cookieValue] = cookie.trim().split('=')
+                if (cookieName === chunkName) {
+                  chunks.push(cookieValue)
+                  found = true
                   break
                 }
-              } else {
-                break
               }
+              
+              if (!found) break
+              chunkIndex++
             }
             
             if (chunks.length > 0) {
-              console.log(`🍪 Reconstructed chunked cookie ${name} from ${chunks.length} chunks`)
+              console.log(`🍪 Reconstructed ${name} from ${chunks.length} chunks`)
               return chunks.join('')
             }
+          }
+          
+          // For other cookies, use default behavior
+          const value = `; ${document.cookie}`
+          const parts = value.split(`; ${name}=`)
+          if (parts.length === 2) {
+            return parts.pop()?.split(';').shift()
           }
           
           return undefined
         },
         set(name: string, value: string, options: any) {
           if (typeof document === 'undefined') return
+          
           let cookieString = `${name}=${value}`
           
           if (options?.maxAge) {
@@ -82,15 +97,11 @@ export const supabase = supabaseUrl && supabaseAnonKey
           if (options?.path) {
             cookieString += `; path=${options.path}`
           }
-          if (options?.secure) {
+          if (options?.secure && window.location.protocol === 'https:') {
             cookieString += '; secure'
           }
           if (options?.sameSite) {
             cookieString += `; samesite=${options.sameSite}`
-          }
-          if (options?.httpOnly) {
-            // HttpOnly cannot be set from client-side JavaScript
-            // This is handled by server-side components
           }
           
           document.cookie = cookieString

@@ -178,12 +178,9 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
   useEffect(() => {
     if (!supabase) {
       console.warn('❌ Supabase client not available')
-      logAuthEvent('auth_context_error', { error: 'Supabase client not available' })
       setIsLoading(false)
       return
     }
-    
-    // @supabase/ssr handles cross-tab auth automatically
 
     const handleAuthStateChange = async (event: any, session: any) => {
       console.log('🔄 Auth state changed:', event, session?.user?.id)
@@ -202,37 +199,46 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
       setIsLoading(false)
     }
 
-    // Get initial session
     const getInitialSession = async () => {
       console.log('🔄 Getting initial session...')
       logAuthEvent('session_init_start')
       
-      const { data: { session }, error } = await supabase.auth.getSession()
-      
-      if (error) {
-        console.error('Error getting initial session:', error)
-        logAuthEvent('session_init_error', { error: error.message })
-      } else {
-        console.log('📊 Initial session result:', {
-          hasSession: !!session,
-          hasUser: !!session?.user
-        })
+      try {
+        // Add a small delay for OAuth callback to complete
+        if (window.location.pathname === '/auth/callback') {
+          await new Promise(resolve => setTimeout(resolve, 100))
+        }
         
-        logAuthEvent('session_init_complete', { 
-          hasSession: !!session,
-          userId: session?.user?.id || undefined
-        })
+        const { data: { session }, error } = await supabase!.auth.getSession()
         
-        await handleAuthStateChange('INITIAL_SESSION', session)
+        if (error) {
+          console.error('Error getting initial session:', error)
+          logAuthEvent('session_init_error', { error: error.message })
+          
+          // Try to refresh session if there's an error
+          const { data: { session: refreshedSession } } = await supabase!.auth.refreshSession()
+          if (refreshedSession) {
+            await handleAuthStateChange('INITIAL_SESSION', refreshedSession)
+            return
+          }
+        } else {
+          console.log('📊 Initial session result:', {
+            hasSession: !!session,
+            hasUser: !!session?.user
+          })
+          
+          await handleAuthStateChange('INITIAL_SESSION', session)
+        }
+      } catch (error) {
+        console.error('Session initialization error:', error)
+        setIsLoading(false)
       }
     }
 
-    // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       handleAuthStateChange
     )
 
-    // Get initial session
     getInitialSession()
 
     return () => {
