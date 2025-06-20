@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createBrowserClient } from '@supabase/ssr'
 import { CheckCircle, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { performSignOut } from '@/lib/auth-utils'
 import Link from 'next/link'
 
 export default function LogoutPage() {
@@ -18,25 +19,35 @@ export default function LogoutPage() {
         setStatus('loading')
         setMessage('Securely signing you out...')
         
-        const supabase = createBrowserClient(
-          process.env.NEXT_PUBLIC_SUPABASE_URL!,
-          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-        )
-        
-        await supabase.auth.signOut()
+        await performSignOut()
         
         setStatus('success')
         setMessage('You have been successfully signed out.')
         
-        // Redirect to home page after a short delay
-        setTimeout(() => {
-          router.push('/?signout=success')
-        }, 2000)
+        // The performSignOut function will handle redirection
         
       } catch (error) {
         console.error('Logout error:', error)
         setStatus('error')
         setMessage('An error occurred while signing out. Please try again.')
+        
+        // Fallback logout attempt
+        try {
+          const supabase = createBrowserClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+          )
+          
+          await supabase.auth.signOut()
+          localStorage.clear()
+          sessionStorage.clear()
+          
+          setTimeout(() => {
+            window.location.href = '/?signout=success'
+          }, 1000)
+        } catch (fallbackError) {
+          console.error('Fallback logout error:', fallbackError)
+        }
       }
     }
 

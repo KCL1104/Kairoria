@@ -57,6 +57,63 @@ export function getMissingProfileFields(profile: any): string[] {
 }
 
 /**
+ * Perform a complete and reliable sign out
+ * Handles both client and server-side cleanup
+ */
+export async function performSignOut(): Promise<void> {
+  try {
+    logAuthEvent('complete_signout_start')
+    
+    // Step 1: Call the logout API endpoint for server-side cleanup
+    try {
+      const response = await fetch('/api/auth/logout', {
+        method: 'DELETE',
+        credentials: 'include'
+      })
+      
+      if (!response.ok) {
+        console.warn('Server logout failed, continuing with client cleanup')
+      }
+    } catch (error) {
+      console.warn('Server logout error:', error)
+    }
+    
+    // Step 2: Clear client-side storage
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.clear()
+        sessionStorage.clear()
+        
+        // Clear specific auth-related items that might persist
+        const keysToRemove = [
+          'supabase.auth.token',
+          'supabase.auth.refreshToken',
+          'auth-session',
+          'user-profile'
+        ]
+        
+        keysToRemove.forEach(key => {
+          localStorage.removeItem(key)
+          sessionStorage.removeItem(key)
+        })
+      } catch (error) {
+        console.warn('Client storage cleanup error:', error)
+      }
+    }
+    
+    // Step 3: Force navigation to clear state
+    if (typeof window !== 'undefined') {
+      window.location.href = '/?signout=success'
+    }
+    
+    logAuthEvent('complete_signout_success')
+  } catch (error) {
+    logAuthEvent('complete_signout_error', { error: String(error) })
+    throw error
+  }
+}
+
+/**
  * Check if a token is too long and might need chunking
  */
 export function isTokenTooLong(token: string): boolean {

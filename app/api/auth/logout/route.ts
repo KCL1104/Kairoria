@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { logAuthEvent } from '@/lib/auth-utils';
-import { getSupabaseCookieNames } from '@/lib/supabase-cookies';
 
 export async function DELETE(request: Request) {
   try {
@@ -41,19 +40,34 @@ export async function DELETE(request: Request) {
       message: 'Logged out successfully'
     });
     
-    // Clear Supabase cookies
-    const { authToken } = getSupabaseCookieNames();
+    // Clear all Supabase-related cookies more thoroughly
     const allCookies = cookieStore.getAll();
     
-    // Clear all cookies that match the Supabase pattern
+    // Clear all cookies that match Supabase patterns
     allCookies.forEach(cookie => {
-      if (cookie.name.startsWith(`sb-`) && cookie.name.includes(authToken.split('-')[1])) {
+      if (cookie.name.startsWith('sb-') || cookie.name.includes('supabase')) {
         response.cookies.set(cookie.name, '', {
           path: '/',
           expires: new Date(0),
-          maxAge: 0
+          maxAge: 0,
+          httpOnly: false,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax'
         });
       }
+    });
+    
+    // Also clear common auth-related cookies
+    const authCookies = ['auth-token', 'session', 'access_token', 'refresh_token'];
+    authCookies.forEach(cookieName => {
+      response.cookies.set(cookieName, '', {
+        path: '/',
+        expires: new Date(0),
+        maxAge: 0,
+        httpOnly: false,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax'
+      });
     });
     
     logAuthEvent('logout_successful')

@@ -404,6 +404,11 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
     logAuthEvent('signout_attempt')
 
     try {
+      // Clear state first to prevent UI inconsistencies
+      setSession(null)
+      setUser(null)
+      setProfile(null)
+      
       const { error } = await supabase.auth.signOut()
       
       if (error) {
@@ -411,15 +416,22 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
         console.error('Sign out error:', error)
       } else {
         logAuthEvent('signout_success')
-        // Clear state immediately
-        setSession(null)
-        setUser(null)
-        setProfile(null)
+      }
+      
+      // Clear browser storage as backup
+      if (typeof window !== 'undefined') {
+        localStorage.clear()
+        sessionStorage.clear()
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       logAuthEvent('signout_exception', { error: errorMessage })
       console.error('Sign out exception:', errorMessage)
+      
+      // Still clear state even if signOut fails
+      setSession(null)
+      setUser(null)
+      setProfile(null)
     }
   }
 

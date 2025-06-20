@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { useRouter } from 'next/navigation'
 import { createBrowserClient } from '@supabase/ssr'
 import { cn } from '@/lib/utils'
+import { performSignOut } from '@/lib/auth-utils'
 
 // Define the props for the sign-out button
 interface InstantSignOutButtonProps {
@@ -31,23 +32,33 @@ export function InstantSignOutButton({
   const router = useRouter()
 
   const handleSignOut = async () => {
+    if (confirmBeforeSignOut && !window.confirm('Are you sure you want to sign out?')) {
+      return
+    }
+    
     try {
       setIsSigningOut(true)
-      
-      const supabase = createBrowserClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-      )
-      
-      await supabase.auth.signOut()
-      
-      // Redirect to home page
-      router.push('/?signout=success')
-      router.refresh()
+      await performSignOut()
     } catch (error) {
       console.error('Sign out error:', error)
-    } finally {
       setIsSigningOut(false)
+      
+      // Fallback: try direct Supabase signout
+      try {
+        const supabase = createBrowserClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+        )
+        
+        await supabase.auth.signOut()
+        localStorage.clear()
+        sessionStorage.clear()
+        window.location.href = '/?signout=success'
+      } catch (fallbackError) {
+        console.error('Fallback sign out error:', fallbackError)
+        alert('Sign out failed. Please refresh the page and try again.')
+        setIsSigningOut(false)
+      }
     }
   }
 

@@ -31,6 +31,7 @@ async function updateSessionAndGetUser(request: NextRequest) {
 const publicRoutes = ['/', '/about', '/contact', '/marketplace', '/how-it-works', '/sustainability', '/terms', '/privacy', '/cookies']
 const authRoutes = ['/auth/login', '/auth/register', '/auth/reset-password', '/auth/forgot-password', '/auth/verify', '/auth/callback', '/auth/google-oauth-fix', '/auth/oauth-config']
 const completeSignupRoute = '/complete-signup' 
+const completeProfileRoutes = ['/complete-signup', '/complete-profile']
 const protectedRoutes = ['/profile', '/messages', '/dashboard', '/settings', '/admin', '/profile/listings']
 const debugRoutes = ['/debug-auth', '/test-unified-auth']
  
@@ -53,11 +54,12 @@ export async function middleware(request: NextRequest) {
   // Determine route types
   const isPublicRoute = publicRoutes.some(route => path === route || path.startsWith(route + '/'))
   const isAuthRoute = authRoutes.some(route => path.startsWith(route)) 
-  const isCompleteSignupRoute = path === completeSignupRoute || path === '/complete-profile'
+  const isCompleteSignupRoute = completeProfileRoutes.some(route => path === route || path.startsWith(route + '/'))
   const isProtectedRoute = protectedRoutes.some(route => path.startsWith(route)) 
   const isDebugRoute = debugRoutes.some(route => path.startsWith(route))
 
-  console.log(`🔍 [Middleware] Path: ${path}, User: ${user?.id ? 'logged in' : 'not logged in'}`) 
+  console.log(`🔍 [Middleware] Path: ${path}, User: ${user?.id ? 'logged in' : 'not logged in'}`)
+  console.log(`🔍 [Middleware] Route types: Public=${isPublicRoute}, Auth=${isAuthRoute}, CompleteSignup=${isCompleteSignupRoute}, Protected=${isProtectedRoute}`) 
 
   // Allow debug routes in development
   if (process.env.NODE_ENV === 'development' && isDebugRoute) {
@@ -68,13 +70,6 @@ export async function middleware(request: NextRequest) {
   if (!user) { 
     // Allow access to public routes and auth routes
     if (isPublicRoute || isAuthRoute) {
-      if (isProtectedRoute) {
-        logAuthEvent('access_denied', { 
-          path, 
-          reason: 'unauthenticated',
-          redirectTo: '/auth/login'
-        })
-      }
       return response 
     } 
     console.log(`🔒 [Middleware] Redirecting unauthenticated user to login`)
@@ -82,10 +77,15 @@ export async function middleware(request: NextRequest) {
     // Redirect to login for protected routes
     const redirectUrl = new URL('/auth/login', request.url) 
     redirectUrl.searchParams.set('callbackUrl', path) 
+    logAuthEvent('access_denied', { 
+      path, 
+      reason: 'unauthenticated',
+      redirectTo: redirectUrl.toString()
+    })
     return NextResponse.redirect(redirectUrl) 
   } 
 
-  // Rule 2: Authenticated users shouldn't access auth routes
+  // Rule 2: Authenticated users shouldn't access auth routes (except callback)
   if (user && isAuthRoute && !path.includes('/callback')) { 
     console.log(`🔄 [Middleware] Redirecting authenticated user away from auth route`)
     logAuthEvent('auth_route_redirect', { 
