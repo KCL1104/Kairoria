@@ -220,7 +220,7 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
           
           // Retry mechanism for OAuth callback
           let retryCount = 0
-          const maxRetries = 3
+          const maxRetries = 2
           let session = null
           
           while (retryCount < maxRetries) {
@@ -286,7 +286,7 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
         
         // Multiple attempts to get session
         let attempts = 0
-        const maxAttempts = 5
+        const maxAttempts = 3
         
         while (attempts < maxAttempts) {
           try {

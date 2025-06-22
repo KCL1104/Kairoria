@@ -31,7 +31,7 @@ async function updateSessionAndGetUser(request: NextRequest) {
 const publicRoutes = ['/', '/about', '/contact', '/marketplace', '/how-it-works', '/sustainability', '/terms', '/privacy', '/cookies']
 const authRoutes = ['/auth/login', '/auth/register', '/auth/reset-password', '/auth/forgot-password', '/auth/verify', '/auth/callback', '/auth/google-oauth-fix', '/auth/oauth-config']
 const completeSignupRoute = '/complete-signup' 
-const completeProfileRoutes = ['/complete-signup', '/complete-profile']
+const completeProfileRoutes = ['/complete-signup']
 const protectedRoutes = ['/profile', '/messages', '/dashboard', '/settings', '/admin', '/profile/listings']
 const debugRoutes = ['/debug-auth', '/test-unified-auth']
  
