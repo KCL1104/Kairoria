@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, forwardRef } from 'react'
 import { LogOut, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useRouter } from 'next/navigation'
@@ -19,15 +19,18 @@ interface InstantSignOutButtonProps {
   confirmBeforeSignOut?: boolean
 }
 
-export function InstantSignOutButton({
-  variant = 'outline',
-  size = 'default',
-  showIcon = true,
-  showText = true,
-  className,
-  children,
-  confirmBeforeSignOut = false
-}: InstantSignOutButtonProps) {
+export const InstantSignOutButton = forwardRef<HTMLButtonElement, InstantSignOutButtonProps>((
+  {
+    variant = 'outline',
+    size = 'default',
+    showIcon = true,
+    showText = true,
+    className,
+    children,
+    confirmBeforeSignOut = false,
+  },
+  ref
+) => {
   const [isSigningOut, setIsSigningOut] = useState(false)
   const router = useRouter()
 
@@ -81,6 +84,7 @@ export function InstantSignOutButton({
 
   return (
     <Button
+        ref={ref}
       variant={variant}
       size={size}
       onClick={handleSignOut}
@@ -94,4 +98,6 @@ export function InstantSignOutButton({
       {buttonContent}
     </Button>
   )
-}
+})
+
+InstantSignOutButton.displayName = 'InstantSignOutButton'
