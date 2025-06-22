@@ -85,6 +85,7 @@ export default function CompleteSignupPage() {
   const searchParams = useSearchParams()
   const { user } = useAuth()
   const returnUrl = searchParams.get('return') || '/'
+  const [hasRefreshed, setHasRefreshed] = useState(false)
 
   // Check if all steps are completed
   const isFullyComplete = () => {
@@ -166,6 +167,27 @@ export default function CompleteSignupPage() {
       }
     }, 100)
   }
+
+  // Auto-refresh logic for first-time access
+  useEffect(() => {
+    if (user && !hasRefreshed && typeof window !== 'undefined') {
+      // Check if this is the first time accessing the page after login
+      const visitedKey = `complete-signup-visited-${user.id}`
+      const shouldRefresh = !sessionStorage.getItem(visitedKey)
+      
+      if (shouldRefresh) {
+        console.log('🔄 First time visiting complete-signup, refreshing page...')
+        sessionStorage.setItem(visitedKey, 'true')
+        setHasRefreshed(true)
+        
+        // Add a small delay to ensure the state is set before refresh
+        setTimeout(() => {
+          window.location.reload()
+        }, 100)
+        return
+      }
+    }
+  }, [user, hasRefreshed])
 
   // Load profile data with better loading state management
   useEffect(() => {
@@ -541,6 +563,12 @@ export default function CompleteSignupPage() {
         description: "Please complete all steps before continuing"
       })
       return
+    }
+
+    // Clear the visited flag since user has completed registration
+    if (user && typeof window !== 'undefined') {
+      const visitedKey = `complete-signup-visited-${user.id}`
+      sessionStorage.removeItem(visitedKey)
     }
 
     router.push(returnUrl)

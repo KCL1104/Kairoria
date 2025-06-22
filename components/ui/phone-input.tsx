@@ -7,19 +7,7 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover"
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command"
+// Removed unused imports for Popover and Command components
 
 // Country data with flags, codes, and formats
 const countries = [
@@ -247,76 +235,84 @@ export function PhoneInput({
       
       <div className="flex">
         {/* Country Selector */}
-        <Popover open={open} onOpenChange={setOpen}>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              role="combobox"
-              aria-expanded={open}
-              aria-label="Select country"
-              disabled={disabled}
-              className={cn(
-                "w-[140px] justify-between rounded-r-none border-r-0 focus:z-10",
-                showError && "border-destructive focus:border-destructive"
-              )}
-            >
-              <div className="flex items-center gap-2">
-                <span className="text-lg">{selectedCountry.flag}</span>
-                <span className="text-sm font-mono">{selectedCountry.dialCode}</span>
-              </div>
-              <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-            </Button>
-          </PopoverTrigger>
+        <div className="relative">
+          <Button
+            variant="outline"
+            onClick={() => setOpen(!open)}
+            disabled={disabled}
+            className={cn(
+              "w-[140px] justify-between rounded-r-none border-r-0 focus:z-10",
+              showError && "border-destructive focus:border-destructive"
+            )}
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-lg">{selectedCountry.flag}</span>
+              <span className="text-sm font-mono">{selectedCountry.dialCode}</span>
+            </div>
+            <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          </Button>
           
-          <PopoverContent className="w-[300px] p-0" align="start">
-            <Command>
-              <div className="flex items-center border-b px-3">
-                <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
-                <input
-                  placeholder="Search countries..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
-                />
-                {searchQuery && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 w-6 p-0"
-                    onClick={() => setSearchQuery('')}
-                  >
-                    <X className="h-3 w-3" />
-                  </Button>
-                )}
+          {open && (
+            <div className="absolute top-full left-0 z-50 w-[300px] mt-1 bg-white border rounded-md shadow-lg max-h-[300px] overflow-hidden">
+              <div className="p-2 border-b">
+                <div className="flex items-center gap-2">
+                  <Search className="w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search countries..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="flex-1 outline-none text-sm"
+                    autoFocus
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      className="p-1 hover:bg-gray-100 rounded"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
               </div>
               
-              <CommandList className="max-h-[200px]">
-                <CommandEmpty>No countries found.</CommandEmpty>
-                <CommandGroup>
-                  {filteredCountries.map((country) => (
-                    <CommandItem
+              <div className="max-h-[200px] overflow-y-auto">
+                {filteredCountries.length === 0 ? (
+                  <div className="p-4 text-center text-gray-500 text-sm">
+                    No countries found
+                  </div>
+                ) : (
+                  filteredCountries.map((country) => (
+                    <button
                       key={country.code}
-                      value={`${country.name} ${country.code} ${country.dialCode}`}
-                      onSelect={() => handleCountrySelect(country)}
-                      className="flex items-center gap-3 px-3 py-2"
+                      onClick={() => handleCountrySelect(country)}
+                      className="w-full flex items-center gap-3 px-3 py-2 hover:bg-gray-100 text-left"
                     >
                       <span className="text-lg">{country.flag}</span>
-                      <div className="flex-1">
-                        <div className="font-medium">{country.name}</div>
-                        <div className="text-sm text-muted-foreground font-mono">
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-sm">{country.name}</div>
+                        <div className="text-xs text-gray-500 font-mono">
                           {country.dialCode}
                         </div>
                       </div>
                       {selectedCountry.code === country.code && (
-                        <Check className="h-4 w-4 text-primary" />
+                        <Check className="h-4 w-4 text-blue-600 flex-shrink-0" />
                       )}
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              </CommandList>
-            </Command>
-          </PopoverContent>
-        </Popover>
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+          
+          {/* Backdrop to close dropdown */}
+          {open && (
+            <div
+              className="fixed inset-0 z-40"
+              onClick={() => setOpen(false)}
+            />
+          )}
+        </div>
 
         {/* Phone Number Input */}
         <div className="relative flex-1">
