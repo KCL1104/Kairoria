@@ -138,10 +138,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Convert decimal prices to storage amounts (BIGINT)
-    const pricePerDayStorage = convertToStorageAmount(parseFloat(price_per_day))
-    const pricePerHourStorage = price_per_hour ? convertToStorageAmount(parseFloat(price_per_hour)) : null
-    const securityDepositStorage = security_deposit ? convertToStorageAmount(parseFloat(security_deposit)) : 0
+    // Convert decimal prices for DECIMAL storage
+    const pricePerDayStorage = parseFloat(price_per_day)
+    const pricePerHourStorage = price_per_hour ? parseFloat(price_per_hour) : null
+    const securityDepositStorage = security_deposit ? parseFloat(security_deposit) : 0
 
     // Prepare product data
     const productData = {

@@ -78,6 +78,10 @@ export default function RegisterPage() {
                 console.log('Registration successful, waiting for auth state update')
               }
             }}
+            onError={(error) => {
+              console.error('Registration error:', error)
+              // Error is already displayed in the form
+            }}
             showLoginLink={true}
           />
         </CardContent>

@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import React, { useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Loader } from 'lucide-react'
 import useUnifiedAuth from '@/hooks/use-unified-auth'
+import { useAuth } from '@/contexts/SupabaseAuthContext'
 import Link from 'next/link'
 
 interface UnifiedLoginFormProps {
@@ -35,40 +36,121 @@ export function UnifiedLoginForm({
   showGoogleAuth = false
 }: UnifiedLoginFormProps) {
   const {
-    isLoading,
-    error,
+    isLoading: unifiedLoading,
+    error: unifiedError,
     loginWithPassword,
     loginWithGoogle,
     clearError
   } = useUnifiedAuth()
 
+  // Get signUp from Supabase auth context
+  const { signUp } = useAuth()
+
+  // Local state for registration
+  const [localLoading, setLocalLoading] = useState(false)
+  const [localError, setLocalError] = useState<string | null>(null)
+
+  // Combined loading and error states
+  const isLoading = unifiedLoading || localLoading
+  const error = unifiedError || localError
+
+  // Clear error function that handles both states
+  const clearAllErrors = () => {
+    clearError()
+    setLocalError(null)
+  }
+
   // Form state
   const [formData, setFormData] = useState({
     email: '',
-    password: ''
+    password: '',
+    confirmPassword: '',
+    fullName: ''
   })
 
   // Handle form input changes
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
-    if (error) clearError()
+    if (error) clearAllErrors()
   }
 
-  // Handle email/password login
-  const handlePasswordLogin = async (e: React.FormEvent) => {
+  // Handle email/password login or registration
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    clearAllErrors()
     
     if (!formData.email || !formData.password) {
-      onError?.('Please enter both email and password')
+      const errorMsg = 'Please enter both email and password'
+      setLocalError(errorMsg)
+      onError?.(errorMsg)
       return
     }
 
-    const result = await loginWithPassword(formData.email, formData.password)
-    
-    if (result.success && result.user) {
-      onSuccess?.(result.user)
+    if (mode === 'register') {
+      // Registration mode
+      if (!formData.fullName) {
+        const errorMsg = 'Please enter your full name'
+        setLocalError(errorMsg)
+        onError?.(errorMsg)
+        return
+      }
+
+      if (formData.password !== formData.confirmPassword) {
+        const errorMsg = 'Passwords do not match'
+        setLocalError(errorMsg)
+        onError?.(errorMsg)
+        return
+      }
+
+      if (formData.password.length < 6) {
+        const errorMsg = 'Password must be at least 6 characters long'
+        setLocalError(errorMsg)
+        onError?.(errorMsg)
+        return
+      }
+
+      setLocalLoading(true)
+      try {
+        // Use unified registration API
+        const response = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: formData.email,
+            password: formData.password,
+            fullName: formData.fullName
+          })
+        })
+
+        const result = await response.json()
+        
+        if (!result.success) {
+          setLocalError(result.message)
+          onError?.(result.message)
+        } else {
+          onSuccess?.({
+            user: result.user,
+            needsEmailVerification: result.user.needsEmailVerification
+          })
+        }
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Registration failed'
+        setLocalError(errorMessage)
+        onError?.(errorMessage)
+      } finally {
+        setLocalLoading(false)
+      }
     } else {
-      onError?.(result.message)
+      // Login mode
+      const result = await loginWithPassword(formData.email, formData.password)
+      
+      if (result.success && result.user) {
+        onSuccess?.(result.user)
+      } else {
+        onError?.(result.message)
+      }
     }
   }
 
@@ -91,8 +173,22 @@ export function UnifiedLoginForm({
         </Alert>
       )}
 
-      {/* Email/Password Login Form */}
-      <form onSubmit={handlePasswordLogin} className="space-y-4">
+      {/* Email/Password Login/Register Form */}
+      <form onSubmit={handlePasswordSubmit} className="space-y-4">
+        {mode === 'register' && (
+          <div className="space-y-2">
+            <Label htmlFor="fullName">Full Name</Label>
+            <Input
+              id="fullName"
+              type="text"
+              value={formData.fullName}
+              onChange={(e) => handleInputChange('fullName', e.target.value)}
+              placeholder="Enter your full name"
+              required
+            />
+          </div>
+        )}
+        
         <div className="space-y-2">
           <Label htmlFor="email">Email</Label>
           <Input
@@ -104,6 +200,7 @@ export function UnifiedLoginForm({
             required
           />
         </div>
+        
         <div className="space-y-2">
           <Label htmlFor="password">Password</Label>
           <Input
@@ -111,18 +208,34 @@ export function UnifiedLoginForm({
             type="password"
             value={formData.password}
             onChange={(e) => handleInputChange('password', e.target.value)}
-            placeholder="Enter your password"
+            placeholder={mode === 'register' ? "Create a password (min 6 characters)" : "Enter your password"}
             required
+            minLength={mode === 'register' ? 6 : undefined}
           />
         </div>
+        
+        {mode === 'register' && (
+          <div className="space-y-2">
+            <Label htmlFor="confirmPassword">Confirm Password</Label>
+            <Input
+              id="confirmPassword"
+              type="password"
+              value={formData.confirmPassword}
+              onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
+              placeholder="Confirm your password"
+              required
+            />
+          </div>
+        )}
+        
         <Button type="submit" className="w-full" disabled={isLoading}>
           {isLoading ? (
             <>
               <Loader className="mr-2 h-4 w-4 animate-spin" />
-              Signing in...
+              {mode === 'register' ? 'Creating account...' : 'Signing in...'}
             </>
           ) : (
-            'Sign in'
+            mode === 'register' ? 'Create Account' : 'Sign in'
           )}
         </Button>
       </form>

@@ -1,4 +1,4 @@
-import { type NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { createMiddlewareClient } from '@/lib/auth-server'
 import { logAuthEvent, isProfileComplete, getMissingProfileFields } from '@/lib/auth-utils'
 import { AuthDebugger } from '@/lib/auth-debug'
@@ -107,39 +107,20 @@ export async function middleware(request: NextRequest) {
         .eq('id', user.id)
         .single() 
 
-      // If profile doesn't exist, try to create it
+      // If profile doesn't exist, trigger profile initialization
       if (error && error.code === 'PGRST116') {
-        console.log(`👤 [Middleware] Profile not found for user ${user.id}, creating...`)
+        console.log(`👤 [Middleware] Profile not found for user ${user.id}, will initialize via API`)
         
-        try {
-          // Get user data
-          const { data: { user: userData } } = await supabase.auth.getUser()
-          
-          if (userData) {
-            // Insert basic profile
-            const { data: newProfile, error: insertError } = await supabase
-              .from('profiles')
-              .insert({
-                id: user.id,
-                email: userData.email,
-                full_name: userData.user_metadata?.full_name || null,
-                avatar_url: userData.user_metadata?.avatar_url || null,
-                is_email_verified: !!userData.email_confirmed_at,
-                is_phone_verified: false,
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-              })
-              .select()
-              .single()
-              
-            if (!insertError) {
-              profile = newProfile
-              error = null
-            }
-          }
-        } catch (createError) {
-          console.error('Error creating profile in middleware:', createError)
+        // Don't create profile in middleware - let it be handled by the API
+        // For now, treat as if profile exists but incomplete to trigger proper flow
+        profile = {
+          full_name: user.user_metadata?.full_name || null,
+          phone: null,
+          location: null,
+          is_email_verified: !!user.email_confirmed_at,
+          is_phone_verified: false
         }
+        error = null
       } else if (error && error.code !== 'PGRST116') { 
         console.error('❌ [Middleware] Profile fetch error:', {
           code: error.code,

@@ -141,7 +141,7 @@ export async function POST(request: NextRequest) {
 
     // Insert the image record
     const imageData = {
-      product_id: parseInt(product_id),
+      product_id: product_id, // UUID - no need to parse
       image_url,
       display_order: finalDisplayOrder,
       is_cover: is_cover || false,

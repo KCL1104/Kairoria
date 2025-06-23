@@ -217,7 +217,41 @@ export default function CompleteSignupPage() {
           .eq('id', user.id)
           .single()
 
-        if (profileData) {
+        // If profile doesn't exist, initialize it via API
+        if (profileError && profileError.code === 'PGRST116') {
+          console.log('Profile not found, initializing via API...')
+          try {
+            const response = await fetch('/api/auth/initialize-profile', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${await supabase.auth.getSession().then(s => s.data.session?.access_token)}`
+              }
+            })
+            
+            const result = await response.json()
+            if (result.success && result.profile) {
+              console.log('Profile initialized successfully')
+              // Use the newly created profile
+              const newProfile = {
+                full_name: result.profile.full_name || '',
+                phone: result.profile.phone || '',
+                location: result.profile.location || '',
+                is_email_verified: result.profile.is_email_verified || false,
+                is_phone_verified: result.profile.is_phone_verified || false
+              }
+              setProfile(newProfile)
+              setFullPhoneNumber(result.profile.phone || '')
+              setCurrentStep(1) // Start from basic information step
+            }
+          } catch (error) {
+            console.error('Error initializing profile:', error)
+            toast({
+              variant: "destructive",
+              title: "Profile Initialization Error",
+              description: "Failed to initialize your profile. Please refresh the page."
+            })
+          }
+        } else if (profileData) {
           const newProfile = {
             full_name: profileData.full_name || '',
             phone: profileData.phone || '',

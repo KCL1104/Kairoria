@@ -32,20 +32,20 @@ const productSchema = z.object({
     required_error: 'Currency is required',
   }),
   price_per_hour: z.string().optional().refine(
-    (val) => !val || !isNaN(parseFloat(val)) && parseFloat(val) > 0,
-    'Price per hour must be a positive number'
+    (val) => !val || (!isNaN(parseFloat(val)) && parseFloat(val) > 0 && parseFloat(val) <= 9999999999.99),
+    'Price per hour must be a positive number not exceeding 9,999,999,999.99'
   ),
   price_per_day: z.string().min(1, 'Price per day is required').refine(
-    (val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0,
-    'Price per day must be a positive number'
+    (val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0 && parseFloat(val) <= 9999999999.99,
+    'Price per day must be a positive number not exceeding 9,999,999,999.99'
   ),
   daily_cap_hours: z.string().optional().refine(
     (val) => !val || (!isNaN(parseInt(val)) && parseInt(val) > 0),
     'Daily cap hours must be a positive integer'
   ),
   security_deposit: z.string().optional().refine(
-    (val) => !val || (!isNaN(parseFloat(val)) && parseFloat(val) >= 0),
-    'Security deposit must be a non-negative number'
+    (val) => !val || (!isNaN(parseFloat(val)) && parseFloat(val) >= 0 && parseFloat(val) <= 9999999999.99),
+    'Security deposit must be a non-negative number not exceeding 9,999,999,999.99'
   ),
 })
 
@@ -93,7 +93,7 @@ export default function NewListingPage() {
   const [categories, setCategories] = useState<Category[]>([])
   const [images, setImages] = useState<UploadedImage[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [productId, setProductId] = useState<number | null>(null)
+  const [productId, setProductId] = useState<string | null>(null)
   const [step, setStep] = useState<'form' | 'images' | 'publish'>('form')
 
   const {
@@ -177,7 +177,7 @@ export default function NewListingPage() {
   }
 
   // Upload images to Supabase Storage
-  const uploadImages = async (productId: number) => {
+  const uploadImages = async (productId: string) => {
     const uploadPromises = images.map(async (image, index) => {
       if (image.uploaded) return image
 
@@ -542,6 +542,7 @@ export default function NewListingPage() {
                     type="number"
                     step="0.01"
                     min="0"
+                    max="9999999999.99"
                     {...register('price_per_day')}
                     placeholder="0.00"
                   />
@@ -557,6 +558,7 @@ export default function NewListingPage() {
                     type="number"
                     step="0.01"
                     min="0"
+                    max="9999999999.99"
                     {...register('price_per_hour')}
                     placeholder="0.00"
                   />
@@ -575,6 +577,7 @@ export default function NewListingPage() {
                     type="number"
                     step="0.01"
                     min="0"
+                    max="9999999999.99"
                     {...register('security_deposit')}
                     placeholder="0.00"
                   />

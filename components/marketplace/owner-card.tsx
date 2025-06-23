@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import { Clock, MessageSquare, Shield, Star } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"

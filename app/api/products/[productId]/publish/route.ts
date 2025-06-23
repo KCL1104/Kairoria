@@ -70,11 +70,11 @@ export async function PUT(
       )
     }
 
-    const productId = parseInt(params.productId)
+    const productId = params.productId // UUID - no need to parse
     
-    if (isNaN(productId)) {
+    if (!productId) {
       return NextResponse.json(
-        { error: 'Invalid product ID' },
+        { error: 'Product ID is required' },
         { 
           status: 400,
           headers: {
