@@ -55,3 +55,6 @@ next-env.d.ts
 **/*.backup
 **/*.bak
 **/*.old
+
+# Solana
+/contracts/target
