@@ -106,11 +106,11 @@ export async function GET(request: Request) {
         })
         
         // Verify cookies were set
-        const cookies = cookieStore.getAll()
+        const allCookies = cookieStore.getAll()
         logAuthEvent('cookies_after_exchange', {
-          cookieCount: cookies.length,
-          hasAccessToken: cookies.some(c => c.name === 'sb-access-token'),
-          hasRefreshToken: cookies.some(c => c.name === 'sb-refresh-token')
+          cookieCount: allCookies.length,
+          hasAccessToken: allCookies.some(c => c.name === 'sb-access-token'),
+          hasRefreshToken: allCookies.some(c => c.name === 'sb-refresh-token')
         })
       }
 

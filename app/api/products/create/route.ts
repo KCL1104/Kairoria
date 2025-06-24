@@ -79,6 +79,38 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Check if user has a Solana address configured
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('solana_address')
+      .eq('id', user.id)
+      .single()
+
+    if (profileError) {
+      console.error('Profile fetch error:', profileError)
+      return NextResponse.json(
+        { error: 'Failed to fetch user profile' },
+        { 
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }
+      )
+    }
+
+    if (!profile?.solana_address) {
+      return NextResponse.json(
+        { error: 'Solana address not configured. Please set up your Solana wallet address in your profile before creating products.' },
+        { 
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }
+      )
+    }
+
     // Parse the request body
     const body = await request.json()
     console.log('Request body:', body)

@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { Menu, X, MessageSquare, User, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/contexts/SupabaseAuthContext"
@@ -17,7 +17,8 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 
-export default function Navbar() {
+// Component that uses useSearchParams
+function NavbarWithSearchParams() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -246,5 +247,24 @@ export default function Navbar() {
         </div>
       )}
     </header>
+  )
+}
+
+// Main Navbar component with Suspense boundary
+export default function Navbar() {
+  return (
+    <Suspense fallback={
+      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="container flex h-16 items-center justify-between">
+          <div className="flex items-center gap-6">
+            <Link href="/" className="flex items-center gap-2 font-semibold text-xl">
+              <span>Kairoria</span>
+            </Link>
+          </div>
+        </div>
+      </header>
+    }>
+      <NavbarWithSearchParams />
+    </Suspense>
   )
 }

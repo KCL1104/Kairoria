@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, Suspense } from 'react'
 import Link from "next/link"
 import { Search, Sliders, Map, ArrowRight, Loader2, CheckCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -19,7 +19,8 @@ type ProductWithRelations = Product & {
   product_images: ProductImage[]
 }
 
-export default function HomePage() {
+// Component that uses useSearchParams
+function HomePageWithSearchParams() {
   const [products, setProducts] = useState<ProductWithRelations[]>([])
   const [categories, setCategories] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -313,5 +314,20 @@ export default function HomePage() {
         </div>
       </section>
     </div>
+  )
+}
+
+// Main HomePage component with Suspense boundary
+export default function HomePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen">
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+      </div>
+    }>
+      <HomePageWithSearchParams />
+    </Suspense>
   )
 }

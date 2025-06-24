@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -56,7 +56,8 @@ function StepIndicator({ number, title, description, completed, current, icon }:
   )
 }
 
-export default function CompleteSignupPage() {
+// Component that uses useSearchParams
+function CompleteSignupPageWithSearchParams() {
   const [profile, setProfile] = useState<ProfileData>({
     full_name: '',
     phone: '',
@@ -85,7 +86,6 @@ export default function CompleteSignupPage() {
   const searchParams = useSearchParams()
   const { user } = useAuth()
   const returnUrl = searchParams.get('return') || '/'
-  const [hasRefreshed, setHasRefreshed] = useState(false)
 
   // Check if all steps are completed
   const isFullyComplete = () => {
@@ -168,27 +168,6 @@ export default function CompleteSignupPage() {
     }, 100)
   }
 
-  // Auto-refresh logic for first-time access
-  useEffect(() => {
-    if (user && !hasRefreshed && typeof window !== 'undefined') {
-      // Check if this is the first time accessing the page after login
-      const visitedKey = `complete-signup-visited-${user.id}`
-      const shouldRefresh = !sessionStorage.getItem(visitedKey)
-      
-      if (shouldRefresh) {
-        console.log('🔄 First time visiting complete-signup, refreshing page...')
-        sessionStorage.setItem(visitedKey, 'true')
-        setHasRefreshed(true)
-        
-        // Add a small delay to ensure the state is set before refresh
-        setTimeout(() => {
-          window.location.reload()
-        }, 100)
-        return
-      }
-    }
-  }, [user, hasRefreshed])
-
   // Load profile data with better loading state management
   useEffect(() => {
     async function loadProfile() {
@@ -217,41 +196,7 @@ export default function CompleteSignupPage() {
           .eq('id', user.id)
           .single()
 
-        // If profile doesn't exist, initialize it via API
-        if (profileError && profileError.code === 'PGRST116') {
-          console.log('Profile not found, initializing via API...')
-          try {
-            const response = await fetch('/api/auth/initialize-profile', {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${await supabase.auth.getSession().then(s => s.data.session?.access_token)}`
-              }
-            })
-            
-            const result = await response.json()
-            if (result.success && result.profile) {
-              console.log('Profile initialized successfully')
-              // Use the newly created profile
-              const newProfile = {
-                full_name: result.profile.full_name || '',
-                phone: result.profile.phone || '',
-                location: result.profile.location || '',
-                is_email_verified: result.profile.is_email_verified || false,
-                is_phone_verified: result.profile.is_phone_verified || false
-              }
-              setProfile(newProfile)
-              setFullPhoneNumber(result.profile.phone || '')
-              setCurrentStep(1) // Start from basic information step
-            }
-          } catch (error) {
-            console.error('Error initializing profile:', error)
-            toast({
-              variant: "destructive",
-              title: "Profile Initialization Error",
-              description: "Failed to initialize your profile. Please refresh the page."
-            })
-          }
-        } else if (profileData) {
+        if (profileData) {
           const newProfile = {
             full_name: profileData.full_name || '',
             phone: profileData.phone || '',
@@ -368,7 +313,7 @@ export default function CompleteSignupPage() {
 
     try {
       // Use Supabase auth resend with proper redirect URL
-      const { error } = await supabase.auth.resend({
+      const { error } = await supabase!.auth.resend({
         type: 'signup',
         email: user.email,
         options: {
@@ -597,12 +542,6 @@ export default function CompleteSignupPage() {
         description: "Please complete all steps before continuing"
       })
       return
-    }
-
-    // Clear the visited flag since user has completed registration
-    if (user && typeof window !== 'undefined') {
-      const visitedKey = `complete-signup-visited-${user.id}`
-      sessionStorage.removeItem(visitedKey)
     }
 
     router.push(returnUrl)
@@ -1014,5 +953,30 @@ export default function CompleteSignupPage() {
       {/* reCAPTCHA container */}
       <div ref={recaptchaRef} className="hidden"></div>
     </div>
+  )
+}
+
+// Main CompleteSignupPage component with Suspense boundary
+export default function CompleteSignupPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Complete Your Registration</h1>
+            <p className="text-gray-600">Loading your profile setup...</p>
+          </div>
+          <Card className="shadow-xl">
+            <CardContent className="p-8">
+              <div className="flex justify-center">
+                <Loader2 className="h-8 w-8 animate-spin" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    }>
+      <CompleteSignupPageWithSearchParams />
+    </Suspense>
   )
 }

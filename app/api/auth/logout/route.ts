@@ -19,7 +19,7 @@ export async function DELETE(request: Request) {
     }
     
     // Create Supabase client
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
       cookies: {
         getAll() {

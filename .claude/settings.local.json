@@ -6,7 +6,13 @@
       "Bash(find:*)",
       "Bash(npm run type-check:*)",
       "Bash(npm run:*)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(cargo check:*)",
+      "Bash(mkdir:*)",
+      "Bash(mv:*)",
+      "Bash(anchor build)",
+      "Bash(solana-keygen new:*)",
+      "Bash(solana-keygen pubkey:*)"
     ],
     "deny": []
   }

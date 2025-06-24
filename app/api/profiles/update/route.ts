@@ -29,10 +29,11 @@ export async function PATCH(request: NextRequest) {
       },
     })
     // Get the user from the session
+    const cookieStore = await cookies()
     const supabase = createServerClient(supabaseUrl, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
       cookies: {
         get(name: string) {
-          return cookies().get(name)?.value
+          return cookieStore.get(name)?.value
         },
         set(name: string, value: string, options: any) {
           // Server-side cookie setting will be handled by the response
@@ -59,6 +60,7 @@ export async function PATCH(request: NextRequest) {
       location,
       phone,
       avatar_url,
+      solana_address,
       is_email_verified = false,
       is_phone_verified = false
     } = body
@@ -71,19 +73,45 @@ export async function PATCH(request: NextRequest) {
       )
     }
 
+    // Validate Solana address if provided
+    if (solana_address && solana_address.trim()) {
+      try {
+        // Basic validation - ensure it's a valid base58 string of correct length
+        const trimmedAddress = solana_address.trim()
+        if (trimmedAddress.length < 32 || trimmedAddress.length > 44) {
+          return NextResponse.json(
+            { success: false, message: 'Invalid Solana address format' },
+            { status: 400 }
+          )
+        }
+      } catch (error) {
+        return NextResponse.json(
+          { success: false, message: 'Invalid Solana address' },
+          { status: 400 }
+        )
+      }
+    }
+
     // Update the profile
+    const updateData: any = {
+      full_name,
+      bio: bio || null,
+      location,
+      phone,
+      avatar_url: avatar_url || null,
+      is_email_verified,
+      is_phone_verified,
+      updated_at: new Date().toISOString()
+    }
+
+    // Only update solana_address if it's provided
+    if (solana_address !== undefined) {
+      updateData.solana_address = solana_address || null
+    }
+
     const { data, error } = await supabaseAdmin
       .from('profiles')
-      .update({
-        full_name,
-        bio: bio || null,
-        location,
-        phone,
-        avatar_url: avatar_url || null,
-        is_email_verified,
-        is_phone_verified,
-        updated_at: new Date().toISOString()
-      })
+      .update(updateData)
       .eq('id', user.id)
       .select()
 

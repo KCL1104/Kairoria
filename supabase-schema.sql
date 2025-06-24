@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS profiles (
     phone TEXT,
     bio TEXT,
     location TEXT,
+    solana_address TEXT UNIQUE,
     is_email_verified BOOLEAN DEFAULT FALSE,
     is_phone_verified BOOLEAN DEFAULT FALSE,
     email_verification_code TEXT,
@@ -129,6 +130,9 @@ BEGIN
     END IF;
     IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'profiles_email_idx') THEN
         CREATE INDEX profiles_email_idx ON profiles(email);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'profiles_solana_address_idx') THEN
+        CREATE INDEX profiles_solana_address_idx ON profiles(solana_address);
     END IF;
     IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'products_owner_id_idx') THEN
         CREATE INDEX products_owner_id_idx ON products(owner_id);

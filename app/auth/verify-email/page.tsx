@@ -1,7 +1,7 @@
-"use client";
+"use client"
 
 import Link from "next/link"
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { ArrowLeft, Mail, CheckCircle } from "lucide-react"
 import { useAuth } from "@/contexts/SupabaseAuthContext"
@@ -14,7 +14,8 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 
-export default function VerifyEmailPage() {
+// Component that uses useSearchParams
+function VerifyEmailPageWithSearchParams() {
   const [isLoading, setIsLoading] = useState(false)
   const [emailSent, setEmailSent] = useState(false)
   const [error, setError] = useState("")
@@ -158,5 +159,33 @@ export default function VerifyEmailPage() {
         Didn't receive the email? Check your spam folder or try resending.
       </p>
     </div>
+  )
+}
+
+// Main VerifyEmailPage component with Suspense boundary
+export default function VerifyEmailPage() {
+  return (
+    <Suspense fallback={
+      <div className="container max-w-lg py-10">
+        <div className="flex justify-center mb-6">
+          <Link href="/" className="flex items-center gap-2 font-semibold text-xl">
+            <span>Kairoria</span>
+          </Link>
+        </div>
+        <Card>
+          <CardHeader className="space-y-1">
+            <CardTitle className="text-2xl font-bold text-center">Loading...</CardTitle>
+            <CardDescription className="text-center">
+              Please wait while we load the verification page
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex justify-center">
+            <Mail className="h-8 w-8 text-muted-foreground" />
+          </CardContent>
+        </Card>
+      </div>
+    }>
+      <VerifyEmailPageWithSearchParams />
+    </Suspense>
   )
 }

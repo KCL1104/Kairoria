@@ -12,8 +12,8 @@ import { AUTH_COOKIE_OPTIONS, isTokenTooLong, isValidJWT } from './auth-utils'
  * Create a Supabase server client with secure cookie handling
  * @param response Optional NextResponse object for API routes to set cookies
  */
-export function createSecureServerClient(response?: any) {
-  const cookieStore = cookies()
+export async function createSecureServerClient(response?: any) {
+  const cookieStore = await cookies()
   
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_DATABASE_URL
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -153,7 +153,7 @@ export function createMiddlewareClient(request: NextRequest, response: NextRespo
 export async function validateAuthToken() {
   try {
     // Pre-check: Get access token from cookies to validate length and format
-    const cookieStore = cookies()
+    const cookieStore = await cookies()
     const accessToken = cookieStore.get('sb-access-token')?.value
     
     if (accessToken) {
@@ -171,7 +171,7 @@ export async function validateAuthToken() {
       }
     }
     
-    const supabase = createSecureServerClient()
+    const supabase = await createSecureServerClient()
     const { data: { user }, error } = await supabase.auth.getUser()
     
     if (error || !user) {
