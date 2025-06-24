@@ -31,7 +31,19 @@ export async function POST(request: NextRequest) {
     let response = NextResponse.json({ success: false })
     
     // Use the unified secure server client to ensure consistent cookie handling
-    const supabase = createSecureServerClient(response)
+    const supabase = await createSecureServerClient(response)
+    
+    // Validate Supabase client initialization
+    if (!supabase || !supabase.auth) {
+      logAuthEvent('unified_login_client_error', { error: 'Supabase client initialization failed' })
+      return NextResponse.json(
+        { 
+          success: false, 
+          message: 'Authentication service unavailable' 
+        },
+        { status: 500 }
+      )
+    }
 
     const body = await request.json()
     const { loginType, ...credentials } = body
@@ -168,10 +180,29 @@ async function handlePasswordLogin(supabase: any, credentials: any) {
     }
   }
 
-  return await supabase.auth.signInWithPassword({
-    email,
-    password,
-  })
+  // Additional safety check
+  if (!supabase || !supabase.auth || typeof supabase.auth.signInWithPassword !== 'function') {
+    console.error('Supabase auth method not available:', {
+      hasSupabase: !!supabase,
+      hasAuth: !!(supabase && supabase.auth),
+      hasMethod: !!(supabase && supabase.auth && supabase.auth.signInWithPassword)
+    })
+    return {
+      error: { message: 'Authentication service is not properly configured' }
+    }
+  }
+
+  try {
+    return await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
+  } catch (error) {
+    console.error('Password login error:', error)
+    return {
+      error: { message: error instanceof Error ? error.message : 'Authentication failed' }
+    }
+  }
 }
 
 /**
@@ -186,31 +217,61 @@ async function handleOAuthLogin(supabase: any, credentials: any, request: NextRe
     }
   }
 
-  const origin = new URL(request.url).origin
-  const defaultRedirectTo = `${origin}/auth/callback`
+  // Additional safety check
+  if (!supabase || !supabase.auth || typeof supabase.auth.signInWithOAuth !== 'function') {
+    console.error('Supabase OAuth method not available:', {
+      hasSupabase: !!supabase,
+      hasAuth: !!(supabase && supabase.auth),
+      hasMethod: !!(supabase && supabase.auth && supabase.auth.signInWithOAuth)
+    })
+    return {
+      error: { message: 'OAuth service is not properly configured' }
+    }
+  }
 
-  return await supabase.auth.signInWithOAuth({
-    provider,
-    options: {
-      redirectTo: redirectTo || defaultRedirectTo,
-      queryParams: {
-        access_type: 'offline',
-        prompt: 'consent'
-      }
-    },
-  })
+  try {
+    const origin = new URL(request.url).origin
+    const defaultRedirectTo = `${origin}/auth/callback`
+
+    return await supabase.auth.signInWithOAuth({
+      provider,
+      options: {
+        redirectTo: redirectTo || defaultRedirectTo,
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'consent'
+        }
+      },
+    })
+  } catch (error) {
+    console.error('OAuth login error:', error)
+    return {
+      error: { message: error instanceof Error ? error.message : 'OAuth authentication failed' }
+    }
+  }
 }
 
 /**
  * Get user profile data
  */
 async function fetchUserProfile(supabase: any, userId: string) {
+  if (!supabase || !supabase.from) {
+    console.error('Supabase client not available for profile fetch')
+    return null
+  }
+
   try {
-    const { data: profileData } = await supabase
+    const { data: profileData, error } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', userId)
       .single()
+    
+    if (error) {
+      console.error('Profile fetch error:', error)
+      logAuthEvent('profile_fetch_error', { error: error.message, userId })
+      return null
+    }
     
     return profileData
   } catch (profileError) {
