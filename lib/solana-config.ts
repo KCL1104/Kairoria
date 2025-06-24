@@ -51,6 +51,23 @@ export function validateSolanaConfig(): boolean {
   }
 }
 
-// Export commonly used values
-export const SOLANA_CONFIG = getSolanaConfig()
-export const SOLANA_CONNECTION = createConnection()
+// Export commonly used values - use lazy initialization to avoid module load errors
+export const getSolanaConfigSingleton = (() => {
+  let config: SolanaConfig | null = null
+  return () => {
+    if (!config) {
+      config = getSolanaConfig()
+    }
+    return config
+  }
+})()
+
+export const getSolanaConnectionSingleton = (() => {
+  let connection: Connection | null = null
+  return () => {
+    if (!connection) {
+      connection = createConnection()
+    }
+    return connection
+  }
+})()

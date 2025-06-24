@@ -27,10 +27,12 @@ async function getAssociatedTokenAddress(mint: PublicKey, owner: PublicKey, allo
   return address
 }
 
-// Kairoria Rental Program ID
-export const KAIRORIA_PROGRAM_ID = new PublicKey(
-  process.env.NEXT_PUBLIC_KAIRORIA_PROGRAM_ID || 'HczADmDQ7CSAQCjLnixgXHiJWg31ToAMKnyzamaadkbY'
-)
+// Kairoria Rental Program ID - use lazy initialization
+export const getKairoriaProgram = () => {
+  return new PublicKey(
+    process.env.NEXT_PUBLIC_KAIRORIA_PROGRAM_ID || 'HczADmDQ7CSAQCjLnixgXHiJWg31ToAMKnyzamaadkbY'
+  )
+}
 
 // USDC Mint Address (Network dependent)
 export const getUSDCMint = () => {
@@ -41,12 +43,23 @@ export const getUSDCMint = () => {
   return new PublicKey(process.env.NEXT_PUBLIC_USDC_MINT_DEVNET || '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU')
 }
 
-export const USDC_MINT = getUSDCMint()
+// Use lazy initialization for USDC mint
+export const getUSDCMintSingleton = (() => {
+  let mint: PublicKey | null = null
+  return () => {
+    if (!mint) {
+      mint = getUSDCMint()
+    }
+    return mint
+  }
+})()
 
-// Platform admin address
-export const PLATFORM_ADMIN = new PublicKey(
-  process.env.NEXT_PUBLIC_KAIRORIA_ADMIN_WALLET || '3Jcx1Ntm4DBpkg9VRuLPrecU5C2XmdoSeqCDTkg1K91D'
-)
+// Platform admin address - use lazy initialization
+export const getPlatformAdmin = () => {
+  return new PublicKey(
+    process.env.NEXT_PUBLIC_KAIRORIA_ADMIN_WALLET || '3Jcx1Ntm4DBpkg9VRuLPrecU5C2XmdoSeqCDTkg1K91D'
+  )
+}
 
 // Solana RPC Connection
 export const getSolanaConnection = () => {
@@ -60,8 +73,9 @@ export const getSolanaConnection = () => {
 export function getRentalTransactionPDA(
   productId: number,
   renterPublicKey: PublicKey,
-  programId: PublicKey = KAIRORIA_PROGRAM_ID
+  programId?: PublicKey
 ): [PublicKey, number] {
+  const programIdToUse = programId || getKairoriaProgram()
   const productIdBuffer = Buffer.alloc(8)
   productIdBuffer.writeBigUInt64LE(BigInt(productId), 0)
   
@@ -71,17 +85,18 @@ export function getRentalTransactionPDA(
       productIdBuffer,
       renterPublicKey.toBuffer(),
     ],
-    programId
+    programIdToUse
   )
 }
 
 /**
  * Generate PDA for global state
  */
-export function getGlobalStatePDA(programId: PublicKey = KAIRORIA_PROGRAM_ID): [PublicKey, number] {
+export function getGlobalStatePDA(programId?: PublicKey): [PublicKey, number] {
+  const programIdToUse = programId || getKairoriaProgram()
   return PublicKey.findProgramAddressSync(
     [Buffer.from('global_state')],
-    programId
+    programIdToUse
   )
 }
 
@@ -116,7 +131,7 @@ export async function createRentalTransactionInstruction(
       rentalEnd,
       bookingId,
     },
-    programId: KAIRORIA_PROGRAM_ID,
+    programId: getKairoriaProgram(),
   }
 }
 
@@ -132,13 +147,14 @@ export async function createPaymentInstruction(
   const [rentalTransactionPDA] = getRentalTransactionPDA(productId, renterPublicKey)
   
   // Get associated token accounts
+  const usdcMint = getUSDCMintSingleton()
   const renterTokenAccount = await getAssociatedTokenAddress(
-    USDC_MINT,
+    usdcMint,
     renterPublicKey
   )
   
   const escrowTokenAccount = await getAssociatedTokenAddress(
-    USDC_MINT,
+    usdcMint,
     rentalTransactionPDA,
     true // Allow PDA as owner
   )
@@ -148,7 +164,7 @@ export async function createPaymentInstruction(
       rentalTransaction: rentalTransactionPDA,
       escrowTokenAccount,
       renterTokenAccount,
-      usdcMint: USDC_MINT,
+      usdcMint: usdcMint,
       renter: renterPublicKey,
       tokenProgram: TOKEN_PROGRAM_ID,
       associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -157,7 +173,7 @@ export async function createPaymentInstruction(
     data: {
       amount,
     },
-    programId: KAIRORIA_PROGRAM_ID,
+    programId: getKairoriaProgram(),
   }
 }
 
@@ -173,22 +189,24 @@ export async function createCompletionInstruction(
 ) {
   const [rentalTransactionPDA] = getRentalTransactionPDA(productId, renterPublicKey)
   const [globalStatePDA] = getGlobalStatePDA()
+  const usdcMint = getUSDCMintSingleton()
+  const platformAdmin = getPlatformAdmin()
   
   // Get associated token accounts
   const escrowTokenAccount = await getAssociatedTokenAddress(
-    USDC_MINT,
+    usdcMint,
     rentalTransactionPDA,
     true
   )
   
   const ownerTokenAccount = await getAssociatedTokenAddress(
-    USDC_MINT,
+    usdcMint,
     ownerPublicKey
   )
   
   const adminTokenAccount = await getAssociatedTokenAddress(
-    USDC_MINT,
-    PLATFORM_ADMIN
+    usdcMint,
+    platformAdmin
   )
   
   return {
@@ -198,12 +216,12 @@ export async function createCompletionInstruction(
       ownerTokenAccount,
       adminTokenAccount,
       globalState: globalStatePDA,
-      usdcMint: USDC_MINT,
+      usdcMint: usdcMint,
       signer: signerPublicKey,
       tokenProgram: TOKEN_PROGRAM_ID,
     },
     data: {},
-    programId: KAIRORIA_PROGRAM_ID,
+    programId: getKairoriaProgram(),
   }
 }
 
@@ -222,26 +240,27 @@ export async function createAdminInterventionInstruction(
 ) {
   const [rentalTransactionPDA] = getRentalTransactionPDA(productId, renterPublicKey)
   const [globalStatePDA] = getGlobalStatePDA()
+  const usdcMint = getUSDCMintSingleton()
   
   // Get associated token accounts
   const escrowTokenAccount = await getAssociatedTokenAddress(
-    USDC_MINT,
+    usdcMint,
     rentalTransactionPDA,
     true
   )
   
   const ownerTokenAccount = await getAssociatedTokenAddress(
-    USDC_MINT,
+    usdcMint,
     ownerPublicKey
   )
   
   const renterTokenAccount = await getAssociatedTokenAddress(
-    USDC_MINT,
+    usdcMint,
     renterPublicKey
   )
   
   const adminTokenAccount = await getAssociatedTokenAddress(
-    USDC_MINT,
+    usdcMint,
     adminPublicKey
   )
   
@@ -253,7 +272,7 @@ export async function createAdminInterventionInstruction(
       renterTokenAccount,
       adminTokenAccount,
       globalState: globalStatePDA,
-      usdcMint: USDC_MINT,
+      usdcMint: usdcMint,
       admin: adminPublicKey,
       tokenProgram: TOKEN_PROGRAM_ID,
     },
@@ -262,7 +281,7 @@ export async function createAdminInterventionInstruction(
       renterRefundPercentage,
       reason,
     },
-    programId: KAIRORIA_PROGRAM_ID,
+    programId: getKairoriaProgram(),
   }
 }
 
@@ -381,7 +400,7 @@ export async function generateBookingInstructions(
     createTransaction,
     payRental,
     completeRental,
-    programId: KAIRORIA_PROGRAM_ID.toString(),
+    programId: getKairoriaProgram().toString(),
     pdas: {
       rentalTransaction: rentalTransactionPDA.toString(),
       globalState: globalStatePDA.toString(),
