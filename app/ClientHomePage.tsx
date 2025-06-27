@@ -61,7 +61,7 @@ export default function ClientHomePage({ initialProducts, initialCategories }: C
     : products.filter(product => product.categories?.name === selectedCategory)
 
   return (
-    <div>
+    <div className="relative">
       {/* Hero Section with Search */}
       <section className="relative border-b">
         <div className="container py-8">
@@ -268,6 +268,19 @@ export default function ClientHomePage({ initialProducts, initialCategories }: C
           </div>
         </div>
       </section>
+      
+      {/* Bolt.new Badge */}
+      <div className="fixed bottom-4 right-4 z-10">
+        <a 
+          href="https://bolt.new" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="inline-flex items-center rounded-full bg-black px-3 py-1 text-sm text-white hover:bg-gray-800 transition-colors"
+        >
+          <Zap className="h-3.5 w-3.5 mr-1" />
+          Built with Bolt.new
+        </a>
+      </div>
     </div>
   )
 }

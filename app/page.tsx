@@ -1,6 +1,6 @@
 import { Suspense } from 'react'
 import Link from "next/link"
-import { Search, Sliders, Map, ArrowRight, Loader2 } from "lucide-react"
+import { Search, Sliders, Map, ArrowRight, Loader2, Zap } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -34,9 +34,20 @@ async function HomePageContent() {
 export default function HomePage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen">
+      <div className="min-h-screen relative">
         <div className="flex items-center justify-center h-64">
           <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+        <div className="fixed bottom-4 right-4">
+          <a 
+            href="https://bolt.new" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="inline-flex items-center rounded-full bg-black px-3 py-1 text-sm text-white hover:bg-gray-800 transition-colors"
+          >
+            <Zap className="h-3.5 w-3.5 mr-1" />
+            Built with Bolt.new
+          </a>
         </div>
       </div>
     }>
