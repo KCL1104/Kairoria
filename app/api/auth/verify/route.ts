@@ -36,7 +36,10 @@ export async function GET(request: Request) {
       }
     );
   } catch (error) {
-    console.error('Email verification error:', error);
+    // Log error in development only
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Email verification error:', error);
+    }
     return NextResponse.json(
       { success: false, message: 'Invalid or expired verification token' },
       { 

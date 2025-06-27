@@ -8,7 +8,7 @@ import { logAuthEvent, isValidJWT } from '@/lib/auth-utils'
  */
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createSecureServerClient()
+    const supabase = await createSecureServerClient()
     
     // Check for direct token in cookies
     const accessToken = request.cookies.get('sb-access-token')?.value
@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createSecureServerClient()
+    const supabase = await createSecureServerClient()
     const { data: { session }, error } = await supabase.auth.getSession()
     
     if (error || !session) {

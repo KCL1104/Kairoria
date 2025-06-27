@@ -137,7 +137,7 @@ function CompleteSignupPageWithSearchParams() {
         }
       }
     }
-  }, [recaptchaVerifier, isFirebaseConfigured, auth])
+  }, [recaptchaVerifier])
 
   // Re-initialize recaptcha when needed
   const reinitializeRecaptcha = () => {
@@ -237,7 +237,7 @@ function CompleteSignupPageWithSearchParams() {
     }
 
     loadProfile()
-  }, [user, router, toast])
+  }, [user, router, toast, loading])
 
   // Countdown timers
   useEffect(() => {

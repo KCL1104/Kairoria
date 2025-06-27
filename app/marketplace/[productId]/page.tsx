@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react'
+import { useParams } from 'next/navigation'
 import { ArrowLeft, Calendar, Heart, MapPin, MessageSquare, Share2, Star, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -21,7 +22,8 @@ type ProductWithRelations = Product & {
   product_images: ProductImage[]
 }
 
-export default function ProductPage({ params }: { params: { productId: string } }) {
+export default function ProductPage() {
+  const params = useParams()
   const [product, setProduct] = useState<ProductWithRelations | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -30,7 +32,7 @@ export default function ProductPage({ params }: { params: { productId: string } 
     const loadProduct = async () => {
       try {
         setIsLoading(true)
-        const productId = parseInt(params.productId)
+        const productId = parseInt(params.productId as string)
         
         if (isNaN(productId)) {
           notFound()

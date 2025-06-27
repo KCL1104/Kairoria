@@ -6,33 +6,16 @@ import { Loader } from '@googlemaps/js-api-loader'
 import { Button } from '@/components/ui/button'
 import { MapPin, Navigation, Loader2 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
-import { supabase } from '@/lib/supabase-client'
+import { supabase } from '@/lib/supabase'
 
-// Google Maps types - using any for now to avoid type errors
-type GoogleMap = any
-type GoogleMarker = any
+// Google Maps types
+type GoogleMap = google.maps.Map
+type GoogleMarker = google.maps.Marker
 type GoogleLatLng = {
   lat: number
   lng: number
 }
-type GoogleInfoWindow = any
-
-// Declare global google types
-declare global {
-  interface Window {
-    google: {
-      maps: {
-        Map: new (element: HTMLElement, options: any) => GoogleMap
-        Marker: new (options: any) => GoogleMarker
-        InfoWindow: new (options: any) => GoogleInfoWindow
-        SymbolPath: {
-          CIRCLE: any
-          FORWARD_CLOSED_ARROW: any
-        }
-      }
-    }
-  }
-}
+type GoogleInfoWindow = google.maps.InfoWindow
 
 interface Product {
   id: string
@@ -77,7 +60,7 @@ function MapComponent({ center, zoom, products, userLocation }: MapComponentProp
       })
       setMap(newMap)
     }
-  }, [])
+  }, [center, zoom])
 
   // Add user location marker
   useEffect(() => {
@@ -148,7 +131,7 @@ function MapComponent({ center, zoom, products, userLocation }: MapComponentProp
       
       setMarkers(newMarkers)
     }
-  }, [map, products])
+  }, [map, products, markers])
 
   return <div ref={ref} className="w-full h-full" />
 }
@@ -235,7 +218,7 @@ export function MapView() {
     }
 
     fetchProducts()
-  }, [])
+  }, [toast])
 
   // Get user's current location
   const getUserLocation = useCallback(() => {

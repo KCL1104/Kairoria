@@ -1,16 +1,21 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  images: {
-    unoptimized: true,
-    domains: ['images.pexels.com', 'pexels.com'],
-  },
   eslint: {
-    // This allows production builds to successfully complete even with ESLint errors
+    // Warning: This allows production builds to successfully complete even if
+    // your project has ESLint errors.
     ignoreDuringBuilds: true,
   },
-  // Disable type checking during build to prevent TypeScript errors from failing the build
-  typescript: {
-    ignoreBuildErrors: true,
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'images.pexels.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'pexels.com',
+      },
+    ],
   },
   webpack: (config, { isServer }) => {
     // Ignore specific modules that cause warnings

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -62,16 +62,7 @@ export default function BookingConfirmationPage() {
 
   const bookingId = params.bookingId as string
 
-  useEffect(() => {
-    if (!user) {
-      router.push('/auth/login')
-      return
-    }
-
-    fetchBookingDetails()
-  }, [user, bookingId])
-
-  const fetchBookingDetails = async () => {
+  const fetchBookingDetails = useCallback(async () => {
     try {
       if (!supabase) throw new Error('Supabase client not initialized')
       const { data: { session } } = await supabase.auth.getSession()
@@ -99,7 +90,16 @@ export default function BookingConfirmationPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [bookingId, toast])
+
+  useEffect(() => {
+    if (!user) {
+      router.push('/auth/login')
+      return
+    }
+
+    fetchBookingDetails()
+  }, [user, bookingId, router, fetchBookingDetails])
 
   const handleContactOwner = () => {
     // Navigate to messages page with the owner

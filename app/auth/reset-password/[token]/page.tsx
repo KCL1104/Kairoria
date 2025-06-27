@@ -3,12 +3,13 @@ import { ArrowLeft } from "lucide-react"
 import ResetPasswordForm from "./ResetPasswordForm"
 
 interface ResetPasswordTokenPageProps {
-  params: { token: string }
+  params: Promise<{ token: string }>
 }
 
-export default function ResetPasswordTokenPage({
+export default async function ResetPasswordTokenPage({
   params,
 }: ResetPasswordTokenPageProps) {
+  const { token } = await params
   return (
     <div className="container max-w-lg py-10">
       <div className="mb-6">
@@ -24,7 +25,7 @@ export default function ResetPasswordTokenPage({
         </Link>
       </div>
       
-      <ResetPasswordForm token={params.token} />
+      <ResetPasswordForm token={token} />
     </div>
   )
 }

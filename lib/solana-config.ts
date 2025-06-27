@@ -24,31 +24,24 @@ export function getSolanaConfig(): SolanaConfig {
   return config
 }
 
-export function createConnection(): Connection {
-  const config = getSolanaConfig()
-  return new Connection(config.rpcUrl, 'confirmed')
-}
+
+
+import { isValidSolanaAddress } from './utils';
 
 export function validateSolanaConfig(): boolean {
-  try {
-    const config = getSolanaConfig()
-    
-    // Validate that all required config values are present
-    if (!config.rpcUrl || !config.programId || !config.adminWallet || !config.usdcMint) {
-      console.error('Missing required Solana configuration values')
-      return false
-    }
+  const config = getSolanaConfig();
 
-    // Validate that addresses are valid PublicKeys
-    new PublicKey(config.programId)
-    new PublicKey(config.adminWallet)
-    new PublicKey(config.usdcMint)
-
-    return true
-  } catch (error) {
-    console.error('Invalid Solana configuration:', error)
-    return false
+  if (!config.rpcUrl || !config.programId || !config.adminWallet || !config.usdcMint) {
+    console.error('Missing required Solana configuration values.');
+    return false;
   }
+
+  if (!isValidSolanaAddress(config.programId) || !isValidSolanaAddress(config.adminWallet) || !isValidSolanaAddress(config.usdcMint)) {
+    console.error('Invalid Solana address in configuration.');
+    return false;
+  }
+
+  return true;
 }
 
 // Export commonly used values - use lazy initialization to avoid module load errors
@@ -63,11 +56,12 @@ export const getSolanaConfigSingleton = (() => {
 })()
 
 export const getSolanaConnectionSingleton = (() => {
-  let connection: Connection | null = null
+  let connection: Connection | null = null;
   return () => {
     if (!connection) {
-      connection = createConnection()
+      const config = getSolanaConfigSingleton();
+      connection = new Connection(config.rpcUrl, 'confirmed');
     }
-    return connection
-  }
-})()
+    return connection;
+  };
+})();

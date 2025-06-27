@@ -4,9 +4,10 @@ import { createServerClient } from '@supabase/ssr'
 // Get booking details
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  console.log('Booking details API called for booking:', params.id)
+  const { id } = await params
+  console.log('Booking details API called for booking:', id)
   
   try {
     // Get Supabase configuration
@@ -78,7 +79,7 @@ export async function GET(
           solana_address
         )
       `)
-      .eq('id', params.id)
+      .eq('id', id)
       .single()
 
     if (bookingError || !booking) {
@@ -115,9 +116,10 @@ export async function GET(
 // Cancel booking
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  console.log('Booking cancellation API called for booking:', params.id)
+  const { id } = await params
+  console.log('Booking cancellation API called for booking:', id)
   
   try {
     // Get Supabase configuration
@@ -169,7 +171,7 @@ export async function DELETE(
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
       .select('*')
-      .eq('id', params.id)
+      .eq('id', id)
       .single()
 
     if (bookingError || !booking) {
@@ -235,7 +237,7 @@ export async function DELETE(
     const { data: cancelledBooking, error: cancelError } = await supabase
       .from('bookings')
       .update(updateData)
-      .eq('id', params.id)
+      .eq('id', id)
       .select()
       .single()
 
@@ -247,7 +249,7 @@ export async function DELETE(
       )
     }
 
-    console.log('Booking cancelled successfully:', params.id)
+    console.log('Booking cancelled successfully:', id)
     return NextResponse.json(
       {
         message: 'Booking cancelled successfully',

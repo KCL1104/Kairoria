@@ -3,7 +3,7 @@ import { createServerClient } from '@supabase/ssr'
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: any
 ) {
   console.log('Booking completion API called for booking:', params.id)
   
@@ -141,7 +141,7 @@ export async function POST(
 // Update booking status after successful Solana transaction
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: any
 ) {
   console.log('Booking completion confirmation API called for booking:', params.id)
   

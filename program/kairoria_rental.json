@@ -1,0 +1,1836 @@
+{
+  "address": "31f4RcqyuAjnMz6AZZbZ6Tt7VUMjENHc5rSP8MYMc3Qt",
+  "metadata": {
+    "name": "kairoria_rental",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Created with Anchor"
+  },
+  "instructions": [
+    {
+      "name": "admin_intervene",
+      "discriminator": [
+        138,
+        172,
+        181,
+        70,
+        175,
+        123,
+        119,
+        169
+      ],
+      "accounts": [
+        {
+          "name": "rental_transaction",
+          "writable": true
+        },
+        {
+          "name": "escrow_token_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "rental_transaction"
+              }
+            ]
+          }
+        },
+        {
+          "name": "owner_token_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "rental_transaction.owner_wallet",
+                "account": "RentalTransaction"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "usdc_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "renter_token_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "rental_transaction.renter",
+                "account": "RentalTransaction"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "usdc_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "admin_token_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "global_state.admin",
+                "account": "GlobalState"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "usdc_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "global_state",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  108,
+                  111,
+                  98,
+                  97,
+                  108,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "usdc_mint"
+        },
+        {
+          "name": "admin",
+          "signer": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "owner_percentage",
+          "type": "u16"
+        },
+        {
+          "name": "renter_refund_percentage",
+          "type": "u16"
+        },
+        {
+          "name": "reason",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "cancel_as_owner",
+      "discriminator": [
+        234,
+        69,
+        95,
+        149,
+        121,
+        37,
+        228,
+        159
+      ],
+      "accounts": [
+        {
+          "name": "rental_transaction",
+          "writable": true
+        },
+        {
+          "name": "escrow_token_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "rental_transaction"
+              }
+            ]
+          }
+        },
+        {
+          "name": "renter_token_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "rental_transaction.renter",
+                "account": "RentalTransaction"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "usdc_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "usdc_mint"
+        },
+        {
+          "name": "owner",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "cancel_as_renter_created",
+      "discriminator": [
+        228,
+        40,
+        157,
+        115,
+        114,
+        156,
+        124,
+        72
+      ],
+      "accounts": [
+        {
+          "name": "rental_transaction",
+          "writable": true
+        },
+        {
+          "name": "renter",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "cancel_as_renter_paid",
+      "discriminator": [
+        135,
+        13,
+        152,
+        2,
+        230,
+        203,
+        232,
+        37
+      ],
+      "accounts": [
+        {
+          "name": "rental_transaction",
+          "writable": true
+        },
+        {
+          "name": "escrow_token_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "rental_transaction"
+              }
+            ]
+          }
+        },
+        {
+          "name": "renter_token_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "renter"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "usdc_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "admin_token_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "global_state.admin",
+                "account": "GlobalState"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "usdc_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "global_state",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  108,
+                  111,
+                  98,
+                  97,
+                  108,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "renter",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "usdc_mint"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "complete_rental",
+      "discriminator": [
+        179,
+        18,
+        175,
+        28,
+        208,
+        197,
+        89,
+        176
+      ],
+      "accounts": [
+        {
+          "name": "rental_transaction",
+          "writable": true
+        },
+        {
+          "name": "escrow_token_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "rental_transaction"
+              }
+            ]
+          }
+        },
+        {
+          "name": "owner_token_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "rental_transaction.owner_wallet",
+                "account": "RentalTransaction"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "usdc_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "admin_token_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "global_state.admin",
+                "account": "GlobalState"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "usdc_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "global_state",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  108,
+                  111,
+                  98,
+                  97,
+                  108,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "usdc_mint"
+        },
+        {
+          "name": "signer",
+          "signer": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "create_rental_transaction",
+      "discriminator": [
+        117,
+        35,
+        255,
+        132,
+        246,
+        44,
+        199,
+        32
+      ],
+      "accounts": [
+        {
+          "name": "rental_transaction",
+          "writable": true
+        },
+        {
+          "name": "renter",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "product_id",
+          "type": "u64"
+        },
+        {
+          "name": "owner_wallet",
+          "type": "pubkey"
+        },
+        {
+          "name": "total_amount",
+          "type": "u64"
+        },
+        {
+          "name": "rental_start",
+          "type": "i64"
+        },
+        {
+          "name": "rental_end",
+          "type": "i64"
+        },
+        {
+          "name": "booking_id",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "initialize",
+      "discriminator": [
+        175,
+        175,
+        109,
+        31,
+        13,
+        152,
+        155,
+        237
+      ],
+      "accounts": [
+        {
+          "name": "global_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  108,
+                  111,
+                  98,
+                  97,
+                  108,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "admin",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "pay_rental",
+      "discriminator": [
+        114,
+        15,
+        111,
+        207,
+        115,
+        207,
+        108,
+        169
+      ],
+      "accounts": [
+        {
+          "name": "rental_transaction",
+          "writable": true
+        },
+        {
+          "name": "escrow_token_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "rental_transaction"
+              }
+            ]
+          }
+        },
+        {
+          "name": "renter_token_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "renter"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "usdc_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "usdc_mint"
+        },
+        {
+          "name": "renter",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "GlobalState",
+      "discriminator": [
+        163,
+        46,
+        74,
+        168,
+        216,
+        123,
+        133,
+        98
+      ]
+    },
+    {
+      "name": "RentalTransaction",
+      "discriminator": [
+        235,
+        18,
+        179,
+        106,
+        77,
+        124,
+        90,
+        246
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "AdminIntervention",
+      "discriminator": [
+        142,
+        222,
+        88,
+        73,
+        141,
+        10,
+        242,
+        125
+      ]
+    },
+    {
+      "name": "RentalCancelledByOwner",
+      "discriminator": [
+        158,
+        79,
+        206,
+        146,
+        223,
+        51,
+        203,
+        31
+      ]
+    },
+    {
+      "name": "RentalCancelledByRenter",
+      "discriminator": [
+        18,
+        186,
+        83,
+        173,
+        117,
+        130,
+        211,
+        149
+      ]
+    },
+    {
+      "name": "RentalCancelledByRenterPaid",
+      "discriminator": [
+        114,
+        181,
+        120,
+        237,
+        103,
+        44,
+        185,
+        252
+      ]
+    },
+    {
+      "name": "RentalCompleted",
+      "discriminator": [
+        65,
+        182,
+        96,
+        248,
+        177,
+        212,
+        88,
+        124
+      ]
+    },
+    {
+      "name": "RentalPaymentCompleted",
+      "discriminator": [
+        248,
+        56,
+        37,
+        54,
+        26,
+        60,
+        205,
+        85
+      ]
+    },
+    {
+      "name": "RentalTransactionCreated",
+      "discriminator": [
+        130,
+        230,
+        183,
+        92,
+        37,
+        143,
+        131,
+        248
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "InvalidAmount",
+      "msg": "Invalid amount specified"
+    },
+    {
+      "code": 6001,
+      "name": "InvalidRentalPeriod",
+      "msg": "Invalid rental period"
+    },
+    {
+      "code": 6002,
+      "name": "BookingIdTooLong",
+      "msg": "Booking ID too long"
+    },
+    {
+      "code": 6003,
+      "name": "InvalidTransactionStatus",
+      "msg": "Invalid transaction status for this operation"
+    },
+    {
+      "code": 6004,
+      "name": "IncorrectPaymentAmount",
+      "msg": "Incorrect payment amount"
+    },
+    {
+      "code": 6005,
+      "name": "CompletionNotAllowed",
+      "msg": "Completion not allowed yet"
+    },
+    {
+      "code": 6006,
+      "name": "UnauthorizedAdmin",
+      "msg": "Unauthorized admin access"
+    },
+    {
+      "code": 6007,
+      "name": "InvalidPercentages",
+      "msg": "Invalid percentage distribution"
+    },
+    {
+      "code": 6008,
+      "name": "ReasonTooLong",
+      "msg": "Reason text too long"
+    },
+    {
+      "code": 6009,
+      "name": "CannotCancelPaidTransaction",
+      "msg": "Cannot cancel already paid transaction"
+    },
+    {
+      "code": 6010,
+      "name": "UnauthorizedCancellation",
+      "msg": "Unauthorized cancellation"
+    },
+    {
+      "code": 6011,
+      "name": "UnauthorizedOwnerCancellation",
+      "msg": "Unauthorized owner cancellation"
+    },
+    {
+      "code": 6012,
+      "name": "OwnerCancellationTooLate",
+      "msg": "Owner cancellation too late - must be at least 1 day before rental start"
+    },
+    {
+      "code": 6013,
+      "name": "CannotCancelCompletedTransaction",
+      "msg": "Cannot cancel completed transaction"
+    },
+    {
+      "code": 6014,
+      "name": "UnauthorizedCompletion",
+      "msg": "Unauthorized completion - only renter, owner, or admin can complete"
+    },
+    {
+      "code": 6015,
+      "name": "MathOverflow",
+      "msg": "Math operation overflow"
+    },
+    {
+      "code": 6016,
+      "name": "CancellationTooLate",
+      "msg": "Cancellation too late - rental period has already started"
+    }
+  ],
+  "types": [
+    {
+      "name": "AdminIntervention",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "booking_id",
+            "type": "string"
+          },
+          {
+            "name": "owner_amount",
+            "type": "u64"
+          },
+          {
+            "name": "renter_refund",
+            "type": "u64"
+          },
+          {
+            "name": "platform_fee",
+            "type": "u64"
+          },
+          {
+            "name": "reason",
+            "type": "string"
+          },
+          {
+            "name": "admin",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "GlobalState",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "platform_fee_rate",
+            "type": "u16"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RentalCancelledByOwner",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "booking_id",
+            "type": "string"
+          },
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "refund_amount",
+            "type": "u64"
+          },
+          {
+            "name": "cancelled_at",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RentalCancelledByRenter",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "booking_id",
+            "type": "string"
+          },
+          {
+            "name": "renter",
+            "type": "pubkey"
+          },
+          {
+            "name": "cancelled_at",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RentalCancelledByRenterPaid",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "booking_id",
+            "type": "string"
+          },
+          {
+            "name": "renter",
+            "type": "pubkey"
+          },
+          {
+            "name": "refund_amount",
+            "type": "u64"
+          },
+          {
+            "name": "cancellation_fee",
+            "type": "u64"
+          },
+          {
+            "name": "cancelled_at",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RentalCompleted",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "booking_id",
+            "type": "string"
+          },
+          {
+            "name": "owner_amount",
+            "type": "u64"
+          },
+          {
+            "name": "platform_fee",
+            "type": "u64"
+          },
+          {
+            "name": "completed_by",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RentalPaymentCompleted",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "booking_id",
+            "type": "string"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "renter",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RentalTransaction",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "product_id",
+            "type": "u64"
+          },
+          {
+            "name": "renter",
+            "type": "pubkey"
+          },
+          {
+            "name": "owner_wallet",
+            "type": "pubkey"
+          },
+          {
+            "name": "total_amount",
+            "type": "u64"
+          },
+          {
+            "name": "rental_start",
+            "type": "i64"
+          },
+          {
+            "name": "rental_end",
+            "type": "i64"
+          },
+          {
+            "name": "booking_id",
+            "type": "string"
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": {
+                "name": "TransactionStatus"
+              }
+            }
+          },
+          {
+            "name": "created_at",
+            "type": "i64"
+          },
+          {
+            "name": "paid_at",
+            "type": {
+              "option": "i64"
+            }
+          },
+          {
+            "name": "completed_at",
+            "type": {
+              "option": "i64"
+            }
+          },
+          {
+            "name": "resolution_reason",
+            "type": {
+              "option": "string"
+            }
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "escrow_bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RentalTransactionCreated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "product_id",
+            "type": "u64"
+          },
+          {
+            "name": "renter",
+            "type": "pubkey"
+          },
+          {
+            "name": "owner_wallet",
+            "type": "pubkey"
+          },
+          {
+            "name": "total_amount",
+            "type": "u64"
+          },
+          {
+            "name": "booking_id",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TransactionStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Created"
+          },
+          {
+            "name": "Paid"
+          },
+          {
+            "name": "Completed"
+          },
+          {
+            "name": "Cancelled"
+          },
+          {
+            "name": "Resolved"
+          }
+        ]
+      }
+    }
+  ]
+}

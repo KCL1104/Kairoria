@@ -1,26 +1,23 @@
 use anchor_lang::prelude::*;
-use anchor_lang::solana_program::clock::Clock;
+use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer};
-use std::mem::size_of;
 
-declare_id!("HczADmDQ7CSAQCjLnixgXHiJWg31ToAMKnyzamaadkbY");
+declare_id!("31f4RcqyuAjnMz6AZZbZ6Tt7VUMjENHc5rSP8MYMc3Qt");
 
 #[program]
 pub mod kairoria_rental {
     use super::*;
 
-    // Initialize the rental program with admin
     pub fn initialize(ctx: Context<Initialize>, admin: Pubkey) -> Result<()> {
         let global_state = &mut ctx.accounts.global_state;
         global_state.admin = admin;
-        global_state.platform_fee_rate = 1000; // 10% (basis points: 10000 = 100%)
+        global_state.platform_fee_rate = 1000;
         global_state.bump = ctx.bumps.global_state;
         
         msg!("Kairoria Rental System initialized with admin: {}", admin);
         Ok(())
     }
 
-    // Create a new rental transaction
     pub fn create_rental_transaction(
         ctx: Context<CreateRentalTransaction>,
         product_id: u64,
@@ -43,20 +40,20 @@ pub mod kairoria_rental {
         rental_transaction.rental_end = rental_end;
         rental_transaction.booking_id = booking_id;
         rental_transaction.status = TransactionStatus::Created;
-        rental_transaction.created_at = ctx.accounts.clock.unix_timestamp;
+        rental_transaction.created_at = Clock::get()?.unix_timestamp;
         rental_transaction.bump = ctx.bumps.rental_transaction;
 
-        msg!(
-            "Rental transaction created for product {} by renter {} with amount {}",
+        emit!(RentalTransactionCreated {
             product_id,
-            ctx.accounts.renter.key(),
-            total_amount
-        );
+            renter: ctx.accounts.renter.key(),
+            owner_wallet,
+            total_amount,
+            booking_id: rental_transaction.booking_id.clone(),
+        });
 
         Ok(())
     }
 
-    // Renter pays for the rental
     pub fn pay_rental(ctx: Context<PayRental>, amount: u64) -> Result<()> {
         let rental_transaction = &mut ctx.accounts.rental_transaction;
         
@@ -69,8 +66,7 @@ pub mod kairoria_rental {
             ErrorCode::IncorrectPaymentAmount
         );
 
-        // Transfer USDC from renter to escrow PDA
-        let transfer_instruction = Transfer {
+        let transfer_accounts = Transfer {
             from: ctx.accounts.renter_token_account.to_account_info(),
             to: ctx.accounts.escrow_token_account.to_account_info(),
             authority: ctx.accounts.renter.to_account_info(),
@@ -78,74 +74,71 @@ pub mod kairoria_rental {
 
         let cpi_ctx = CpiContext::new(
             ctx.accounts.token_program.to_account_info(),
-            transfer_instruction,
+            transfer_accounts,
         );
 
         token::transfer(cpi_ctx, amount)?;
 
-        // Update transaction status
         rental_transaction.status = TransactionStatus::Paid;
-        rental_transaction.paid_at = Some(ctx.accounts.clock.unix_timestamp);
+        rental_transaction.paid_at = Some(Clock::get()?.unix_timestamp);
+        rental_transaction.escrow_bump = ctx.bumps.escrow_token_account;
 
-        msg!(
-            "Rental payment of {} USDC completed for transaction {}",
+        emit!(RentalPaymentCompleted {
+            booking_id: rental_transaction.booking_id.clone(),
             amount,
-            rental_transaction.booking_id
-        );
+            renter: ctx.accounts.renter.key(),
+        });
 
         Ok(())
     }
 
-    // Complete rental transaction (auto or manual)
     pub fn complete_rental(ctx: Context<CompleteRental>) -> Result<()> {
-        let rental_transaction = &mut ctx.accounts.rental_transaction;
-        let current_time = ctx.accounts.clock.unix_timestamp;
+        let current_time = Clock::get()?.unix_timestamp;
         let signer = ctx.accounts.signer.key();
 
         require!(
-            rental_transaction.status == TransactionStatus::Paid,
+            ctx.accounts.rental_transaction.status == TransactionStatus::Paid,
             ErrorCode::InvalidTransactionStatus
         );
 
-        // Enhanced permission check: only renter, owner, or admin can complete
         require!(
-            signer == rental_transaction.renter ||
-            signer == rental_transaction.owner_wallet ||
+            signer == ctx.accounts.rental_transaction.renter ||
+            signer == ctx.accounts.rental_transaction.owner_wallet ||
             signer == ctx.accounts.global_state.admin,
             ErrorCode::UnauthorizedCompletion
         );
 
-        // Check if rental period has ended + 1 day grace period
-        let grace_period = 24 * 60 * 60; // 1 day in seconds
-        let completion_allowed_time = rental_transaction.rental_end + grace_period;
+        let grace_period = 24 * 60 * 60;
+        let completion_allowed_time = ctx.accounts.rental_transaction.rental_end + grace_period;
         
         require!(
             current_time >= completion_allowed_time || 
-            signer == rental_transaction.renter,
+            signer == ctx.accounts.rental_transaction.renter,
             ErrorCode::CompletionNotAllowed
         );
 
         let global_state = &ctx.accounts.global_state;
-        let total_amount = rental_transaction.total_amount;
+        let total_amount = ctx.accounts.rental_transaction.total_amount;
         
-        // Calculate amounts using u128 to prevent precision loss
-        let total_amount_u128 = total_amount as u128;
-        let platform_fee_u128 = (total_amount_u128 * global_state.platform_fee_rate as u128) / 10000u128;
-        let owner_amount_u128 = total_amount_u128 - platform_fee_u128;
+        let platform_fee = total_amount
+            .checked_mul(global_state.platform_fee_rate as u64)
+            .ok_or(ErrorCode::MathOverflow)?
+            .checked_div(10000)
+            .ok_or(ErrorCode::MathOverflow)?;
         
-        // Convert back to u64 (safe since we started with u64)
-        let platform_fee = platform_fee_u128 as u64;
-        let owner_amount = owner_amount_u128 as u64;
+        let owner_amount = total_amount
+            .checked_sub(platform_fee)
+            .ok_or(ErrorCode::MathOverflow)?;
 
-        // Transfer 90% to owner
         let seeds = &[
             b"rental_transaction",
-            &rental_transaction.product_id.to_le_bytes(),
-            &rental_transaction.renter.to_bytes(),
-            &[rental_transaction.bump],
+            &ctx.accounts.rental_transaction.product_id.to_le_bytes()[..8],
+            &ctx.accounts.rental_transaction.renter.to_bytes(),
+            &[ctx.accounts.rental_transaction.bump],
         ];
-        let signer = &[&seeds[..]];
+        let pda_signer_seeds = &[&seeds[..]];
 
+        // Transfer to owner
         let transfer_to_owner = Transfer {
             from: ctx.accounts.escrow_token_account.to_account_info(),
             to: ctx.accounts.owner_token_account.to_account_info(),
@@ -155,12 +148,12 @@ pub mod kairoria_rental {
         let cpi_ctx_owner = CpiContext::new_with_signer(
             ctx.accounts.token_program.to_account_info(),
             transfer_to_owner,
-            signer,
+            pda_signer_seeds,
         );
 
         token::transfer(cpi_ctx_owner, owner_amount)?;
 
-        // Transfer 10% to platform admin
+        // Transfer platform fee to admin
         let transfer_to_admin = Transfer {
             from: ctx.accounts.escrow_token_account.to_account_info(),
             to: ctx.accounts.admin_token_account.to_account_info(),
@@ -170,70 +163,77 @@ pub mod kairoria_rental {
         let cpi_ctx_admin = CpiContext::new_with_signer(
             ctx.accounts.token_program.to_account_info(),
             transfer_to_admin,
-            signer,
+            pda_signer_seeds,
         );
 
         token::transfer(cpi_ctx_admin, platform_fee)?;
 
-        // Update transaction status
+        let rental_transaction = &mut ctx.accounts.rental_transaction;
         rental_transaction.status = TransactionStatus::Completed;
         rental_transaction.completed_at = Some(current_time);
 
-        msg!(
-            "Rental transaction {} completed. Owner received: {}, Platform fee: {}",
-            rental_transaction.booking_id,
+        emit!(RentalCompleted {
+            booking_id: rental_transaction.booking_id.clone(),
             owner_amount,
-            platform_fee
-        );
+            platform_fee,
+            completed_by: signer,
+        });
 
         Ok(())
     }
 
-    // Admin intervention for dispute resolution
     pub fn admin_intervene(
         ctx: Context<AdminIntervene>,
-        owner_percentage: u16, // Basis points (0-10000)
-        renter_refund_percentage: u16, // Basis points (0-10000)
+        owner_percentage: u16,
+        renter_refund_percentage: u16,
         reason: String,
     ) -> Result<()> {
         require!(
             ctx.accounts.admin.key() == ctx.accounts.global_state.admin,
             ErrorCode::UnauthorizedAdmin
         );
+        let total_percentage = owner_percentage
+            .checked_add(renter_refund_percentage)
+            .ok_or(ErrorCode::MathOverflow)?;
         require!(
-            owner_percentage + renter_refund_percentage <= 10000,
+            total_percentage <= 10000,
             ErrorCode::InvalidPercentages
         );
         require!(reason.len() <= 256, ErrorCode::ReasonTooLong);
 
-        let rental_transaction = &mut ctx.accounts.rental_transaction;
         require!(
-            rental_transaction.status == TransactionStatus::Paid,
+            ctx.accounts.rental_transaction.status == TransactionStatus::Paid,
             ErrorCode::InvalidTransactionStatus
         );
 
-        // Use u128 for precise calculation to prevent precision loss
-        let total_amount = rental_transaction.total_amount;
-        let total_amount_u128 = total_amount as u128;
+        let total_amount = ctx.accounts.rental_transaction.total_amount;
         
-        let owner_amount_u128 = (total_amount_u128 * owner_percentage as u128) / 10000u128;
-        let renter_refund_u128 = (total_amount_u128 * renter_refund_percentage as u128) / 10000u128;
-        let platform_fee_u128 = total_amount_u128 - owner_amount_u128 - renter_refund_u128;
+        let owner_amount = total_amount
+            .checked_mul(owner_percentage as u64)
+            .ok_or(ErrorCode::MathOverflow)?
+            .checked_div(10000)
+            .ok_or(ErrorCode::MathOverflow)?;
         
-        // Convert back to u64 (safe since we started with u64)
-        let owner_amount = owner_amount_u128 as u64;
-        let renter_refund = renter_refund_u128 as u64;
-        let platform_fee = platform_fee_u128 as u64;
+        let renter_refund = total_amount
+            .checked_mul(renter_refund_percentage as u64)
+            .ok_or(ErrorCode::MathOverflow)?
+            .checked_div(10000)
+            .ok_or(ErrorCode::MathOverflow)?;
+        
+        let platform_fee = total_amount
+            .checked_sub(owner_amount)
+            .ok_or(ErrorCode::MathOverflow)?
+            .checked_sub(renter_refund)
+            .ok_or(ErrorCode::MathOverflow)?;
 
         let seeds = &[
             b"rental_transaction",
-            &rental_transaction.product_id.to_le_bytes(),
-            &rental_transaction.renter.to_bytes(),
-            &[rental_transaction.bump],
+            &ctx.accounts.rental_transaction.product_id.to_le_bytes()[..8],
+            &ctx.accounts.rental_transaction.renter.to_bytes(),
+            &[ctx.accounts.rental_transaction.bump],
         ];
-        let signer = &[&seeds[..]];
+        let pda_signer_seeds = &[&seeds[..]];
 
-        // Transfer to owner if applicable
         if owner_amount > 0 {
             let transfer_to_owner = Transfer {
                 from: ctx.accounts.escrow_token_account.to_account_info(),
@@ -244,13 +244,12 @@ pub mod kairoria_rental {
             let cpi_ctx_owner = CpiContext::new_with_signer(
                 ctx.accounts.token_program.to_account_info(),
                 transfer_to_owner,
-                signer,
+                pda_signer_seeds,
             );
 
             token::transfer(cpi_ctx_owner, owner_amount)?;
         }
 
-        // Refund to renter if applicable
         if renter_refund > 0 {
             let transfer_to_renter = Transfer {
                 from: ctx.accounts.escrow_token_account.to_account_info(),
@@ -261,13 +260,12 @@ pub mod kairoria_rental {
             let cpi_ctx_renter = CpiContext::new_with_signer(
                 ctx.accounts.token_program.to_account_info(),
                 transfer_to_renter,
-                signer,
+                pda_signer_seeds,
             );
 
             token::transfer(cpi_ctx_renter, renter_refund)?;
         }
 
-        // Platform fee to admin
         if platform_fee > 0 {
             let transfer_to_admin = Transfer {
                 from: ctx.accounts.escrow_token_account.to_account_info(),
@@ -278,82 +276,178 @@ pub mod kairoria_rental {
             let cpi_ctx_admin = CpiContext::new_with_signer(
                 ctx.accounts.token_program.to_account_info(),
                 transfer_to_admin,
-                signer,
+                pda_signer_seeds,
             );
 
             token::transfer(cpi_ctx_admin, platform_fee)?;
         }
 
-        // Update transaction status
+        let rental_transaction = &mut ctx.accounts.rental_transaction;
         rental_transaction.status = TransactionStatus::Resolved;
-        rental_transaction.completed_at = Some(ctx.accounts.clock.unix_timestamp);
+        rental_transaction.completed_at = Some(Clock::get()?.unix_timestamp);
         rental_transaction.resolution_reason = Some(reason.clone());
 
-        msg!(
-            "Admin intervention completed for transaction {}. Owner: {}, Renter: {}, Platform: {}. Reason: {}",
-            rental_transaction.booking_id,
+        emit!(AdminIntervention {
+            booking_id: rental_transaction.booking_id.clone(),
             owner_amount,
             renter_refund,
             platform_fee,
-            reason
-        );
+            reason,
+            admin: ctx.accounts.admin.key(),
+        });
 
         Ok(())
     }
 
-    // Cancel rental transaction by renter (only before payment)
-    pub fn cancel_as_renter(ctx: Context<CancelAsRenter>) -> Result<()> {
-        let rental_transaction = &ctx.accounts.rental_transaction;
-        let current_time = ctx.accounts.clock.unix_timestamp;
+    pub fn cancel_as_renter_created(ctx: Context<CancelAsRenterCreated>) -> Result<()> {
+        let rental_transaction = &mut ctx.accounts.rental_transaction;
+        let current_time = Clock::get()?.unix_timestamp;
         
-        require!(
-            rental_transaction.status == TransactionStatus::Created,
-            ErrorCode::CannotCancelPaidTransaction
-        );
         require!(
             ctx.accounts.renter.key() == rental_transaction.renter,
             ErrorCode::UnauthorizedCancellation
         );
-
-        msg!(
-            "Rental transaction {} cancelled by renter at {}",
-            rental_transaction.booking_id,
-            current_time
+        require!(
+            rental_transaction.status == TransactionStatus::Created,
+            ErrorCode::InvalidTransactionStatus
         );
+
+        rental_transaction.status = TransactionStatus::Cancelled;
+        rental_transaction.completed_at = Some(current_time);
+
+        emit!(RentalCancelledByRenter {
+            booking_id: rental_transaction.booking_id.clone(),
+            renter: ctx.accounts.renter.key(),
+            cancelled_at: current_time,
+        });
 
         Ok(())
     }
 
-    // Cancel rental transaction by owner (only after payment, 1 day before rental start)
-    pub fn cancel_as_owner(ctx: Context<CancelAsOwner>) -> Result<()> {
+    pub fn cancel_as_renter_paid(ctx: Context<CancelAsRenterPaid>) -> Result<()> {
         let rental_transaction = &mut ctx.accounts.rental_transaction;
-        let current_time = ctx.accounts.clock.unix_timestamp;
+        let current_time = Clock::get()?.unix_timestamp;
         
+        require!(
+            ctx.accounts.renter.key() == rental_transaction.renter,
+            ErrorCode::UnauthorizedCancellation
+        );
         require!(
             rental_transaction.status == TransactionStatus::Paid,
             ErrorCode::InvalidTransactionStatus
         );
         require!(
-            ctx.accounts.owner.key() == rental_transaction.owner_wallet,
+            current_time < rental_transaction.rental_start,
+            ErrorCode::CancellationTooLate
+        );
+
+        // Calculate refund amount based on timing
+        let time_until_rental = rental_transaction.rental_start - current_time;
+        let one_day_in_seconds = 24 * 60 * 60;
+        let refund_percentage = if time_until_rental >= one_day_in_seconds {
+            10000u64 // 100%
+        } else {
+            5000u64 // 50%
+        };
+
+        let total_amount = rental_transaction.total_amount;
+        let refund_amount = total_amount
+            .checked_mul(refund_percentage)
+            .ok_or(ErrorCode::MathOverflow)?
+            .checked_div(10000)
+            .ok_or(ErrorCode::MathOverflow)?;
+
+        let product_id = rental_transaction.product_id;
+        let renter_key = rental_transaction.renter;
+        let bump = rental_transaction.bump;
+        
+        let seeds = &[
+            b"rental_transaction",
+            &product_id.to_le_bytes()[..8],
+            &renter_key.to_bytes(),
+            &[bump],
+        ];
+        let pda_signer_seeds = &[&seeds[..]];
+
+        if refund_amount > 0 {
+            let transfer_refund = Transfer {
+                from: ctx.accounts.escrow_token_account.to_account_info(),
+                to: ctx.accounts.renter_token_account.to_account_info(),
+                authority: rental_transaction.to_account_info(),
+            };
+
+            let cpi_ctx = CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                transfer_refund,
+                pda_signer_seeds,
+            );
+
+            token::transfer(cpi_ctx, refund_amount)?;
+        }
+
+        let remaining_amount = total_amount
+            .checked_sub(refund_amount)
+            .ok_or(ErrorCode::MathOverflow)?;
+
+        if remaining_amount > 0 {
+            let transfer_fee = Transfer {
+                from: ctx.accounts.escrow_token_account.to_account_info(),
+                to: ctx.accounts.admin_token_account.to_account_info(),
+                authority: rental_transaction.to_account_info(),
+            };
+
+            let cpi_ctx_fee = CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                transfer_fee,
+                pda_signer_seeds,
+            );
+
+            token::transfer(cpi_ctx_fee, remaining_amount)?;
+        }
+
+        rental_transaction.status = TransactionStatus::Cancelled;
+        rental_transaction.completed_at = Some(current_time);
+
+        emit!(RentalCancelledByRenterPaid {
+            booking_id: rental_transaction.booking_id.clone(),
+            renter: ctx.accounts.renter.key(),
+            refund_amount,
+            cancellation_fee: remaining_amount,
+            cancelled_at: current_time,
+        });
+
+        Ok(())
+    }
+
+    pub fn cancel_as_owner(ctx: Context<CancelAsOwner>) -> Result<()> {
+        let current_time = Clock::get()?.unix_timestamp;
+        
+        require!(
+            ctx.accounts.rental_transaction.status == TransactionStatus::Paid,
+            ErrorCode::InvalidTransactionStatus
+        );
+        require!(
+            ctx.accounts.owner.key() == ctx.accounts.rental_transaction.owner_wallet,
             ErrorCode::UnauthorizedOwnerCancellation
         );
         
         let one_day_in_seconds = 24 * 60 * 60;
-        let cancellation_deadline = rental_transaction.rental_start - one_day_in_seconds;
+        let cancellation_deadline = ctx.accounts.rental_transaction.rental_start
+            .checked_sub(one_day_in_seconds)
+            .ok_or(ErrorCode::MathOverflow)?;
         
         require!(
             current_time <= cancellation_deadline,
             ErrorCode::OwnerCancellationTooLate
         );
         
-        // Refund the full amount to renter when owner cancels
         let seeds = &[
             b"rental_transaction",
-            &rental_transaction.product_id.to_le_bytes(),
-            &rental_transaction.renter.to_bytes(),
-            &[rental_transaction.bump],
+            &ctx.accounts.rental_transaction.product_id.to_le_bytes()[..8],
+            &ctx.accounts.rental_transaction.renter.to_bytes(),
+            &[ctx.accounts.rental_transaction.bump],
         ];
-        let signer_seeds = &[&seeds[..]];
+        let pda_signer_seeds = &[&seeds[..]];
 
         let transfer_refund = Transfer {
             from: ctx.accounts.escrow_token_account.to_account_info(),
@@ -364,33 +458,33 @@ pub mod kairoria_rental {
         let cpi_ctx = CpiContext::new_with_signer(
             ctx.accounts.token_program.to_account_info(),
             transfer_refund,
-            signer_seeds,
+            pda_signer_seeds,
         );
 
-        token::transfer(cpi_ctx, rental_transaction.total_amount)?;
+        let total_amount = ctx.accounts.rental_transaction.total_amount;
+        token::transfer(cpi_ctx, total_amount)?;
         
-        // Update status before closing accounts
+        let rental_transaction = &mut ctx.accounts.rental_transaction;
         rental_transaction.status = TransactionStatus::Cancelled;
         rental_transaction.completed_at = Some(current_time);
 
-        msg!(
-            "Rental transaction {} cancelled by owner. Full refund of {} issued to renter at {}",
-            rental_transaction.booking_id,
-            rental_transaction.total_amount,
-            current_time
-        );
+        emit!(RentalCancelledByOwner {
+            booking_id: rental_transaction.booking_id.clone(),
+            owner: ctx.accounts.owner.key(),
+            refund_amount: total_amount,
+            cancelled_at: current_time,
+        });
 
         Ok(())
     }
 }
 
-// Account structures
 #[derive(Accounts)]
 pub struct Initialize<'info> {
     #[account(
         init,
         payer = admin,
-        space = 8 + size_of::<GlobalState>(),
+        space = 8 + 32 + 2 + 1,
         seeds = [b"global_state"],
         bump
     )]
@@ -408,8 +502,8 @@ pub struct CreateRentalTransaction<'info> {
     #[account(
         init,
         payer = renter,
-        space = 461,
-        seeds = [b"rental_transaction", &product_id.to_le_bytes(), &renter.key().to_bytes()],
+        space = 8 + 8 + 32 + 32 + 8 + 8 + 8 + (4 + 64) + 1 + 8 + (1 + 8) + (1 + 8) + (1 + 4 + 256) + 1 + 1,
+        seeds = [b"rental_transaction", &product_id.to_le_bytes()[..8], &renter.key().to_bytes()],
         bump
     )]
     pub rental_transaction: Account<'info, RentalTransaction>,
@@ -418,14 +512,13 @@ pub struct CreateRentalTransaction<'info> {
     pub renter: Signer<'info>,
     
     pub system_program: Program<'info, System>,
-    pub clock: Sysvar<'info, Clock>,
 }
 
 #[derive(Accounts)]
 pub struct PayRental<'info> {
     #[account(
         mut,
-        seeds = [b"rental_transaction", &rental_transaction.product_id.to_le_bytes(), &rental_transaction.renter.to_bytes()],
+        seeds = [b"rental_transaction", &rental_transaction.product_id.to_le_bytes()[..8], &rental_transaction.renter.to_bytes()],
         bump = rental_transaction.bump
     )]
     pub rental_transaction: Account<'info, RentalTransaction>,
@@ -433,8 +526,10 @@ pub struct PayRental<'info> {
     #[account(
         init_if_needed,
         payer = renter,
-        associated_token::mint = usdc_mint,
-        associated_token::authority = rental_transaction
+        seeds = [b"escrow", rental_transaction.key().as_ref()],
+        bump,
+        token::mint = usdc_mint,
+        token::authority = rental_transaction
     )]
     pub escrow_token_account: Account<'info, TokenAccount>,
     
@@ -451,24 +546,25 @@ pub struct PayRental<'info> {
     pub renter: Signer<'info>,
     
     pub token_program: Program<'info, Token>,
-    pub associated_token_program: Program<'info, token::AssociatedToken>,
+    pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,
-    pub clock: Sysvar<'info, Clock>,
 }
 
 #[derive(Accounts)]
 pub struct CompleteRental<'info> {
     #[account(
         mut,
-        seeds = [b"rental_transaction", &rental_transaction.product_id.to_le_bytes(), &rental_transaction.renter.to_bytes()],
+        seeds = [b"rental_transaction", &rental_transaction.product_id.to_le_bytes()[..8], &rental_transaction.renter.to_bytes()],
         bump = rental_transaction.bump
     )]
     pub rental_transaction: Account<'info, RentalTransaction>,
     
     #[account(
         mut,
-        associated_token::mint = usdc_mint,
-        associated_token::authority = rental_transaction
+        seeds = [b"escrow", rental_transaction.key().as_ref()],
+        bump = rental_transaction.escrow_bump,
+        token::mint = usdc_mint,
+        token::authority = rental_transaction
     )]
     pub escrow_token_account: Account<'info, TokenAccount>,
     
@@ -495,22 +591,23 @@ pub struct CompleteRental<'info> {
     pub usdc_mint: Account<'info, Mint>,
     pub signer: Signer<'info>,
     pub token_program: Program<'info, Token>,
-    pub clock: Sysvar<'info, Clock>,
 }
 
 #[derive(Accounts)]
 pub struct AdminIntervene<'info> {
     #[account(
         mut,
-        seeds = [b"rental_transaction", &rental_transaction.product_id.to_le_bytes(), &rental_transaction.renter.to_bytes()],
+        seeds = [b"rental_transaction", &rental_transaction.product_id.to_le_bytes()[..8], &rental_transaction.renter.to_bytes()],
         bump = rental_transaction.bump
     )]
     pub rental_transaction: Account<'info, RentalTransaction>,
     
     #[account(
         mut,
-        associated_token::mint = usdc_mint,
-        associated_token::authority = rental_transaction
+        seeds = [b"escrow", rental_transaction.key().as_ref()],
+        bump = rental_transaction.escrow_bump,
+        token::mint = usdc_mint,
+        token::authority = rental_transaction
     )]
     pub escrow_token_account: Account<'info, TokenAccount>,
     
@@ -544,23 +641,67 @@ pub struct AdminIntervene<'info> {
     pub usdc_mint: Account<'info, Mint>,
     pub admin: Signer<'info>,
     pub token_program: Program<'info, Token>,
-    pub clock: Sysvar<'info, Clock>,
 }
 
 #[derive(Accounts)]
-pub struct CancelAsRenter<'info> {
+pub struct CancelAsRenterCreated<'info> {
     #[account(
         mut,
         close = renter,
-        seeds = [b"rental_transaction", &rental_transaction.product_id.to_le_bytes(), &rental_transaction.renter.to_bytes()],
+        seeds = [b"rental_transaction", &rental_transaction.product_id.to_le_bytes()[..8], &rental_transaction.renter.to_bytes()],
         bump = rental_transaction.bump
     )]
     pub rental_transaction: Account<'info, RentalTransaction>,
     
     #[account(mut)]
     pub renter: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct CancelAsRenterPaid<'info> {
+    #[account(
+        mut,
+        close = renter,
+        seeds = [b"rental_transaction", &rental_transaction.product_id.to_le_bytes()[..8], &rental_transaction.renter.to_bytes()],
+        bump = rental_transaction.bump
+    )]
+    pub rental_transaction: Account<'info, RentalTransaction>,
     
-    pub clock: Sysvar<'info, Clock>,
+    #[account(
+        mut,
+        close = renter,
+        seeds = [b"escrow", rental_transaction.key().as_ref()],
+        bump = rental_transaction.escrow_bump,
+        token::mint = usdc_mint,
+        token::authority = rental_transaction
+    )]
+    pub escrow_token_account: Account<'info, TokenAccount>,
+    
+    #[account(
+        mut,
+        associated_token::mint = usdc_mint,
+        associated_token::authority = renter,
+    )]
+    pub renter_token_account: Account<'info, TokenAccount>,
+    
+    #[account(
+        mut,
+        associated_token::mint = usdc_mint,
+        associated_token::authority = global_state.admin
+    )]
+    pub admin_token_account: Account<'info, TokenAccount>,
+    
+    #[account(
+        seeds = [b"global_state"],
+        bump = global_state.bump
+    )]
+    pub global_state: Account<'info, GlobalState>,
+
+    #[account(mut)]
+    pub renter: Signer<'info>,
+    
+    pub usdc_mint: Account<'info, Mint>,
+    pub token_program: Program<'info, Token>,
 }
 
 #[derive(Accounts)]
@@ -568,7 +709,7 @@ pub struct CancelAsOwner<'info> {
     #[account(
         mut,
         close = owner,
-        seeds = [b"rental_transaction", &rental_transaction.product_id.to_le_bytes(), &rental_transaction.renter.to_bytes()],
+        seeds = [b"rental_transaction", &rental_transaction.product_id.to_le_bytes()[..8], &rental_transaction.renter.to_bytes()],
         bump = rental_transaction.bump
     )]
     pub rental_transaction: Account<'info, RentalTransaction>,
@@ -576,8 +717,10 @@ pub struct CancelAsOwner<'info> {
     #[account(
         mut,
         close = owner,
-        associated_token::mint = usdc_mint,
-        associated_token::authority = rental_transaction
+        seeds = [b"escrow", rental_transaction.key().as_ref()],
+        bump = rental_transaction.escrow_bump,
+        token::mint = usdc_mint,
+        token::authority = rental_transaction
     )]
     pub escrow_token_account: Account<'info, TokenAccount>,
     
@@ -594,14 +737,71 @@ pub struct CancelAsOwner<'info> {
     pub owner: Signer<'info>,
     
     pub token_program: Program<'info, Token>,
-    pub clock: Sysvar<'info, Clock>,
 }
 
-// Data structures
+// Events for Anchor 0.31
+#[event]
+pub struct RentalTransactionCreated {
+    pub product_id: u64,
+    pub renter: Pubkey,
+    pub owner_wallet: Pubkey,
+    pub total_amount: u64,
+    pub booking_id: String,
+}
+
+#[event]
+pub struct RentalPaymentCompleted {
+    pub booking_id: String,
+    pub amount: u64,
+    pub renter: Pubkey,
+}
+
+#[event]
+pub struct RentalCompleted {
+    pub booking_id: String,
+    pub owner_amount: u64,
+    pub platform_fee: u64,
+    pub completed_by: Pubkey,
+}
+
+#[event]
+pub struct AdminIntervention {
+    pub booking_id: String,
+    pub owner_amount: u64,
+    pub renter_refund: u64,
+    pub platform_fee: u64,
+    pub reason: String,
+    pub admin: Pubkey,
+}
+
+#[event]
+pub struct RentalCancelledByRenter {
+    pub booking_id: String,
+    pub renter: Pubkey,
+    pub cancelled_at: i64,
+}
+
+#[event]
+pub struct RentalCancelledByOwner {
+    pub booking_id: String,
+    pub owner: Pubkey,
+    pub refund_amount: u64,
+    pub cancelled_at: i64,
+}
+
+#[event]
+pub struct RentalCancelledByRenterPaid {
+    pub booking_id: String,
+    pub renter: Pubkey,
+    pub refund_amount: u64,
+    pub cancellation_fee: u64,
+    pub cancelled_at: i64,
+}
+
 #[account]
 pub struct GlobalState {
     pub admin: Pubkey,
-    pub platform_fee_rate: u16, // Basis points (10000 = 100%)
+    pub platform_fee_rate: u16,
     pub bump: u8,
 }
 
@@ -620,6 +820,7 @@ pub struct RentalTransaction {
     pub completed_at: Option<i64>,
     pub resolution_reason: Option<String>,
     pub bump: u8,
+    pub escrow_bump: u8,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq)]
@@ -628,10 +829,9 @@ pub enum TransactionStatus {
     Paid,
     Completed,
     Cancelled,
-    Resolved, // Admin intervention
+    Resolved,
 }
 
-// Error codes
 #[error_code]
 pub enum ErrorCode {
     #[msg("Invalid amount specified")]
@@ -664,4 +864,8 @@ pub enum ErrorCode {
     CannotCancelCompletedTransaction,
     #[msg("Unauthorized completion - only renter, owner, or admin can complete")]
     UnauthorizedCompletion,
+    #[msg("Math operation overflow")]
+    MathOverflow,
+    #[msg("Cancellation too late - rental period has already started")]
+    CancellationTooLate,
 }

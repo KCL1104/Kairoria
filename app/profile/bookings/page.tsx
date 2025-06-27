@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -21,9 +21,19 @@ import {
   Package
 } from 'lucide-react'
 import { useAuth } from '@/contexts/SupabaseAuthContext'
+import { useConnection, useWallet } from '@solana/wallet-adapter-react'
 import { supabase } from '@/lib/supabase-client'
+import {
+  getKairoriaProgram,
+  createCancelAsRenterCreatedInstruction,
+  createCancelAsRenterPaidInstruction,
+  createCancelAsOwnerInstruction,
+} from '@/lib/solana-booking'
+import { AnchorProvider } from '@coral-xyz/anchor'
+import { Transaction, PublicKey } from '@solana/web3.js'
 
 interface Booking {
+  renter_id: string;
   id: string
   product_id: number
   status: 'pending' | 'confirmed' | 'completed' | 'cancelled'
@@ -54,22 +64,15 @@ export default function UserBookingsPage() {
   const router = useRouter()
   const { toast } = useToast()
   const { user } = useAuth()
+  const { connection } = useConnection()
+  const { publicKey: walletAddress, sendTransaction } = useWallet()
 
   const [bookings, setBookings] = useState<BookingsResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('renter')
   const [filter, setFilter] = useState<string>('all')
 
-  useEffect(() => {
-    if (!user) {
-      router.push('/auth/login')
-      return
-    }
-
-    fetchBookings()
-  }, [user])
-
-  const fetchBookings = async () => {
+  const fetchBookings = useCallback(async () => {
     try {
       const { data: { session } } = await supabase!.auth.getSession()
       
@@ -96,17 +99,68 @@ export default function UserBookingsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [toast])
 
-  const handleCancelBooking = async (bookingId: string) => {
+  useEffect(() => {
+    if (!user) {
+      router.push('/auth/login')
+      return
+    }
+
+    fetchBookings()
+  }, [user, fetchBookings, router])
+
+  const handleCancelBooking = async (booking: Booking, as: 'renter' | 'owner') => {
     try {
+      if (!walletAddress) {
+        throw new Error('Wallet not connected.')
+      }
+
+      const provider = new AnchorProvider(connection, window.solana, AnchorProvider.defaultOptions())
+      const program = getKairoriaProgram(provider)
+
+      let cancelIx
+      if (as === 'renter') {
+        if (booking.status === 'pending') {
+          cancelIx = await createCancelAsRenterCreatedInstruction(program, booking.product_id)
+        } else if (booking.status === 'confirmed') {
+          cancelIx = await createCancelAsRenterPaidInstruction(program, booking.product_id)
+        } else {
+          throw new Error('Cannot cancel booking in its current state.')
+        }
+      } else { // as owner
+        const { data: renterProfile, error: renterProfileError } = await supabase!
+          .from('profiles')
+          .select('wallet_address')
+          .eq('id', booking.renter_id)
+          .single()
+
+        if (renterProfileError || !renterProfile?.wallet_address) {
+          throw new Error('Could not find renter wallet address.')
+        }
+
+        cancelIx = await createCancelAsOwnerInstruction(program, booking.product_id, new PublicKey(renterProfile.wallet_address))
+      }
+
+      const transaction = new Transaction().add(cancelIx)
+
+      toast({
+        title: "Processing cancellation...",
+        description: "Please approve the transaction in your wallet"
+      })
+
+      const signature = await sendTransaction(transaction, connection)
+      await connection.confirmTransaction(signature, 'processed')
+
       const { data: { session } } = await supabase!.auth.getSession()
       
-      const response = await fetch(`/api/bookings/${bookingId}`, {
-        method: 'DELETE',
+      const response = await fetch(`/api/bookings/${booking.id}/cancel`, {
+        method: 'POST',
         headers: {
+          'Content-Type': 'application/json',
           'Authorization': `Bearer ${session?.access_token}`,
         },
+        body: JSON.stringify({ transaction_signature: signature })
       })
 
       const data = await response.json()
@@ -132,14 +186,12 @@ export default function UserBookingsPage() {
     }
   }
 
-  const canCancelBooking = (booking: Booking) => {
-    if (booking.status !== 'confirmed') return false
-    
-    const startDate = new Date(booking.start_date)
-    const now = new Date()
-    const oneDayBefore = new Date(startDate.getTime() - 24 * 60 * 60 * 1000)
-    
-    return now < oneDayBefore
+  const canCancelBooking = (booking: Booking, as: 'renter' | 'owner') => {
+    if (as === 'renter') {
+      return booking.status === 'pending' || booking.status === 'confirmed'
+    } else { // as owner
+      return booking.status === 'confirmed'
+    }
   }
 
   const formatDate = (dateString: string) => {
@@ -236,11 +288,11 @@ export default function UserBookingsPage() {
             Contact
           </Button>
 
-          {!isOwner && canCancelBooking(booking) && (
+          {canCancelBooking(booking, isOwner ? 'owner' : 'renter') && (
             <Button
               variant="destructive"
               size="sm"
-              onClick={() => handleCancelBooking(booking.id)}
+              onClick={() => handleCancelBooking(booking, isOwner ? 'owner' : 'renter')}
             >
               <XCircle className="w-4 h-4 mr-1" />
               Cancel

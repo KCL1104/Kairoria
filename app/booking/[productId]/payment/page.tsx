@@ -8,11 +8,17 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { useToast } from '@/hooks/use-toast'
 import { Calendar, Clock, MapPin, User, Wallet, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react'
-import { useSolanaWallet } from '@/hooks/useSolanaWallet'
+import { useConnection, useWallet } from '@solana/wallet-adapter-react'
 import WalletConnectButton from '@/components/wallet/WalletConnectButton'
 import { useAuth } from '@/contexts/SupabaseAuthContext'
 import { supabase } from '@/lib/supabase-client'
-import { usdcToLamports } from '@/lib/solana-booking'
+import { 
+  getKairoriaProgram,
+  createRentalTransactionInstruction,
+  createPaymentInstruction,
+} from '@/lib/solana-booking'
+import { AnchorProvider, Program } from '@coral-xyz/anchor'
+import { Transaction, PublicKey } from '@solana/web3.js'
 
 interface BookingData {
   product_id: number
@@ -31,7 +37,8 @@ export default function BookingPaymentPage() {
   const searchParams = useSearchParams()
   const { toast } = useToast()
   const { user } = useAuth()
-  const { connected, walletAddress, signAndSendTransaction, isLoading: walletLoading } = useSolanaWallet()
+  const { connected, publicKey: walletAddress, sendTransaction } = useWallet()
+  const { connection } = useConnection()
 
   const [bookingData, setBookingData] = useState<BookingData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -159,33 +166,52 @@ export default function BookingPaymentPage() {
       setBookingId(bookingResponse.booking_id)
 
       // Step 2: Execute Solana transaction
-      // TODO: Implement actual Solana smart contract interaction
-      // For now, we'll simulate the transaction
-      
+      const { instructionData } = bookingResponse
+
+      if (!walletAddress) {
+        throw new Error('Wallet not connected.')
+      }
+
+      const provider = new AnchorProvider(connection, window.solana, AnchorProvider.defaultOptions())
+      const program = getKairoriaProgram(provider)
+
+      const createIx = await createRentalTransactionInstruction(
+        program,
+        instructionData.product_id,
+        new PublicKey(instructionData.owner_wallet),
+        instructionData.total_amount_usdc,
+        instructionData.rental_start,
+        instructionData.rental_end,
+        instructionData.booking_id.toString()
+      )
+
+      const paymentIx = await createPaymentInstruction(
+        program,
+        instructionData.product_id,
+        instructionData.total_amount_usdc
+      )
+
+      const transaction = new Transaction().add(createIx).add(paymentIx)
+
       toast({
         title: "Processing payment...",
         description: "Please approve the transaction in your wallet"
       })
 
-      // Simulate transaction delay
-      await new Promise(resolve => setTimeout(resolve, 2000))
+      const signature = await sendTransaction(transaction, connection)
+
+      await connection.confirmTransaction(signature, 'processed')
 
       // Step 3: Confirm payment
       const { data: { session } } = await supabase?.auth.getSession() ?? { data: { session: null } }
-      const confirmResponse = await fetch(`/api/bookings/${bookingResponse.booking_id}/confirm-payment`, {
+      const confirmResponse = await fetch(`/api/bookings/${bookingResponse.booking.id}/confirm-payment`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session?.access_token}`,
         },
         body: JSON.stringify({
-          transaction_signature: 'demo_signature_' + Date.now(),
-          solana_transaction_data: {
-            amount: usdcToLamports(bookingData!.total_price),
-            amount_display: bookingData!.total_price,
-            from: walletAddress,
-            timestamp: new Date().toISOString(),
-          },
+          transaction_signature: signature,
         }),
       })
 
@@ -201,7 +227,7 @@ export default function BookingPaymentPage() {
       })
 
       // Redirect to booking confirmation page
-      router.push(`/booking/confirmation/${bookingResponse.booking_id}`)
+      router.push(`/booking/confirmation/${bookingResponse.booking.id}`)
 
     } catch (error) {
       console.error('Payment error:', error)
@@ -356,7 +382,7 @@ export default function BookingPaymentPage() {
                       <span className="text-green-800 font-medium">Wallet Connected</span>
                     </div>
                     <Badge variant="secondary" className="font-mono text-xs">
-                      {walletAddress?.slice(0, 4)}...{walletAddress?.slice(-4)}
+                      {walletAddress?.toString().slice(0, 4)}...{walletAddress?.toString().slice(-4)}
                     </Badge>
                   </div>
 

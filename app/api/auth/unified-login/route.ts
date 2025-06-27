@@ -156,7 +156,6 @@ export async function POST(request: NextRequest) {
     return response
 
   } catch (error) {
-    console.error('Unified login error:', error)
     logAuthEvent('unified_login_error', { error: String(error) })
     return NextResponse.json(
       { 
@@ -171,7 +170,7 @@ export async function POST(request: NextRequest) {
 /**
  * Handle password login
  */
-async function handlePasswordLogin(supabase: any, credentials: any) {
+async function handlePasswordLogin(supabase: any, credentials: { email?: string; password?: string }) {
   const { email, password } = credentials
 
   if (!email || !password) {
@@ -182,11 +181,6 @@ async function handlePasswordLogin(supabase: any, credentials: any) {
 
   // Additional safety check
   if (!supabase || !supabase.auth || typeof supabase.auth.signInWithPassword !== 'function') {
-    console.error('Supabase auth method not available:', {
-      hasSupabase: !!supabase,
-      hasAuth: !!(supabase && supabase.auth),
-      hasMethod: !!(supabase && supabase.auth && supabase.auth.signInWithPassword)
-    })
     return {
       error: { message: 'Authentication service is not properly configured' }
     }
@@ -198,7 +192,6 @@ async function handlePasswordLogin(supabase: any, credentials: any) {
       password,
     })
   } catch (error) {
-    console.error('Password login error:', error)
     return {
       error: { message: error instanceof Error ? error.message : 'Authentication failed' }
     }
@@ -208,7 +201,7 @@ async function handlePasswordLogin(supabase: any, credentials: any) {
 /**
  * Handle OAuth login
  */
-async function handleOAuthLogin(supabase: any, credentials: any, request: NextRequest) {
+async function handleOAuthLogin(supabase: any, credentials: { provider?: string; redirectTo?: string }, request: NextRequest) {
   const { provider, redirectTo } = credentials
 
   if (!provider) {
@@ -219,11 +212,6 @@ async function handleOAuthLogin(supabase: any, credentials: any, request: NextRe
 
   // Additional safety check
   if (!supabase || !supabase.auth || typeof supabase.auth.signInWithOAuth !== 'function') {
-    console.error('Supabase OAuth method not available:', {
-      hasSupabase: !!supabase,
-      hasAuth: !!(supabase && supabase.auth),
-      hasMethod: !!(supabase && supabase.auth && supabase.auth.signInWithOAuth)
-    })
     return {
       error: { message: 'OAuth service is not properly configured' }
     }
@@ -233,10 +221,26 @@ async function handleOAuthLogin(supabase: any, credentials: any, request: NextRe
     const origin = new URL(request.url).origin
     const defaultRedirectTo = `${origin}/auth/callback`
 
+    // Whitelist validation for redirectTo
+    const allowedDomains = [new URL(origin).hostname, 'kairoria.com']; // Add your production domain here
+    let finalRedirectTo = defaultRedirectTo;
+    if (redirectTo) {
+      try {
+        const redirectUrl = new URL(redirectTo);
+        if (allowedDomains.includes(redirectUrl.hostname)) {
+          finalRedirectTo = redirectTo;
+        } else {
+          logAuthEvent('oauth_redirect_blocked', { providedRedirectTo: redirectTo });
+        }
+      } catch (e) {
+        logAuthEvent('oauth_redirect_invalid', { providedRedirectTo: redirectTo });
+      }
+    }
+
     return await supabase.auth.signInWithOAuth({
       provider,
       options: {
-        redirectTo: redirectTo || defaultRedirectTo,
+        redirectTo: finalRedirectTo,
         queryParams: {
           access_type: 'offline',
           prompt: 'consent'
@@ -244,7 +248,6 @@ async function handleOAuthLogin(supabase: any, credentials: any, request: NextRe
       },
     })
   } catch (error) {
-    console.error('OAuth login error:', error)
     return {
       error: { message: error instanceof Error ? error.message : 'OAuth authentication failed' }
     }
@@ -256,7 +259,6 @@ async function handleOAuthLogin(supabase: any, credentials: any, request: NextRe
  */
 async function fetchUserProfile(supabase: any, userId: string) {
   if (!supabase || !supabase.from) {
-    console.error('Supabase client not available for profile fetch')
     return null
   }
 
@@ -268,14 +270,12 @@ async function fetchUserProfile(supabase: any, userId: string) {
       .single()
     
     if (error) {
-      console.error('Profile fetch error:', error)
       logAuthEvent('profile_fetch_error', { error: error.message, userId })
       return null
     }
     
     return profileData
   } catch (profileError) {
-    console.error('Error fetching profile:', profileError)
     logAuthEvent('profile_fetch_error', { error: String(profileError), userId })
     return null
   }

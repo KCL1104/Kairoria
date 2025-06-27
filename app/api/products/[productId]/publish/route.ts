@@ -3,8 +3,9 @@ import { createServerClient } from '@supabase/ssr'
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { productId: string } }
+  { params }: { params: Promise<{ productId: string }> }
 ) {
+  const { productId } = await params
   try {
     // Get Supabase URL and keys
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_DATABASE_URL
@@ -70,7 +71,7 @@ export async function PUT(
       )
     }
 
-    const productId = params.productId // UUID - no need to parse
+    // productId is already available from destructuring
     
     if (!productId) {
       return NextResponse.json(

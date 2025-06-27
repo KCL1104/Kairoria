@@ -225,13 +225,18 @@ export async function fetchUniqueCategories() {
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 8000) // 8 second timeout
     
-    const response = await fetch('/api/categories', {
+    // Determine the base URL for server-side rendering
+    const baseUrl = typeof window === 'undefined' 
+      ? process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+      : ''
+    
+    const response = await fetch(`${baseUrl}/api/categories`, {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
       },
-      cache: 'no-store',
+      next: { revalidate: 3600 }, // Cache for 1 hour
       signal: controller.signal
     })
     

@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     let response = NextResponse.json({ success: false })
     
     // Use the unified secure server client to ensure consistent cookie handling
-    const supabase = createSecureServerClient(response)
+    const supabase = await createSecureServerClient(response)
 
     // Get authenticated user
     const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -146,7 +146,7 @@ export async function POST(request: NextRequest) {
  */
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createSecureServerClient()
+    const supabase = await createSecureServerClient()
     
     // Get authenticated user
     const { data: { user }, error: authError } = await supabase.auth.getUser()

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { Connection, PublicKey, SystemProgram } from '@solana/web3.js'
+import { getKairoriaProgram, createRentalTransactionInstruction } from '@/lib/solana-booking'
+import { AnchorProvider } from '@coral-xyz/anchor'
 
 export async function POST(request: NextRequest) {
   console.log('Booking create API called')
@@ -165,42 +167,23 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Generate Solana transaction instructions
-    const solanaInstructions = {
+    // We can't create the full instruction here because we don't have the user's wallet provider.
+    // Instead, we'll return the necessary data for the frontend to construct the transaction.
+    const instructionData = {
       booking_id: booking.id,
       product_id: parseInt(product_id),
       owner_wallet: product.profiles.solana_address,
-      renter_wallet: renter_wallet_address,
       total_amount_usdc: Math.floor(parseFloat(total_price) * 1000000), // Convert to USDC minor units (6 decimals)
       rental_start: Math.floor(startDate.getTime() / 1000), // Unix timestamp
       rental_end: Math.floor(endDate.getTime() / 1000), // Unix timestamp
-      program_id: process.env.NEXT_PUBLIC_KAIRORIA_PROGRAM_ID || 'HczADmDQ7CSAQCjLnixgXHiJWg31ToAMKnyzamaadkbY',
-      instructions: {
-        create_rental_transaction: {
-          accounts: {
-            rental_transaction: null, // Will be derived PDA
-            renter: renter_wallet_address,
-            system_program: SystemProgram.programId.toString(),
-          },
-          data: {
-            product_id: parseInt(product_id),
-            owner_wallet: product.profiles.solana_address,
-            total_amount: Math.floor(parseFloat(total_price) * 1000000),
-            rental_start: Math.floor(startDate.getTime() / 1000),
-            rental_end: Math.floor(endDate.getTime() / 1000),
-            booking_id: booking.id.toString(),
-          }
-        }
-      }
     }
 
     console.log('Booking created successfully:', booking.id)
     return NextResponse.json(
       {
         message: 'Booking created successfully',
-        booking_id: booking.id,
         booking,
-        solana_instructions: solanaInstructions,
+        instructionData,
       },
       { status: 201 }
     )

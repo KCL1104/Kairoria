@@ -6,7 +6,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
-  console.log('Booking payment confirmation API called for booking:', id)
+  console.log('Booking cancellation API called for booking:', id)
   
   try {
     // Get Supabase configuration
@@ -54,6 +54,28 @@ export async function POST(
       )
     }
 
+    // Get the booking
+    const { data: booking, error: bookingError } = await supabase
+      .from('bookings')
+      .select('*, products(*)')
+      .eq('id', id)
+      .single()
+
+    if (bookingError || !booking) {
+      return NextResponse.json(
+        { error: 'Booking not found' },
+        { status: 404 }
+      )
+    }
+
+    // Verify user is either the renter or owner
+    if (booking.renter_id !== user.id && booking.products.owner_id !== user.id) {
+      return NextResponse.json(
+        { error: 'Unauthorized access to booking' },
+        { status: 403 }
+      )
+    }
+
     // Parse request body
     const body = await request.json()
     const { transaction_signature } = body
@@ -65,50 +87,13 @@ export async function POST(
       )
     }
 
-    // Get the booking
-    const { data: booking, error: bookingError } = await supabase
-      .from('bookings')
-      .select('*')
-      .eq('id', id)
-      .single()
-
-    if (bookingError || !booking) {
-      return NextResponse.json(
-        { error: 'Booking not found' },
-        { status: 404 }
-      )
-    }
-
-    // Verify user owns this booking
-    if (booking.renter_id !== user.id) {
-      return NextResponse.json(
-        { error: 'Unauthorized access to booking' },
-        { status: 403 }
-      )
-    }
-
-    // Check if booking is in correct status
-    if (booking.status !== 'pending') {
-      return NextResponse.json(
-        { error: 'Booking is not in pending status' },
-        { status: 400 }
-      )
-    }
-
-    // TODO: Verify the Solana transaction on-chain
-    // This would involve:
-    // 1. Connecting to Solana RPC
-    // 2. Fetching the transaction by signature
-    // 3. Verifying the transaction details match the booking
-    // 4. Confirming the transaction was successful
-    
-    // For now, we'll update the booking with the transaction signature
+    // Update booking status based on current status and user role
     const { data: updatedBooking, error: updateError } = await supabase
       .from('bookings')
       .update({
-        status: 'confirmed',
-        payment_intent_id: transaction_signature,
-        confirmed_at: new Date().toISOString(),
+        status: 'cancelled',
+        cancelled_at: new Date().toISOString(),
+        cancellation_transaction_signature: transaction_signature,
       })
       .eq('id', id)
       .select()
@@ -117,15 +102,15 @@ export async function POST(
     if (updateError) {
       console.error('Booking update error:', updateError)
       return NextResponse.json(
-        { error: 'Failed to confirm booking payment' },
+        { error: 'Failed to cancel booking' },
         { status: 500 }
       )
     }
 
-    console.log('Booking payment confirmed successfully:', id)
+    console.log('Booking cancelled successfully:', id)
     return NextResponse.json(
       {
-        message: 'Booking payment confirmed successfully',
+        message: 'Booking cancelled successfully',
         booking: updatedBooking,
         transaction_signature,
       },
@@ -133,7 +118,7 @@ export async function POST(
     )
 
   } catch (error) {
-    console.error('Booking payment confirmation error:', error)
+    console.error('Booking cancellation error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

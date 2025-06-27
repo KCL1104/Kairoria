@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
     let response = NextResponse.json({ success: false })
     
     // Use the unified secure server client to ensure consistent cookie handling
-    const supabase = createSecureServerClient(response)
+    const supabase = await createSecureServerClient(response)
 
     const body = await request.json()
     const { email, password, fullName } = body

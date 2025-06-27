@@ -51,8 +51,8 @@ export function useUnifiedAuth() {
   const [error, setError] = useState<string | null>(null)
   const [supportedTypes, setSupportedTypes] = useState<SupportedLoginType[]>([])
   
-  // Get signInWithGoogle and refreshSession functions from Auth Context
-  const { signInWithGoogle: signInWithGoogleFromContext, refreshSession } = useAuth()
+  // Get refreshSession function from Auth Context
+  const { refreshSession } = useAuth()
 
   /**
    * Unified login method
@@ -193,7 +193,6 @@ export function useUnifiedAuth() {
       
       return []
     } catch (err) {
-      console.error('Failed to fetch supported login types:', err)
       return []
     }
   }
