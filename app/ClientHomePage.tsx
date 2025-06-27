@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Link from "next/link"
-import { Search, Sliders, Map, ArrowRight, Loader2, CheckCircle } from "lucide-react"
+import { Search, Sliders, Map, ArrowRight, Loader2, CheckCircle, Zap } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
