@@ -50,13 +50,33 @@ export async function PUT(
 
     const supabase = createServerClient(supabaseUrl, supabaseAnonKey, supabaseConfig)
 
-    // DEMO MODE: Get user with fallback
+    // Get authenticated user
     let user: any = null
     try {
       const { data: { user: currentUser } } = await supabase.auth.getUser()
-      user = currentUser || { id: 'demo-user-' + Date.now() }
+      user = currentUser
+      
+      if (!user) {
+        return NextResponse.json(
+          { error: 'Authentication required' },
+          { 
+            status: 401,
+            headers: {
+              'Content-Type': 'application/json',
+            }
+          }
+        )
+      }
     } catch (error) {
-      user = { id: 'demo-user-' + Date.now() }
+      return NextResponse.json(
+        { error: 'Authentication failed' },
+        { 
+          status: 401,
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }
+      )
     }
 
     // productId is already available from destructuring

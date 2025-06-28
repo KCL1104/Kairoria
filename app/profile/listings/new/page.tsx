@@ -106,13 +106,17 @@ export default function NewListingPage() {
     resolver: zodResolver(productSchema),
   })
 
-  // DEMO MODE: Simplified auth check
+  // Authentication check
   useEffect(() => {
     if (!isLoading && !user) {
-      console.log('DEMO MODE: No user found, but allowing access for demo')
-      // In demo mode, we'll allow access even without proper auth
+      toast({
+        variant: 'destructive',
+        title: 'Authentication Required',
+        description: 'Please log in to create a listing',
+      })
+      router.push('/auth/login')
     }
-  }, [isLoading, user])
+  }, [isLoading, user, toast, router])
 
   // Fetch categories
   useEffect(() => {
@@ -271,6 +275,15 @@ export default function NewListingPage() {
       console.log('API response data:', result)
 
       if (!response.ok) {
+        if (response.status === 401) {
+          toast({
+            variant: 'destructive',
+            title: 'Authentication Required',
+            description: 'Please log in to create a product',
+          })
+          router.push('/auth/login')
+          return
+        }
         throw new Error(result.error || 'Failed to create product')
       }
 

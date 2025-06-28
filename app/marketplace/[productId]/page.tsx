@@ -196,7 +196,7 @@ export default function ProductPage() {
                 </ul>
               </TabsContent>
               <TabsContent value="reviews">
-                <ProductReviews productId={product.id.toString()} />
+                <ProductReviews productId={product.id} />
               </TabsContent>
             </Tabs>
           </div>

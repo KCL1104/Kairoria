@@ -70,26 +70,35 @@ export async function POST(request: NextRequest) {
 
     const supabase = createServerClient(supabaseUrl, supabaseAnonKey, supabaseConfig)
 
-    // Get the current user - for demo, create a dummy user if none exists
+    // Get the current user
     let user: any = null
     try {
       const { data: { user: currentUser }, error: userError } = await supabase.auth.getUser()
       user = currentUser
+      console.log('User authentication check:', { hasUser: !!user, userId: user?.id })
       
       if (!user) {
-        // DEMO MODE: Create a dummy user for demo purposes
-        console.log('DEMO MODE: No user found, creating dummy user for demo')
-        user = {
-          id: 'demo-user-' + Date.now(),
-          email: 'demo@example.com'
-        }
+        return NextResponse.json(
+          { error: 'Authentication required. Please log in to create a product.' },
+          { 
+            status: 401,
+            headers: {
+              'Content-Type': 'application/json',
+            }
+          }
+        )
       }
     } catch (error) {
-      console.log('Auth error, using demo user:', error)
-      user = {
-        id: 'demo-user-' + Date.now(),
-        email: 'demo@example.com'
-      }
+      console.error('Authentication error:', error)
+      return NextResponse.json(
+        { error: 'Authentication failed. Please log in again.' },
+        { 
+          status: 401,
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }
+      )
     }
 
     // For production use: Check if user has a Solana address configured

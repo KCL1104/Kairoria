@@ -199,7 +199,7 @@ export default function ClientHomePage({ initialProducts, initialCategories }: C
                 return (
                   <ProductCard 
                     key={product.id}
-                    id={product.id.toString()}
+                    id={product.id}
                     title={product.title}
                     category={product.categories?.name || 'Unknown'}
                     price={convertFromStorageAmount(product.price_per_day)}

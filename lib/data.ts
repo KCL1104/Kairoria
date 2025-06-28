@@ -1,6 +1,6 @@
 // Product types based on database schema
 export interface Product {
-  id: number // Changed from string to number to match database
+  id: string // UUID from database
   title: string
   description: string
   price_per_day: number // Changed from string to number for DECIMAL fields
@@ -22,7 +22,7 @@ export interface Product {
 
 export interface ProductImage {
   id: string // UUID
-  product_id: number // Changed to match Product.id type
+  product_id: string // UUID to match Product.id type
   image_url: string
   display_order: number
   is_cover: boolean
@@ -57,7 +57,7 @@ export interface Profile {
 
 export interface Booking {
   id: string // UUID
-  product_id: number // Changed to match Product.id type
+  product_id: string // UUID to match Product.id type
   renter_id: string // UUID
   owner_id: string // UUID
   start_date: string // TIMESTAMP WITH TIME ZONE
@@ -71,7 +71,7 @@ export interface Booking {
 
 export interface Review {
   id: string // UUID
-  product_id: number // Changed to match Product.id type
+  product_id: string // UUID to match Product.id type
   booking_id: string // UUID
   reviewer_id: string // UUID
   rating: number // INTEGER 1-5
@@ -84,7 +84,7 @@ export interface Message {
   conversation_id: string // UUID
   sender_id: string // UUID
   recipient_id: string // UUID
-  product_id?: number // Changed to match Product.id type
+  product_id?: string // UUID to match Product.id type
   content: string
   is_read: boolean
   created_at: string
@@ -94,7 +94,7 @@ export interface Conversation {
   id: string // UUID
   participant_1: string // UUID
   participant_2: string // UUID
-  product_id?: number // Changed to match Product.id type
+  product_id?: string // UUID to match Product.id type
   last_message_at: string
   created_at: string
 }

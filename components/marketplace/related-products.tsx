@@ -66,7 +66,7 @@ export function RelatedProducts({ category }: { category: string }) {
           return (
             <ProductCard
               key={product.id}
-              id={product.id.toString()}
+              id={product.id}
               title={product.title}
               category={product.categories.name}
               price={pricePerDay}
