@@ -80,14 +80,14 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Create initial profile entry
+    // Create initial profile entry (DEMO MODE: Auto-verified)
     const profileData = {
       id: user.id,
       email: user.email,
       full_name: user.user_metadata?.full_name || null,
       avatar_url: user.user_metadata?.avatar_url || null,
-      is_email_verified: !!user.email_confirmed_at,
-      is_phone_verified: false,
+      is_email_verified: true,  // Auto-verified for demo
+      is_phone_verified: true,  // Auto-verified for demo
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     }

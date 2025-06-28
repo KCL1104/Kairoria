@@ -13,15 +13,17 @@ export function useProtectedRoute(redirectTo: string = '/auth/login') {
   const { isAuthenticated, isLoading, user } = useAuth()
   const router = useRouter()
 
-  useEffect(() => {
-    // Only check after auth state is loaded
-    if (!isLoading && !isAuthenticated) {
-      // Redirect to login page with callback URL
-      const callbackUrl = encodeURIComponent(window.location.pathname)
-      router.push(`${redirectTo}?callbackUrl=${callbackUrl}`)
-    }
-  }, [isAuthenticated, isLoading, router, redirectTo])
+  // DEMO MODE: Disable all route protection
+  // useEffect(() => {
+  //   // Only check after auth state is loaded
+  //   if (!isLoading && !isAuthenticated) {
+  //     // Redirect to login page with callback URL
+  //     const callbackUrl = encodeURIComponent(window.location.pathname)
+  //     router.push(`${redirectTo}?callbackUrl=${callbackUrl}`)
+  //   }
+  // }, [isAuthenticated, isLoading, router, redirectTo])
 
+  console.log('🔓 DEMO MODE: useProtectedRoute disabled - allowing access to all routes')
   return { isAuthenticated, isLoading, user }
 }
 
