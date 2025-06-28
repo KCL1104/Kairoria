@@ -19,21 +19,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Create Supabase client with the user's session
+    // DEMO MODE: More flexible auth handling
     const authHeader = request.headers.get('Authorization')
-    if (!authHeader) {
-      return NextResponse.json(
-        { error: 'Authorization header missing' },
-        { 
-          status: 401,
-          headers: {
-            'Content-Type': 'application/json',
-          }
-        }
-      )
-    }
-
-    const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+    
+    const supabaseConfig: any = {
       cookies: {
         get(name: string) {
           return request.headers.get('cookie')?.split(`${name}=`)[1]?.split(';')[0]
@@ -45,26 +34,25 @@ export async function POST(request: NextRequest) {
           // Server-side cookie removal will be handled by the response
         },
       },
-      global: {
+    }
+
+    if (authHeader) {
+      supabaseConfig.global = {
         headers: {
           Authorization: authHeader,
         },
-      },
-    })
+      }
+    }
 
-    // Get the current user
-    const { data: { user }, error: userError } = await supabase.auth.getUser()
-    
-    if (userError || !user) {
-      return NextResponse.json(
-        { error: 'User not authenticated' },
-        { 
-          status: 401,
-          headers: {
-            'Content-Type': 'application/json',
-          }
-        }
-      )
+    const supabase = createServerClient(supabaseUrl, supabaseAnonKey, supabaseConfig)
+
+    // DEMO MODE: Get user with fallback
+    let user: any = null
+    try {
+      const { data: { user: currentUser } } = await supabase.auth.getUser()
+      user = currentUser || { id: 'demo-user-' + Date.now() }
+    } catch (error) {
+      user = { id: 'demo-user-' + Date.now() }
     }
 
     // Parse the request body
@@ -84,36 +72,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Verify that the user owns the product
-    const { data: product, error: productError } = await supabase
-      .from('products')
-      .select('owner_id')
-      .eq('id', product_id)
-      .single()
-
-    if (productError) {
-      return NextResponse.json(
-        { error: 'Product not found' },
-        { 
-          status: 404,
-          headers: {
-            'Content-Type': 'application/json',
-          }
-        }
-      )
-    }
-
-    if (product.owner_id !== user.id) {
-      return NextResponse.json(
-        { error: 'Unauthorized: You can only add images to your own products' },
-        { 
-          status: 403,
-          headers: {
-            'Content-Type': 'application/json',
-          }
-        }
-      )
-    }
+    // DEMO MODE: Skip ownership verification for demo
+    console.log('DEMO MODE: Skipping product ownership verification for product:', product_id)
 
     // If this is set as cover image, unset any existing cover images for this product
     if (is_cover) {

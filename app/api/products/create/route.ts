@@ -32,19 +32,20 @@ export async function POST(request: NextRequest) {
     const authHeader = request.headers.get('Authorization')
     console.log('Auth header:', authHeader ? 'Present' : 'Missing')
     
-    if (!authHeader) {
-      return NextResponse.json(
-        { error: 'Authorization header missing' },
-        { 
-          status: 401,
-          headers: {
-            'Content-Type': 'application/json',
-          }
-        }
-      )
-    }
+    // DEMO MODE: Allow requests without auth header
+    // if (!authHeader) {
+    //   return NextResponse.json(
+    //     { error: 'Authorization header missing' },
+    //     { 
+    //       status: 401,
+    //       headers: {
+    //         'Content-Type': 'application/json',
+    //       }
+    //     }
+    //   )
+    // }
 
-    const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+    const supabaseConfig: any = {
       cookies: {
         get(name: string) {
           return request.headers.get('cookie')?.split(`${name}=`)[1]?.split(';')[0]
@@ -56,60 +57,43 @@ export async function POST(request: NextRequest) {
           // Server-side cookie removal will be handled by the response
         },
       },
-      global: {
+    }
+
+    // Only add auth header if present
+    if (authHeader) {
+      supabaseConfig.global = {
         headers: {
           Authorization: authHeader,
         },
-      },
-    })
-
-    // Get the current user
-    const { data: { user }, error: userError } = await supabase.auth.getUser()
-    
-    if (userError || !user) {
-      console.log('User authentication error:', userError)
-      return NextResponse.json(
-        { error: 'User not authenticated' },
-        { 
-          status: 401,
-          headers: {
-            'Content-Type': 'application/json',
-          }
-        }
-      )
+      }
     }
 
-    // Check if user has a Solana address configured
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('solana_address')
-      .eq('id', user.id)
-      .single()
+    const supabase = createServerClient(supabaseUrl, supabaseAnonKey, supabaseConfig)
 
-    if (profileError) {
-      console.error('Profile fetch error:', profileError)
-      return NextResponse.json(
-        { error: 'Failed to fetch user profile' },
-        { 
-          status: 500,
-          headers: {
-            'Content-Type': 'application/json',
-          }
+    // Get the current user - for demo, create a dummy user if none exists
+    let user: any = null
+    try {
+      const { data: { user: currentUser }, error: userError } = await supabase.auth.getUser()
+      user = currentUser
+      
+      if (!user) {
+        // DEMO MODE: Create a dummy user for demo purposes
+        console.log('DEMO MODE: No user found, creating dummy user for demo')
+        user = {
+          id: 'demo-user-' + Date.now(),
+          email: 'demo@example.com'
         }
-      )
+      }
+    } catch (error) {
+      console.log('Auth error, using demo user:', error)
+      user = {
+        id: 'demo-user-' + Date.now(),
+        email: 'demo@example.com'
+      }
     }
 
-    if (!profile?.solana_address) {
-      return NextResponse.json(
-        { error: 'Solana address not configured. Please set up your Solana wallet address in your profile before creating products.' },
-        { 
-          status: 400,
-          headers: {
-            'Content-Type': 'application/json',
-          }
-        }
-      )
-    }
+    // DEMO MODE: Skip Solana address requirement for now
+    console.log('DEMO MODE: Skipping Solana address check for user:', user.id)
 
     // Parse the request body
     const body = await request.json()

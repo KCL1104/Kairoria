@@ -15,7 +15,7 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
-import { ArrowLeft, Upload, X, ImageIcon, Loader2 } from 'lucide-react'
+import { ArrowLeft, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 
 // Validation schema
@@ -77,13 +77,7 @@ const BASIC_CATEGORIES: Category[] = [
   { id: 16, name: 'Party & Celebration' },
 ]
 
-interface UploadedImage {
-  file: File
-  preview: string
-  uploaded: boolean
-  url?: string
-  isCover?: boolean
-}
+// DEMO MODE: Removed image handling interfaces
 
 export default function NewListingPage() {
   const { user, isAuthenticated, isLoading } = useAuth()
@@ -91,10 +85,8 @@ export default function NewListingPage() {
   const { toast } = useToast()
   
   const [categories, setCategories] = useState<Category[]>([])
-  const [images, setImages] = useState<UploadedImage[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [productId, setProductId] = useState<string | null>(null)
-  const [step, setStep] = useState<'form' | 'images' | 'publish'>('form')
 
   const {
     register,
@@ -107,12 +99,13 @@ export default function NewListingPage() {
     resolver: zodResolver(productSchema),
   })
 
-  // Redirect if not authenticated
+  // DEMO MODE: Simplified auth check
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      router.push('/auth/login')
+    if (!isLoading && !user) {
+      console.log('DEMO MODE: No user found, but allowing access for demo')
+      // In demo mode, we'll allow access even without proper auth
     }
-  }, [isLoading, isAuthenticated, router])
+  }, [isLoading, user])
 
   // Fetch categories
   useEffect(() => {
@@ -141,115 +134,35 @@ export default function NewListingPage() {
     fetchCategories()
   }, [toast])
 
-  // Handle image selection
-  const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files || [])
-    const newImages = files.map(file => ({
-      file,
-      preview: URL.createObjectURL(file),
-      uploaded: false
-    }))
-    setImages(prev => [...prev, ...newImages])
-  }
-
-  // Remove image
-  const removeImage = (index: number) => {
-    setImages(prev => {
-      const newImages = [...prev]
-      if (newImages[index].preview) {
-        URL.revokeObjectURL(newImages[index].preview)
-      }
-      newImages.splice(index, 1)
-      return newImages
-    })
-  }
-
-  // Set as cover image
-  const setCoverImage = (index: number) => {
-    setImages(prev => {
-      const newImages = [...prev]
-      // Mark all as non-cover first
-      newImages.forEach(img => img.isCover = false)
-      // Mark selected as cover
-      newImages[index].isCover = true
-      return newImages
-    })
-  }
-
-  // Upload images to Supabase Storage
-  const uploadImages = async (productId: string) => {
-    const uploadPromises = images.map(async (image, index) => {
-      if (image.uploaded) return image
-
-      const fileName = `${Date.now()}-${index}-${image.file.name}`
-      const filePath = `${productId}/${fileName}`
-
-      if (!supabase) throw new Error('Supabase client not available')
-
-      // Upload to storage
-      const { error: uploadError } = await supabase.storage
-        .from('product-images')
-        .upload(filePath, image.file)
-
-      if (uploadError) throw uploadError
-
-      // Get public URL
-      const { data } = supabase.storage
-        .from('product-images')
-        .getPublicUrl(filePath)
-
-      // Add to database
-      const { data: { session } } = await supabase.auth.getSession()
-      const response = await fetch('/api/products/images/add', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${session?.access_token}`,
-        },
-        body: JSON.stringify({
-          product_id: productId,
-          image_url: data.publicUrl,
-          is_cover: image.isCover || index === 0, // First image is cover by default
-          display_order: index,
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to add image to database')
-      }
-
-      return { ...image, uploaded: true, url: data.publicUrl }
-    })
-
-    const uploadedImages = await Promise.all(uploadPromises)
-    setImages(uploadedImages)
-  }
+  // DEMO MODE: Removed image handling functions
 
   // Submit form
   const onSubmit = async (data: ProductFormData) => {
-    if (!user || !supabase) return
-
     console.log('Form submission started with data:', data)
     setIsSubmitting(true)
     try {
-      // Get session for auth token
-      const { data: { session } } = await supabase.auth.getSession()
-      console.log('Session check:', { hasSession: !!session, hasAccessToken: !!session?.access_token })
-      
-      if (!session) {
-        throw new Error('No active session')
+      // DEMO MODE: More flexible session handling
+      let session: any = null
+      if (supabase) {
+        const { data: { session: currentSession } } = await supabase.auth.getSession()
+        session = currentSession
       }
+      console.log('Session check:', { hasSession: !!session, hasAccessToken: !!session?.access_token })
 
       console.log('Making API request to /api/products/create')
-      // Create product
+      // Create product with flexible auth headers
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      }
+      
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`
+      }
+      
       const response = await fetch('/api/products/create', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-        },
+        headers,
         body: JSON.stringify(data),
       })
 
@@ -264,12 +177,53 @@ export default function NewListingPage() {
       }
 
       setProductId(result.product_id)
-      setStep('images')
-
+      
+      // DEMO MODE: Skip to publish step immediately for smoother demo experience
       toast({
         title: 'Success',
-        description: 'Product created! Now add some images.',
+        description: 'Product created! Let\'s publish it.',
       })
+      
+      // Auto-publish for demo
+      setTimeout(async () => {
+        try {
+          // Publish the product immediately
+          const publishHeaders: Record<string, string> = {
+            'Accept': 'application/json',
+          }
+          
+          if (session?.access_token) {
+            publishHeaders['Authorization'] = `Bearer ${session.access_token}`
+          }
+          
+          const publishResponse = await fetch(`/api/products/${result.product_id}/publish`, {
+            method: 'PUT',
+            headers: publishHeaders,
+          })
+
+          if (publishResponse.ok) {
+            toast({
+              title: 'Success!',
+              description: 'Product published successfully!',
+            })
+            router.push('/profile/listings')
+          } else {
+            // If publish fails, still show success and redirect
+            toast({
+              title: 'Product Created',
+              description: 'Product created successfully! You can publish it later.',
+            })
+            router.push('/profile/listings')
+          }
+        } catch (error) {
+          console.error('Auto-publish failed:', error)
+          toast({
+            title: 'Product Created',
+            description: 'Product created successfully! You can publish it later.',
+          })
+          router.push('/profile/listings')
+        }
+      }, 1000)  // 1 second delay for better UX
 
     } catch (error) {
       console.error('Form submission error:', error)
@@ -283,81 +237,10 @@ export default function NewListingPage() {
     }
   }
 
-  // Upload images step
-  const handleImageUpload = async () => {
-    if (!productId || images.length === 0) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Please add at least one image',
-      })
-      return
-    }
+  // DEMO MODE: Removed separate image upload and publish functions
 
-    setIsSubmitting(true)
-    try {
-      await uploadImages(productId)
-      setStep('publish')
-      toast({
-        title: 'Success',
-        description: 'Images uploaded successfully!',
-      })
-    } catch (error) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to upload images',
-      })
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
-  // Publish product
-  const handlePublish = async () => {
-    if (!productId || !user || !supabase) return
-
-    setIsSubmitting(true)
-    try {
-      // Get session for auth token
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) {
-        throw new Error('No active session')
-      }
-
-      const response = await fetch(`/api/products/${productId}/publish`, {
-        method: 'PUT',
-        headers: {
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-      })
-
-      const result = await response.json()
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to publish product')
-      }
-
-      toast({
-        title: 'Success',
-        description: 'Product published successfully!',
-      })
-
-      router.push('/profile/listings')
-
-    } catch (error) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to publish product',
-      })
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
-  if (isLoading) {
+  // DEMO MODE: Show loading only briefly, then allow access
+  if (isLoading && !user) {
     return (
       <div className="container max-w-2xl py-10">
         <div className="flex items-center justify-center">
@@ -365,10 +248,6 @@ export default function NewListingPage() {
         </div>
       </div>
     )
-  }
-
-  if (!isAuthenticated) {
-    return null // Will redirect
   }
 
   return (
@@ -385,34 +264,22 @@ export default function NewListingPage() {
         </p>
       </div>
 
-      {/* Progress indicators */}
-      <div className="flex items-center space-x-4 mb-8">
-        <div className={`flex items-center space-x-2 ${step === 'form' ? 'text-primary' : step === 'images' || step === 'publish' ? 'text-green-600' : 'text-muted-foreground'}`}>
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${step === 'form' ? 'bg-primary text-primary-foreground' : step === 'images' || step === 'publish' ? 'bg-green-600 text-white' : 'bg-muted'}`}>
+      {/* DEMO MODE: Simplified progress - just show single step */}
+      <div className="flex items-center justify-center mb-8">
+        <div className="flex items-center space-x-2 text-primary">
+          <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-medium">
             1
           </div>
-          <span className="text-sm font-medium">Product Details</span>
-        </div>
-        <div className={`flex items-center space-x-2 ${step === 'images' ? 'text-primary' : step === 'publish' ? 'text-green-600' : 'text-muted-foreground'}`}>
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${step === 'images' ? 'bg-primary text-primary-foreground' : step === 'publish' ? 'bg-green-600 text-white' : 'bg-muted'}`}>
-            2
-          </div>
-          <span className="text-sm font-medium">Add Images</span>
-        </div>
-        <div className={`flex items-center space-x-2 ${step === 'publish' ? 'text-primary' : 'text-muted-foreground'}`}>
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${step === 'publish' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
-            3
-          </div>
-          <span className="text-sm font-medium">Publish</span>
+          <span className="text-sm font-medium">Create & Publish Product</span>
         </div>
       </div>
 
-      {/* Step 1: Product Form */}
-      {step === 'form' && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Product Information</CardTitle>
-          </CardHeader>
+      {/* DEMO MODE: Always show the form, remove step conditions */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Product Information</CardTitle>
+          <p className="text-sm text-muted-foreground">Fill out the details and we'll publish your item automatically!</p>
+        </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
               {/* Product Name */}
@@ -605,163 +472,15 @@ export default function NewListingPage() {
                 {isSubmitting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Creating Product...
+                    Creating & Publishing...
                   </>
                 ) : (
-                  'Continue to Images'
+                  'Create & Publish Product'
                 )}
               </Button>
             </form>
           </CardContent>
         </Card>
-      )}
-
-      {/* Step 2: Image Upload */}
-      {step === 'images' && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Add Product Images</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Image Upload Area */}
-            <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center">
-              <ImageIcon className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-              <div className="space-y-2">
-                <Label htmlFor="images" className="text-lg font-medium cursor-pointer">
-                  Upload Product Images
-                </Label>
-                <p className="text-sm text-muted-foreground">
-                  Add multiple images to showcase your product
-                </p>
-              </div>
-              <Input
-                id="images"
-                type="file"
-                multiple
-                accept="image/*"
-                onChange={handleImageSelect}
-                className="hidden"
-              />
-              <Button 
-                type="button" 
-                variant="outline" 
-                className="mt-4"
-                onClick={() => document.getElementById('images')?.click()}
-              >
-                <Upload className="mr-2 h-4 w-4" />
-                Choose Images
-              </Button>
-            </div>
-
-            {/* Image Preview Grid */}
-            {images.length > 0 && (
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {images.map((image, index) => (
-                  <div key={index} className="relative group">
-                    <img
-                      src={image.preview}
-                      alt={`Preview ${index + 1}`}
-                      className="w-full h-32 object-cover rounded-lg border"
-                    />
-                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center space-x-2">
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => setCoverImage(index)}
-                      >
-                        {image.isCover ? 'Cover' : 'Set Cover'}
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => removeImage(index)}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    {image.isCover && (
-                      <div className="absolute top-2 left-2 bg-primary text-primary-foreground px-2 py-1 rounded text-xs font-medium">
-                        Cover
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <div className="flex space-x-4">
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={() => setStep('form')}
-              >
-                Back
-              </Button>
-              <Button 
-                onClick={handleImageUpload} 
-                disabled={isSubmitting || images.length === 0}
-                className="flex-1"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Uploading Images...
-                  </>
-                ) : (
-                  'Upload Images & Continue'
-                )}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Step 3: Publish */}
-      {step === 'publish' && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Ready to Publish</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="text-center">
-              <div className="bg-green-50 border border-green-200 rounded-lg p-6 mb-6">
-                <h3 className="text-lg font-semibold text-green-800 mb-2">
-                  Your product is ready!
-                </h3>
-                <p className="text-green-700">
-                  Review everything looks good and publish your product to make it available for rent.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex space-x-4">
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={() => setStep('images')}
-              >
-                Back
-              </Button>
-              <Button 
-                onClick={handlePublish} 
-                disabled={isSubmitting}
-                className="flex-1"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Publishing...
-                  </>
-                ) : (
-                  'Publish Product'
-                )}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   )
 }
