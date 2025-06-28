@@ -275,6 +275,11 @@ export default function NewListingPage() {
       console.log('API response data:', result)
 
       if (!response.ok) {
+        console.error('API Error Response:', {
+          status: response.status,
+          statusText: response.statusText,
+          body: result,
+        })
         if (response.status === 401) {
           toast({
             variant: 'destructive',
@@ -284,7 +289,7 @@ export default function NewListingPage() {
           router.push('/auth/login')
           return
         }
-        throw new Error(result.error || 'Failed to create product')
+        throw new Error(result.error || `Failed to create product. Status: ${response.status}`)
       }
 
       setProductId(result.product_id)

@@ -188,6 +188,8 @@ export async function POST(request: NextRequest) {
       review_count: 0,
     }
 
+    console.log('Attempting to insert product data:', productData);
+
     // Insert the product into the database
     const { data: product, error: insertError } = await supabase
       .from('products')
