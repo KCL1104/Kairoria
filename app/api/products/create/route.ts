@@ -92,8 +92,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // DEMO MODE: Skip Solana address requirement for now
-    console.log('DEMO MODE: Skipping Solana address check for user:', user.id)
+    // For production use: Check if user has a Solana address configured
+    // For now, we'll skip this requirement for the demo
+    console.log('Creating product for user:', user.id)
 
     // Parse the request body
     const body = await request.json()

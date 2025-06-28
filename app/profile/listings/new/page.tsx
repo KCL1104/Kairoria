@@ -15,7 +15,7 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
-import { ArrowLeft, Loader2 } from 'lucide-react'
+import { ArrowLeft, Loader2, Upload, X, ImageIcon } from 'lucide-react'
 import Link from 'next/link'
 
 // Validation schema
@@ -77,7 +77,13 @@ const BASIC_CATEGORIES: Category[] = [
   { id: 16, name: 'Party & Celebration' },
 ]
 
-// DEMO MODE: Removed image handling interfaces
+interface UploadedImage {
+  file: File
+  preview: string
+  uploaded: boolean
+  url?: string
+  isCover?: boolean
+}
 
 export default function NewListingPage() {
   const { user, isAuthenticated, isLoading } = useAuth()
@@ -85,6 +91,7 @@ export default function NewListingPage() {
   const { toast } = useToast()
   
   const [categories, setCategories] = useState<Category[]>([])
+  const [images, setImages] = useState<UploadedImage[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [productId, setProductId] = useState<string | null>(null)
 
@@ -134,7 +141,98 @@ export default function NewListingPage() {
     fetchCategories()
   }, [toast])
 
-  // DEMO MODE: Removed image handling functions
+  // Handle image selection
+  const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || [])
+    const newImages = files.map(file => ({
+      file,
+      preview: URL.createObjectURL(file),
+      uploaded: false
+    }))
+    setImages(prev => [...prev, ...newImages])
+  }
+
+  // Remove image
+  const removeImage = (index: number) => {
+    setImages(prev => {
+      const newImages = [...prev]
+      if (newImages[index].preview) {
+        URL.revokeObjectURL(newImages[index].preview)
+      }
+      newImages.splice(index, 1)
+      return newImages
+    })
+  }
+
+  // Set as cover image
+  const setCoverImage = (index: number) => {
+    setImages(prev => {
+      const newImages = [...prev]
+      // Mark all as non-cover first
+      newImages.forEach(img => img.isCover = false)
+      // Mark selected as cover
+      newImages[index].isCover = true
+      return newImages
+    })
+  }
+
+  // Upload images to Supabase Storage
+  const uploadImages = async (productId: string) => {
+    if (!images.length) return []
+
+    const uploadPromises = images.map(async (image, index) => {
+      if (image.uploaded) return image
+
+      const fileName = `${Date.now()}-${index}-${image.file.name}`
+      const filePath = `${productId}/${fileName}`
+
+      if (!supabase) throw new Error('Supabase client not available')
+
+      // Upload to storage
+      const { error: uploadError } = await supabase.storage
+        .from('product-images')
+        .upload(filePath, image.file)
+
+      if (uploadError) throw uploadError
+
+      // Get public URL
+      const { data } = supabase.storage
+        .from('product-images')
+        .getPublicUrl(filePath)
+
+      // Add to database
+      const { data: { session } } = await supabase.auth.getSession()
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      }
+      
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`
+      }
+
+      const response = await fetch('/api/products/images/add', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          product_id: productId,
+          image_url: data.publicUrl,
+          is_cover: image.isCover || index === 0, // First image is cover by default
+          display_order: index,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to add image to database')
+      }
+
+      return { ...image, uploaded: true, url: data.publicUrl }
+    })
+
+    const uploadedImages = await Promise.all(uploadPromises)
+    setImages(uploadedImages)
+    return uploadedImages
+  }
 
   // Submit form
   const onSubmit = async (data: ProductFormData) => {
@@ -178,52 +276,64 @@ export default function NewListingPage() {
 
       setProductId(result.product_id)
       
-      // DEMO MODE: Skip to publish step immediately for smoother demo experience
       toast({
         title: 'Success',
-        description: 'Product created! Let\'s publish it.',
+        description: 'Product created! Now uploading images...',
       })
       
-      // Auto-publish for demo
-      setTimeout(async () => {
+      // Upload images if any
+      if (images.length > 0) {
         try {
-          // Publish the product immediately
-          const publishHeaders: Record<string, string> = {
-            'Accept': 'application/json',
-          }
-          
-          if (session?.access_token) {
-            publishHeaders['Authorization'] = `Bearer ${session.access_token}`
-          }
-          
-          const publishResponse = await fetch(`/api/products/${result.product_id}/publish`, {
-            method: 'PUT',
-            headers: publishHeaders,
+          await uploadImages(result.product_id)
+          toast({
+            title: 'Images uploaded!',
+            description: 'Publishing your product...',
           })
+        } catch (uploadError) {
+          console.error('Image upload failed:', uploadError)
+          toast({
+            variant: 'destructive',
+            title: 'Image upload failed',
+            description: 'Product created but images failed to upload. You can add them later.',
+          })
+        }
+      }
+      
+      // Auto-publish
+      try {
+        const publishHeaders: Record<string, string> = {
+          'Accept': 'application/json',
+        }
+        
+        if (session?.access_token) {
+          publishHeaders['Authorization'] = `Bearer ${session.access_token}`
+        }
+        
+        const publishResponse = await fetch(`/api/products/${result.product_id}/publish`, {
+          method: 'PUT',
+          headers: publishHeaders,
+        })
 
-          if (publishResponse.ok) {
-            toast({
-              title: 'Success!',
-              description: 'Product published successfully!',
-            })
-            router.push('/profile/listings')
-          } else {
-            // If publish fails, still show success and redirect
-            toast({
-              title: 'Product Created',
-              description: 'Product created successfully! You can publish it later.',
-            })
-            router.push('/profile/listings')
-          }
-        } catch (error) {
-          console.error('Auto-publish failed:', error)
+        if (publishResponse.ok) {
+          toast({
+            title: 'Success!',
+            description: 'Product published successfully!',
+          })
+        } else {
           toast({
             title: 'Product Created',
             description: 'Product created successfully! You can publish it later.',
           })
-          router.push('/profile/listings')
         }
-      }, 1000)  // 1 second delay for better UX
+        router.push('/profile/listings')
+      } catch (error) {
+        console.error('Auto-publish failed:', error)
+        toast({
+          title: 'Product Created',
+          description: 'Product created successfully! You can publish it later.',
+        })
+        router.push('/profile/listings')
+      }
 
     } catch (error) {
       console.error('Form submission error:', error)
@@ -466,6 +576,82 @@ export default function NewListingPage() {
                     <p className="text-sm text-destructive">{errors.daily_cap_hours.message}</p>
                   )}
                 </div>
+              </div>
+
+              {/* Image Upload Section */}
+              <div className="space-y-4">
+                <Label className="text-sm font-medium text-gray-700">Product Images</Label>
+                
+                {/* Image Upload Area */}
+                <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center">
+                  <ImageIcon className="mx-auto h-8 w-8 text-muted-foreground mb-3" />
+                  <div className="space-y-2">
+                    <Label htmlFor="images" className="text-sm font-medium cursor-pointer hover:text-primary">
+                      Upload Product Images
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Add multiple images to showcase your product (optional)
+                    </p>
+                  </div>
+                  <Input
+                    id="images"
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    onChange={handleImageSelect}
+                    className="hidden"
+                  />
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="sm"
+                    className="mt-3"
+                    onClick={() => document.getElementById('images')?.click()}
+                  >
+                    <Upload className="mr-2 h-4 w-4" />
+                    Choose Images
+                  </Button>
+                </div>
+
+                {/* Image Preview Grid */}
+                {images.length > 0 && (
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    {images.map((image, index) => (
+                      <div key={index} className="relative group">
+                        <img
+                          src={image.preview}
+                          alt={`Preview ${index + 1}`}
+                          className="w-full h-24 object-cover rounded-lg border"
+                        />
+                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center space-x-1">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="secondary"
+                            className="text-xs px-2 py-1 h-auto"
+                            onClick={() => setCoverImage(index)}
+                          >
+                            {image.isCover ? 'Cover' : 'Set Cover'}
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="destructive"
+                            className="px-2 py-1 h-auto"
+                            onClick={() => removeImage(index)}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                        {image.isCover && (
+                          <div className="absolute top-1 left-1 bg-primary text-primary-foreground px-1 py-0.5 rounded text-xs font-medium">
+                            Cover
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <Button type="submit" disabled={isSubmitting} className="w-full">

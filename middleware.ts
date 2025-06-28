@@ -28,7 +28,7 @@ async function updateSessionAndGetUser(request: NextRequest) {
 } 
 
 // Route definitions
-const publicRoutes = ['/', '/about', '/contact', '/marketplace', '/how-it-works', '/sustainability', '/terms', '/privacy', '/cookies']
+const publicRoutes = ['/', '/about', '/marketplace', '/how-it-works', '/sustainability', '/terms', '/privacy', '/cookies']
 const authRoutes = ['/auth/login', '/auth/register', '/auth/reset-password', '/auth/forgot-password', '/auth/verify', '/auth/callback', '/auth/google-oauth-fix', '/auth/oauth-config']
 const completeSignupRoute = '/complete-signup' 
 const completeProfileRoutes = ['/complete-signup']

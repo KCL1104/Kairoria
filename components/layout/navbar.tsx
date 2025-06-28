@@ -80,15 +80,6 @@ function NavbarWithSearchParams() {
             >
               About
             </Link>
-            <Link 
-              href="/contact"
-              className={cn(
-                "text-sm font-medium transition-colors hover:text-primary",
-                pathname === "/contact" ? "text-foreground" : "text-muted-foreground"
-              )}
-            >
-              Contact
-            </Link>
           </nav>
 
           {isAuthenticated ? (
@@ -185,13 +176,6 @@ function NavbarWithSearchParams() {
               onClick={() => setIsMenuOpen(false)}
             >
               About
-            </Link>
-            <Link
-              href="/contact"
-              className="text-sm font-medium"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              Contact
             </Link>
             <div className="h-px bg-border my-2" />
             

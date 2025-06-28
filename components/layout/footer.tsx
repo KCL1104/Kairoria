@@ -44,7 +44,6 @@ export default function Footer() {
               <li><Link href="/about" className="text-sm text-muted-foreground hover:text-primary">About Us</Link></li>
               <li><Link href="/how-it-works" className="text-sm text-muted-foreground hover:text-primary">How It Works</Link></li>
               <li><Link href="/sustainability" className="text-sm text-muted-foreground hover:text-primary">Sustainability</Link></li>
-              <li><Link href="/contact" className="text-sm text-muted-foreground hover:text-primary">Contact</Link></li>
               <li><Link href="/terms" className="text-sm text-muted-foreground hover:text-primary">Terms of Service</Link></li>
             </ul>
           </div>
