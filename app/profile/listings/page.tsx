@@ -75,12 +75,10 @@ export default function ProfileListingsPage() {
     switch (status) {
       case 'listed':
         return <Badge variant="default">Active</Badge>;
-      case 'draft':
-        return <Badge variant="secondary">Draft</Badge>;
+      case 'pending':
+        return <Badge variant="secondary">Pending</Badge>;
       case 'unlisted':
         return <Badge variant="outline">Unlisted</Badge>;
-      case 'rented':
-        return <Badge variant="destructive">Rented</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -151,17 +149,17 @@ export default function ProfileListingsPage() {
               <Card>
                 <CardContent className="p-6">
                   <div className="text-2xl font-bold text-orange-600">
-                    {products.filter(p => p.status === 'draft').length}
+                    {products.filter(p => p.status === 'pending').length}
                   </div>
-                  <p className="text-xs text-muted-foreground">Drafts</p>
+                  <p className="text-xs text-muted-foreground">Pending</p>
                 </CardContent>
               </Card>
               <Card>
                 <CardContent className="p-6">
-                  <div className="text-2xl font-bold text-red-600">
-                    {products.filter(p => p.status === 'rented').length}
+                  <div className="text-2xl font-bold text-gray-600">
+                    {products.filter(p => p.status === 'unlisted').length}
                   </div>
-                  <p className="text-xs text-muted-foreground">Currently Rented</p>
+                  <p className="text-xs text-muted-foreground">Unlisted</p>
                 </CardContent>
               </Card>
             </div>
