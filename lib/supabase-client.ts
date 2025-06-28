@@ -124,20 +124,19 @@ export async function fetchProducts(options?: {
   offset?: number
   category?: string
   search?: string
-}) {
+}, retryCount = 0): Promise<(Product & {
+  categories: { id: number; name: string }
+  owner: Profile
+  product_images: ProductImage[]
+})[]> {
   if (!supabase) {
     console.error('Supabase client not available')
     return []
   }
 
-  console.log('Fetching products with options:', options)
+  console.log('Fetching products with options:', options, `(attempt ${retryCount + 1})`)
 
   try {
-    // Create a timeout promise
-    const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Product fetch timeout')), 10000)
-    })
-
     let query = supabase
       .from('products')
       .select(`
@@ -150,7 +149,7 @@ export async function fetchProducts(options?: {
       .order('created_at', { ascending: false })
 
     if (options?.category) {
-      query = query.eq('category', options.category)
+      query = query.eq('category_id', options.category)
     }
 
     if (options?.search) {
@@ -167,11 +166,17 @@ export async function fetchProducts(options?: {
 
     console.log('Executing product query...')
     
-    // Race between the query and timeout
-    const { data, error } = await Promise.race([
-      query,
-      timeoutPromise
-    ]) as any
+    // Execute query with AbortController for better timeout handling
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => {
+      controller.abort()
+    }, 30000) // 30 second timeout
+    
+    // Apply abort signal to the query
+    query = query.abortSignal(controller.signal)
+    
+    const { data, error } = await query
+    clearTimeout(timeoutId)
 
     if (error) {
       console.error('Product query error:', {
@@ -180,17 +185,33 @@ export async function fetchProducts(options?: {
         details: error.details,
         hint: error.hint
       })
+      
+      // Retry logic for certain errors
+      if (retryCount < 2 && (error.code === 'PGRST301' || error.message?.includes('timeout'))) {
+        console.log(`Retrying product fetch... (attempt ${retryCount + 2})`)
+        await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1))) // Exponential backoff
+        return fetchProducts(options, retryCount + 1)
+      }
+      
       return []
     }
     
-    console.log('Products fetched successfully:', data)
+    console.log('Products fetched successfully:', data?.length || 0, 'items')
     return (data || []) as (Product & {
       categories: { id: number; name: string }
       owner: Profile
       product_images: ProductImage[]
     })[]
-  } catch (error) {
+  } catch (error: any) {
     console.error('Unexpected error in fetchProducts:', error)
+    
+    // Retry on network errors
+    if (retryCount < 2 && (error.name === 'AbortError' || error.message?.includes('fetch'))) {
+      console.log(`Retrying product fetch after error... (attempt ${retryCount + 2})`)
+      await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)))
+      return fetchProducts(options, retryCount + 1)
+    }
+    
     return []
   }
 }

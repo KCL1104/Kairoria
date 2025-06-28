@@ -28,7 +28,7 @@ export function ProductGrid() {
           console.warn('ProductGrid: Loading timeout reached')
           setIsLoading(false)
           setError('Loading timeout - please try again')
-        }, 12000) // 12 seconds timeout
+        }, 35000) // 35 seconds timeout (slightly longer than fetch timeout)
         
         const data = await fetchProducts({ limit: 50 })
         clearTimeout(timeout)
