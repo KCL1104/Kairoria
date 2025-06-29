@@ -38,7 +38,7 @@ const createAdminClient = (): SupabaseClient => {
 export default async function handler(req: Request): Promise<Response> {
   // Handle CORS preflight requests.
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { headers: corsHeaders, status: 200 });
   }
 
   // Ensure the request method is POST.
