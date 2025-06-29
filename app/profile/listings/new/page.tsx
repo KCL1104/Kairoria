@@ -79,7 +79,7 @@ interface UploadedImage {
 }
 
 export default function NewListingPage() {
-  const { user, session, isLoading } = useAuth()
+  const { user, isLoading, session } = useAuth()
   const router = useRouter()
   const { toast } = useToast()
   
@@ -195,6 +195,17 @@ export default function NewListingPage() {
     setIsSubmitting(true)
     setError(null)
 
+    if (!session) {
+      setError("Authentication session not found. Please log in again.");
+      toast({
+        variant: 'destructive',
+        title: 'Authentication Error',
+        description: 'Your session is invalid. Please log out and log back in.',
+      });
+      setIsSubmitting(false);
+      return;
+    }
+
     if (!supabase) {
       const errorMessage = "Supabase client is not initialized."
       setError(errorMessage);
@@ -221,11 +232,6 @@ export default function NewListingPage() {
     try {
       toast({ title: 'Submitting...', description: 'Your new listing is being created.' })
 
-      // REASON: Set the JWT for the Edge Function call to fix 401 Unauthorized errors.
-      // This ensures the user's session is authenticated for the backend request.
-      if (session) {
-        supabase.functions.setAuth(session.access_token)
-      }
 
       const productId = crypto.randomUUID()
 
@@ -243,9 +249,16 @@ export default function NewListingPage() {
         formData.append('images', image.file, image.file.name)
       })
 
+      // By passing the Authorization header directly, we ensure the Edge Function
+      // is authenticated, which is a more robust method than setAuth().
       const { data: responseData, error: functionError } = await supabase.functions.invoke(
         'create-product',
-        { body: formData }
+        {
+          body: formData,
+          headers: {
+            Authorization: `Bearer ${session.access_token}`
+          }
+        }
       )
 
       // REASON: Advanced error handling to parse backend validation errors.
