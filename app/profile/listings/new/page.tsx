@@ -19,6 +19,7 @@ import { ArrowLeft, Loader2, Upload, X, ImageIcon } from 'lucide-react'
 import Link from 'next/link'
 import { Alert, AlertDescription, AlertTitle } from '../../../../components/ui/alert'
 import { AlertCircle } from 'lucide-react'
+import { createClient } from '../../../../lib/supabase/client'
 
 // REASON: The product condition enum was updated to match the new API contract.
 const PRODUCT_CONDITIONS = [
@@ -82,6 +83,7 @@ export default function NewListingPage() {
   const { user, isLoading, session } = useAuth()
   const router = useRouter()
   const { toast } = useToast()
+  const supabase = createClient()
   
   const [categories, setCategories] = useState<Category[]>([])
   const [images, setImages] = useState<UploadedImage[]>([])
@@ -251,11 +253,11 @@ export default function NewListingPage() {
 
       // By passing the Authorization header directly, we ensure the Edge Function
       // is authenticated, which is a more robust method than setAuth().
+
       const { data: responseData, error: functionError } = await supabase.functions.invoke(
         'create-product',
         {
           body: formData,
-          // <-- 將整個 headers 物件移除
         }
       )
 
