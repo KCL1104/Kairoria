@@ -247,6 +247,7 @@ export default function NewListingPage() {
 
       const formData = new FormData()
       formData.append('productData', JSON.stringify(productData))
+      console.log(formData)
       images.forEach(image => {
         formData.append('images', image.file, image.file.name)
       })
