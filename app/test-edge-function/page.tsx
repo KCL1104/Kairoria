@@ -8,12 +8,12 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 
 export default function TestEdgeFunction() {
-  const { user } = useAuth()
+  const { user, session } = useAuth()
   const [result, setResult] = useState<any>(null)
   const [loading, setLoading] = useState(false)
 
-  const testEdgeFunction = async () => {
-    if (!user) {
+  const handleInvokeFunction = async () => {
+    if (!user || !session) {
       alert('Please login first')
       return
     }
@@ -21,52 +21,49 @@ export default function TestEdgeFunction() {
     setLoading(true)
     setResult(null)
 
+    if (!supabase) {
+      setResult({ error: { message: 'Supabase client is not initialized.' } })
+      setLoading(false)
+      return
+    }
+
     try {
-      // 創建測試數據
-      const testData = {
-        id: crypto.randomUUID(),
-        title: 'Test Product',
-        description: 'This is a test product from Edge Function test',
+      const productData = {
+        id: crypto.randomUUID(), // Add a UUID for the product ID
+        title: 'Test Product from Client',
+        description: 'This is a detailed description of the test product.',
         category_id: '1',
         condition: 'new',
-        location: 'Test Location',
-        currency: 'usdc',
-        price_per_day: '50.00'
+        location: 'Virtual Location',
+        price_per_day: 99.99,
+        currency: 'usdc', // Correct the currency
       }
 
-      // 創建 FormData
-      const formData = new FormData()
-      formData.append('productData', JSON.stringify(testData))
-      
-      // 創建測試圖片文件 (1x1 pixel PNG)
-      const canvas = document.createElement('canvas')
-      canvas.width = 1
-      canvas.height = 1
-      const ctx = canvas.getContext('2d')!
-      ctx.fillStyle = '#ff0000'
-      ctx.fillRect(0, 0, 1, 1)
-      
-      canvas.toBlob((blob) => {
-        if (blob) {
-          const testFile = new File([blob], 'test-image.png', { type: 'image/png' })
-          formData.append('images', testFile)
-          
-          // 調用 Edge Function
-          supabase?.functions.invoke('create-product', {
-            body: formData
-          }).then(({ data, error }) => {
-            setResult({ data, error })
-            setLoading(false)
-          })
-        }
-      }, 'image/png')
+      console.log('Client-side: Sending this productData:', JSON.stringify(productData, null, 2));
 
+      const { data, error } = await supabase.functions.invoke('create-product', {
+        body: productData
+      })
+
+      if (error) {
+        // Handle FunctionsHttpError, FunctionsRelayError, FunctionsFetchError
+        if ('message' in error) {
+          // This is a FunctionsError object
+          setResult({ error: { message: error.message, details: (error as any).details } })
+        } else {
+          // This is likely a standard Error object
+          setResult({ error: { message: (error as Error).message } })
+        }
+      } else {
+        setResult({ data })
+      }
     } catch (error) {
       if (error instanceof Error) {
-        setResult({ error: error.message })
+        setResult({ error: { message: error.message } })
       } else {
-        setResult({ error: 'An unknown error occurred' })
+        setResult({ error: { message: 'An unknown error occurred' } })
       }
+    } finally {
       setLoading(false)
     }
   }
@@ -81,7 +78,7 @@ export default function TestEdgeFunction() {
         </div>
         
         <Button 
-          onClick={testEdgeFunction} 
+          onClick={handleInvokeFunction}
           disabled={loading || !user}
           className="w-full"
         >
