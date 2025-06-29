@@ -1,8 +1,8 @@
 "use client"
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react'
-import { supabase } from '@/lib/supabase-client'
-import { User, Session } from '@supabase/supabase-js'
+import { createClient } from '@/lib/supabase/client'
+import { User, Session, SupabaseClient } from '@supabase/supabase-js'
 import { logAuthEvent, isProfileComplete } from '@/lib/auth-utils'
 import { useRouter } from 'next/navigation'
 
@@ -27,6 +27,7 @@ interface AuthContextType {
 const SupabaseAuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function SupabaseAuthProvider({ children }: { children: React.ReactNode }) {
+  const supabase: SupabaseClient = createClient()
   const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<any>(null)
@@ -106,7 +107,7 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
         console.error('❌ Exception creating profile:', error)
         setProfile(null)
       }
-    }, [])
+    }, [supabase])
 
   // Define fetchProfile at component level to be accessible by all functions
   const fetchProfileInternal = useCallback(async (userId: string) => {
@@ -171,7 +172,7 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
     } finally {
       setIsProfileLoading(false)
     }
-  }, [createProfileIfNotExistsInternal])
+  }, [supabase, createProfileIfNotExistsInternal])
 
 
   // Define handleAuthStateChange as a callback
@@ -274,7 +275,7 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
     return () => {
       subscription.unsubscribe()
     }
-  }, [fetchProfileInternal])
+  }, [supabase, handleAuthStateChange])
 
   // Additional OAuth success detection
   useEffect(() => {
