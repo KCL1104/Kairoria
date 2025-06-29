@@ -255,9 +255,7 @@ export default function NewListingPage() {
         'create-product',
         {
           body: formData,
-          headers: {
-            Authorization: `Bearer ${session.access_token}`
-          }
+          // <-- 將整個 headers 物件移除
         }
       )
 
