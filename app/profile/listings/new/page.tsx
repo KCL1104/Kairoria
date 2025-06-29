@@ -7,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import { useAuth } from '@/contexts/SupabaseAuthContext'
 import { supabase } from '@/lib/supabase-client'
-import { PRODUCT_CONDITIONS, SUPPORTED_CURRENCIES, getCategoryIcon } from '@/lib/data'
+import { getCategoryIcon } from '@/lib/data'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -20,36 +20,47 @@ import Link from 'next/link'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { AlertCircle } from 'lucide-react'
 
-// Validation schema
+// REASON: The product condition enum was updated to match the new API contract.
+const PRODUCT_CONDITIONS = [
+  { value: 'new', label: 'New' },
+  { value: 'like_new', label: 'Like New' },
+  { value: 'good', label: 'Good' },
+  { value: 'fair', label: 'Fair' },
+  { value: 'poor', label: 'Poor' },
+] as const;
+
+// REASON: The validation schema is updated to match the `ProductDataSchema` from the backend.
+// This includes coercing string form inputs into numbers for numeric fields,
+// updating enums, and changing currency validation to a 3-character string.
 const productSchema = z.object({
   title: z.string().min(1, 'Title is required').max(255, 'Title must be less than 255 characters'),
   description: z.string().min(1, 'Description is required'),
-  category_id: z.string().min(1, 'Category is required'),
+  category_id: z.coerce.number({ required_error: 'Category is required' }).int().positive('Category must be a valid selection'),
   brand: z.string().max(100, 'Brand must be less than 100 characters').optional(),
-  condition: z.enum(['new', 'like_new', 'good', 'used'], {
+  condition: z.enum(['new', 'like_new', 'good', 'fair', 'poor'], {
     required_error: 'Condition is required',
   }),
   location: z.string().min(1, 'Location is required').max(100, 'Location must be less than 100 characters'),
-  currency: z.enum(['usdc', 'usdt'], {
-    required_error: 'Currency is required',
-  }),
-  price_per_hour: z.string().optional().refine(
-    (val) => !val || (!isNaN(parseFloat(val)) && parseFloat(val) > 0 && parseFloat(val) <= 9999999999.99),
-    'Price per hour must be a positive number not exceeding 9,999,999,999.99'
-  ),
-  price_per_day: z.string().min(1, 'Price per day is required').refine(
-    (val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0 && parseFloat(val) <= 9999999999.99,
-    'Price per day must be a positive number not exceeding 9,999,999,999.99'
-  ),
-  daily_cap_hours: z.string().optional().refine(
-    (val) => !val || (!isNaN(parseInt(val)) && parseInt(val) > 0),
-    'Daily cap hours must be a positive integer'
-  ),
-  security_deposit: z.string().optional().refine(
-    (val) => !val || (!isNaN(parseFloat(val)) && parseFloat(val) >= 0 && parseFloat(val) <= 9999999999.99),
-    'Security deposit must be a non-negative number not exceeding 9,999,999,999.99'
-  ),
-})
+  currency: z.string().length(3, 'Currency must be a 3-character code (e.g., USD)').transform(val => val.toUpperCase()),
+  price_per_day: z.coerce
+    .number({ required_error: 'Price per day is required', invalid_type_error: 'Price must be a number' })
+    .positive('Price per day must be a positive number'),
+  price_per_hour: z.union([
+    z.coerce.number().positive('Price per hour must be a positive number'),
+    z.literal(''),
+    z.nan()
+  ]).optional().transform(val => (val === '' || isNaN(val as number)) ? undefined : val),
+  daily_cap_hours: z.union([
+    z.coerce.number().int('Daily cap hours must be an integer').positive(),
+    z.literal(''),
+    z.nan()
+  ]).optional().transform(val => (val === '' || isNaN(val as number)) ? undefined : val),
+  security_deposit: z.union([
+    z.coerce.number().nonnegative('Security deposit must be a non-negative number'),
+    z.literal(''),
+    z.nan()
+  ]).optional().transform(val => (val === '' || isNaN(val as number)) ? undefined : val),
+});
 
 type ProductFormData = z.infer<typeof productSchema>
 
@@ -80,8 +91,18 @@ export default function NewListingPage() {
     formState: { errors },
     setValue,
     control,
+    // REASON: Added `setError` from react-hook-form to programmatically set field-specific errors
+    // received from the backend API upon validation failure.
+    setError: setFormError,
   } = useForm<ProductFormData>({
     resolver: zodResolver(productSchema),
+    defaultValues: {
+      title: '',
+      description: '',
+      brand: '',
+      location: '',
+      currency: '',
+    }
   })
 
   // Authentication check
@@ -164,7 +185,10 @@ export default function NewListingPage() {
     });
   }
 
-  const onSubmit = async (data: ProductFormData) => {
+  // REASON: The onSubmit function is refactored to handle the new API contract.
+  // It uses the Zod-validated data, includes advanced error handling for backend
+  // validation messages, and constructs the payload correctly.
+  const onSubmit = async (validatedData: ProductFormData) => {
     setIsSubmitting(true)
     setError(null)
 
@@ -194,25 +218,49 @@ export default function NewListingPage() {
     try {
       toast({ title: 'Submitting...', description: 'Your new listing is being created.' })
 
-      // Use a UUID for the new product. This is generated client-side
-      // so the Edge Function knows the ID before inserting the product.
       const productId = crypto.randomUUID()
 
-      // Prepare the form data to send to the Edge Function.
+      // REASON: The `validatedData` object from react-hook-form now contains the
+      // correctly typed values (e.g., numbers for prices) due to Zod's transformations.
+      // We use this directly to build the final payload.
+      const productData = {
+        ...validatedData,
+        id: productId,
+      }
+
       const formData = new FormData()
-      formData.append('productData', JSON.stringify({ ...data, id: productId }))
+      formData.append('productData', JSON.stringify(productData))
       images.forEach(image => {
         formData.append('images', image.file, image.file.name)
       })
 
-      // Invoke the 'create-product' Edge Function.
       const { data: responseData, error: functionError } = await supabase.functions.invoke(
         'create-product',
         { body: formData }
       )
 
+      // REASON: Advanced error handling to parse backend validation errors.
+      // If the error response contains a `details` object, we use it to set
+      // specific error messages on the corresponding form fields.
       if (functionError) {
-        throw new Error(functionError.message)
+        const context = (functionError as any).context;
+        if (context && context.details && typeof context.details === 'object') {
+          setError('Submission failed. Please check the fields below for errors.');
+          Object.entries(context.details).forEach(([field, messages]) => {
+            const fieldName = field as keyof ProductFormData;
+            const message = Array.isArray(messages) ? messages.join(', ') : String(messages);
+            setFormError(fieldName, { type: 'manual', message });
+          });
+        } else {
+          const errorMessage = context?.error || functionError.message || 'An unknown error occurred.';
+          setError(`Submission Failed: ${errorMessage}`);
+        }
+        toast({
+          variant: 'destructive',
+          title: 'Submission Failed',
+          description: 'Please review the errors and try again.',
+        });
+        return; // Stop execution
       }
 
       toast({
@@ -222,11 +270,13 @@ export default function NewListingPage() {
       router.push('/profile/listings')
 
     } catch (err: any) {
-      setError(err.message)
+      // Catches network errors or other unexpected issues.
+      const errorMessage = err.message || 'An unexpected error occurred.';
+      setError(errorMessage);
       toast({
         variant: 'destructive',
         title: 'Submission Failed',
-        description: err.message,
+        description: errorMessage,
       })
     } finally {
       setIsSubmitting(false)
@@ -283,11 +333,11 @@ export default function NewListingPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <Label>Category *</Label>
-                <Select onValueChange={(value) => setValue('category_id', value)} {...register('category_id')}>
+                <Select onValueChange={(value: string) => setValue('category_id', parseInt(value, 10), { shouldValidate: true })} >
                   <SelectTrigger><SelectValue placeholder="Select a category" /></SelectTrigger>
                   <SelectContent>
                     {categories.map((cat) => (
-                      <SelectItem key={cat.id} value={cat.id.toString()}>
+                      <SelectItem key={cat.id} value={String(cat.id)}>
                         <div className="flex items-center gap-2">
                           <span className="text-lg">{getCategoryIcon(cat.name)}</span>
                           <span>{cat.name}</span>
@@ -308,7 +358,8 @@ export default function NewListingPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <Label>Condition *</Label>
-                <Select onValueChange={(value) => setValue('condition', value as any)} {...register('condition')}>
+                {/* REASON: The Select component is updated to use the new PRODUCT_CONDITIONS array. */}
+                <Select onValueChange={(value: string) => setValue('condition', value as 'new' | 'like_new' | 'good' | 'fair' | 'poor', { shouldValidate: true })} >
                   <SelectTrigger><SelectValue placeholder="Select condition" /></SelectTrigger>
                   <SelectContent>
                     {PRODUCT_CONDITIONS.map((c) => (
@@ -334,15 +385,9 @@ export default function NewListingPage() {
           <CardContent className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <Label>Currency *</Label>
-                <Select onValueChange={(value) => setValue('currency', value as any)} {...register('currency')}>
-                  <SelectTrigger><SelectValue placeholder="Select currency" /></SelectTrigger>
-                  <SelectContent>
-                    {SUPPORTED_CURRENCIES.map((c) => (
-                      <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="currency">Currency *</Label>
+                {/* REASON: The currency field is changed from a Select to an Input to allow any 3-character code. */}
+                <Input id="currency" {...register('currency')} placeholder="e.g., USD" />
                 {errors.currency && <p className="text-sm text-destructive">{errors.currency.message}</p>}
               </div>
               <div className="space-y-2">
@@ -362,6 +407,13 @@ export default function NewListingPage() {
                 <Input id="security_deposit" type="number" step="0.01" {...register('security_deposit')} placeholder="e.g., 100.00" />
                 {errors.security_deposit && <p className="text-sm text-destructive">{errors.security_deposit.message}</p>}
               </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                    <Label htmlFor="daily_cap_hours">Daily Cap Hours</Label>
+                    <Input id="daily_cap_hours" type="number" step="1" {...register('daily_cap_hours')} placeholder="e.g., 4" />
+                    {errors.daily_cap_hours && <p className="text-sm text-destructive">{errors.daily_cap_hours.message}</p>}
+                </div>
             </div>
           </CardContent>
         </Card>
@@ -393,7 +445,7 @@ export default function NewListingPage() {
                 <Label htmlFor="image-upload" className="cursor-pointer aspect-square flex flex-col items-center justify-center border-2 border-dashed rounded-lg hover:bg-muted">
                   <Upload className="h-8 w-8 text-muted-foreground" />
                   <span className="mt-2 text-sm text-muted-foreground">Upload</span>
-                  <Input id="image-upload" type="file" multiple accept="image/*" className="sr-only" onChange={handleImageSelect} />
+                  <Input id="image-upload" type="file" multiple accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={handleImageSelect} />
                 </Label>
               )}
             </div>

@@ -4,10 +4,10 @@ import {
   Transaction, 
   SystemProgram
 } from '@solana/web3.js'
-import { 
-  getAssociatedTokenAddress,
+import {
   TOKEN_PROGRAM_ID,
-  ASSOCIATED_TOKEN_PROGRAM_ID 
+  ASSOCIATED_TOKEN_PROGRAM_ID,
+  getAssociatedTokenAddress
 } from '@solana/spl-token'
 import { BN, Program, AnchorProvider, Idl } from '@coral-xyz/anchor'
 import { KairoriaRental } from './kairoria_rental';
