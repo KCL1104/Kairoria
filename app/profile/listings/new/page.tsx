@@ -5,19 +5,19 @@ import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
-import { useAuth } from '@/contexts/SupabaseAuthContext'
-import { supabase } from '@/lib/supabase-client'
-import { getCategoryIcon } from '@/lib/data'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
-import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { useToast } from '@/hooks/use-toast'
+import { useAuth } from '../../../../contexts/SupabaseAuthContext'
+import { supabase } from '../../../../lib/supabase-client'
+import { getCategoryIcon } from '../../../../lib/data'
+import { Button } from '../../../../components/ui/button'
+import { Input } from '../../../../components/ui/input'
+import { Textarea } from '../../../../components/ui/textarea'
+import { Label } from '../../../../components/ui/label'
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '../../../../components/ui/card'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../../components/ui/select'
+import { useToast } from '../../../../hooks/use-toast'
 import { ArrowLeft, Loader2, Upload, X, ImageIcon } from 'lucide-react'
 import Link from 'next/link'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Alert, AlertDescription, AlertTitle } from '../../../../components/ui/alert'
 import { AlertCircle } from 'lucide-react'
 
 // REASON: The product condition enum was updated to match the new API contract.
@@ -41,7 +41,10 @@ const productSchema = z.object({
     required_error: 'Condition is required',
   }),
   location: z.string().min(1, 'Location is required').max(100, 'Location must be less than 100 characters'),
-  currency: z.string().length(3, 'Currency must be a 3-character code (e.g., USD)').transform(val => val.toUpperCase()),
+  // WARNING: The backend Edge Function still validates for a 3-character string,
+  // not the "USDC" literal. This will likely cause a 400 Bad Request error
+  // until the backend is updated to match this new validation rule.
+  currency: z.literal('USDC', { required_error: 'Currency must be USDC' }),
   price_per_day: z.coerce
     .number({ required_error: 'Price per day is required', invalid_type_error: 'Price must be a number' })
     .positive('Price per day must be a positive number'),
@@ -76,7 +79,7 @@ interface UploadedImage {
 }
 
 export default function NewListingPage() {
-  const { user, isLoading } = useAuth()
+  const { user, session, isLoading } = useAuth()
   const router = useRouter()
   const { toast } = useToast()
   
@@ -101,7 +104,7 @@ export default function NewListingPage() {
       description: '',
       brand: '',
       location: '',
-      currency: '',
+      currency: 'USDC',
     }
   })
 
@@ -217,6 +220,12 @@ export default function NewListingPage() {
 
     try {
       toast({ title: 'Submitting...', description: 'Your new listing is being created.' })
+
+      // REASON: Set the JWT for the Edge Function call to fix 401 Unauthorized errors.
+      // This ensures the user's session is authenticated for the backend request.
+      if (session) {
+        supabase.functions.setAuth(session.access_token)
+      }
 
       const productId = crypto.randomUUID()
 
@@ -385,35 +394,27 @@ export default function NewListingPage() {
           <CardContent className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <Label htmlFor="currency">Currency *</Label>
-                {/* REASON: The currency field is changed from a Select to an Input to allow any 3-character code. */}
-                <Input id="currency" {...register('currency')} placeholder="e.g., USD" />
-                {errors.currency && <p className="text-sm text-destructive">{errors.currency.message}</p>}
-              </div>
-              <div className="space-y-2">
                 <Label htmlFor="price_per_day">Price Per Day *</Label>
                 <Input id="price_per_day" type="number" step="0.01" {...register('price_per_day')} placeholder="e.g., 50.00" />
                 {errors.price_per_day && <p className="text-sm text-destructive">{errors.price_per_day.message}</p>}
               </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <Label htmlFor="price_per_hour">Price Per Hour</Label>
                 <Input id="price_per_hour" type="number" step="0.01" {...register('price_per_hour')} placeholder="e.g., 10.00" />
                 {errors.price_per_hour && <p className="text-sm text-destructive">{errors.price_per_hour.message}</p>}
               </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <Label htmlFor="security_deposit">Security Deposit</Label>
                 <Input id="security_deposit" type="number" step="0.01" {...register('security_deposit')} placeholder="e.g., 100.00" />
                 {errors.security_deposit && <p className="text-sm text-destructive">{errors.security_deposit.message}</p>}
               </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                    <Label htmlFor="daily_cap_hours">Daily Cap Hours</Label>
-                    <Input id="daily_cap_hours" type="number" step="1" {...register('daily_cap_hours')} placeholder="e.g., 4" />
-                    {errors.daily_cap_hours && <p className="text-sm text-destructive">{errors.daily_cap_hours.message}</p>}
-                </div>
+              <div className="space-y-2">
+                  <Label htmlFor="daily_cap_hours">Daily Cap Hours</Label>
+                  <Input id="daily_cap_hours" type="number" step="1" {...register('daily_cap_hours')} placeholder="e.g., 4" />
+                  {errors.daily_cap_hours && <p className="text-sm text-destructive">{errors.daily_cap_hours.message}</p>}
+              </div>
             </div>
           </CardContent>
         </Card>
