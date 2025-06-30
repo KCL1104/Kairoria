@@ -21,6 +21,7 @@ interface AuthContextType {
   refreshSession: () => Promise<void>
   isAuthenticated: boolean
   profile: any
+  isProfileLoading: boolean;
 }
 
 const SupabaseAuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -31,6 +32,7 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isProfileLoading, setIsProfileLoading] = useState(false)
   const router = useRouter()
   
   // Helper to identify missing profile fields
@@ -114,6 +116,7 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
       return
     }
 
+    setIsProfileLoading(true)
     try {
       console.log('Fetching profile for userId:', userId)
       logAuthEvent('profile_fetch_start', { userId })
@@ -167,6 +170,7 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
       // Set profile to null on catch to prevent infinite loading
       setProfile(null)
     } finally {
+      setIsProfileLoading(false)
     }
   }, [supabase, createProfileIfNotExistsInternal])
 
@@ -531,6 +535,7 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
     user,
     session,
     isLoading,
+    isProfileLoading,
     signUp,
     signIn,
     signOut,
