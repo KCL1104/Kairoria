@@ -11,7 +11,6 @@ interface AuthContextType {
   user: User | null
   session: Session | null
   isLoading: boolean
-  isProfileLoading: boolean
   // Legacy auth methods - consider using UnifiedLoginForm component or /api/auth/unified-login endpoint
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: any }>
   signIn: (email: string, password: string) => Promise<{ error: any }>
@@ -32,7 +31,6 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [isProfileLoading, setIsProfileLoading] = useState(false)
   const router = useRouter()
   
   // Helper to identify missing profile fields
@@ -116,7 +114,6 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
       return
     }
 
-    setIsProfileLoading(true)
     try {
       console.log('Fetching profile for userId:', userId)
       logAuthEvent('profile_fetch_start', { userId })
@@ -170,37 +167,27 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
       // Set profile to null on catch to prevent infinite loading
       setProfile(null)
     } finally {
-      setIsProfileLoading(false)
     }
   }, [supabase, createProfileIfNotExistsInternal])
 
 
   // Define handleAuthStateChange as a callback
   const handleAuthStateChange = useCallback(async (event: any, session: any) => {
-    console.log('🔄 Auth state changed:', event, session?.user?.id)
-    logAuthEvent('auth_state_change', { event, userId: session?.user?.id })
-    
-    setSession(session)
-    setUser(session?.user ?? null)
-    
+    console.log('🔄 Auth state changed:', event, session?.user?.id);
+    logAuthEvent('auth_state_change', { event, userId: session?.user?.id });
+
+    setSession(session);
+    setUser(session?.user ?? null);
+
     if (session?.user) {
-      await fetchProfileInternal(session.user.id)
+      await fetchProfileInternal(session.user.id);
     } else {
-      setProfile(null)
+      setProfile(null);
     }
-    
-    // For OAuth success, ensure state is properly updated
-    if (event === 'OAUTH_SUCCESS' || event === 'INITIAL_SESSION') {
-      // Force a re-render to update UI components
-      setIsLoading(false)
-      // Small delay to ensure all state updates are processed
-      setTimeout(() => {
-        setIsLoading(false)
-      }, 100)
-    } else {
-      setIsLoading(false)
-    }
-  }, [fetchProfileInternal])
+
+    // Set loading to false only after session and profile are handled
+    setIsLoading(false);
+  }, [fetchProfileInternal]);
 
   // Initialize auth state
   useEffect(() => {
@@ -262,6 +249,8 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
         }
       } catch (error) {
         console.error('Session initialization error:', error)
+        // Ensure loading is false on error
+        setProfile(null)
         setIsLoading(false)
       }
     }
@@ -542,7 +531,6 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
     user,
     session,
     isLoading,
-    isProfileLoading,
     signUp,
     signIn,
     signOut,

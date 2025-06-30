@@ -29,7 +29,7 @@ const ProductDataSchema = z.object({
   id: z.string().uuid(),
   title: z.string().min(1, 'Product title cannot be empty'),
   description: z.string().min(1, 'Product description cannot be empty'),
-  category_id: z.string().transform(val => parseInt(val)),
+  category_id: z.coerce.number().int().positive(),
   brand: z.string().optional().nullable(),
   condition: z.enum(['new', 'like_new', 'good', 'used']),
   location: z.string().min(1, 'Location cannot be empty'),
