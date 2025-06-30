@@ -22,7 +22,7 @@ interface Product {
   id: string
   title: string
   description: string
-  price_per_day: string
+  price_per_day: number
   location: string
   category_id: number
   owner_id: string
