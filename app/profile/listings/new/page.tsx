@@ -42,10 +42,7 @@ const productSchema = z.object({
     required_error: 'Condition is required',
   }),
   location: z.string().min(1, 'Location is required').max(100, 'Location must be less than 100 characters'),
-  // WARNING: The backend Edge Function still validates for a 3-character string,
-  // not the "USDC" literal. This will likely cause a 400 Bad Request error
-  // until the backend is updated to match this new validation rule.
-  currency: z.literal('USDC', { required_error: 'Currency must be USDC' }),
+  currency: z.literal('usdc', { required_error: 'Currency must be USDC' }),
   price_per_day: z.coerce
     .number({ required_error: 'Price per day is required', invalid_type_error: 'Price must be a number' })
     .positive('Price per day must be a positive number'),
@@ -106,7 +103,7 @@ export default function NewListingPage() {
       description: '',
       brand: '',
       location: '',
-      currency: 'USDC',
+      currency: 'usdc',
     }
   })
 
@@ -245,20 +242,28 @@ export default function NewListingPage() {
         id: productId,
       }
 
+      // Create FormData to include both product data and images
       const formData = new FormData()
+      
+      // Add product data as JSON string
       formData.append('productData', JSON.stringify(productData))
-      console.log(formData)
-      images.forEach(image => {
-        formData.append('images', image.file, image.file.name)
+      
+      // Add images to FormData
+      images.forEach((image, index) => {
+        formData.append('images', image.file)
+        if (image.isCover) {
+          formData.append('coverImageIndex', index.toString())
+        }
       })
-
-      // By passing the Authorization header directly, we ensure the Edge Function
-      // is authenticated, which is a more robust method than setAuth().
-
+      
+      // Send FormData with both product data and images
       const { data: responseData, error: functionError } = await supabase.functions.invoke(
         'create-product',
         {
           body: formData,
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
         }
       )
 

@@ -31,9 +31,9 @@ const ProductDataSchema = z.object({
   description: z.string().min(1, 'Product description cannot be empty'),
   category_id: z.coerce.number().int().positive(),
   brand: z.string().optional().nullable(),
-  condition: z.enum(['new', 'like_new', 'good', 'used']),
+  condition: z.enum(['new', 'like_new', 'good', 'fair', 'poor']),
   location: z.string().min(1, 'Location cannot be empty'),
-  currency: z.enum(['usdc', 'usdt']),
+  currency: z.enum(['usdc']),
   price_per_hour: z.coerce.number().positive().optional().nullable(),
   price_per_day: z.coerce.number().positive('Daily price must be greater than 0'),
   daily_cap_hours: z.coerce.number().int().positive().optional().nullable(),
@@ -250,12 +250,28 @@ async function handleCreateProduct(req: Request): Promise<Response> {
       return createErrorResponse('Unauthorized: Could not verify user', 401);
     }
     
-    // 3. Parse and validate product data from JSON body
+    // 3. Parse FormData to extract product data and images
+    let formData: FormData;
     let rawProductData: any;
+    let imageFiles: File[] = [];
+    
     try {
-      rawProductData = await req.json();
+      formData = await req.formData();
+      
+      // Extract product data from FormData
+      const productDataString = formData.get('productData');
+      if (!productDataString || typeof productDataString !== 'string') {
+        return createErrorResponse('Missing productData in FormData', 400);
+      }
+      
+      rawProductData = JSON.parse(productDataString);
+      
+      // Extract image files from FormData
+      const images = formData.getAll('images');
+      imageFiles = images.filter((file): file is File => file instanceof File);
+      
     } catch (error) {
-      return createErrorResponse('Invalid JSON in request body', 400, error.message);
+      return createErrorResponse('Invalid FormData in request body', 400, error.message);
     }
     
     // Validate with Zod
@@ -273,12 +289,24 @@ async function handleCreateProduct(req: Request): Promise<Response> {
       return createErrorResponse('Product ID is missing from product data.', 400);
     }
     
-    // Image handling is not part of this test case, so we will skip it.
+    // 4. Validate image files
+    const imageValidation = validateImageFiles(imageFiles);
+    if (!imageValidation.isValid) {
+      return createErrorResponse(imageValidation.error!, 400);
+    }
     
-    // The adminClient was already created for authentication
+    // 5. Upload images to storage
+    let imageRecords: ImageRecord[] = [];
+    try {
+      imageRecords = await uploadImages(adminClient, imageFiles, productId);
+      uploadedImageUrls = imageRecords.map(record => record.image_url);
+    } catch (error) {
+      console.error('Image upload error:', error);
+      return createErrorResponse('Failed to upload images', 500, error.message);
+    }
     
-    // 7. Insert product data
-    const { data: product, error: productError } = await adminClient!
+    // 6. Insert product data
+    const { data: product, error: productError } = await adminClient
       .from('products')
       .insert({
         ...productData,
@@ -290,14 +318,27 @@ async function handleCreateProduct(req: Request): Promise<Response> {
     
     if (productError) {
       console.error('Product insertion error:', productError);
+      // Clean up uploaded images on product insertion failure
+      await cleanupFailedUpload(adminClient, productId, uploadedImageUrls);
       return createErrorResponse('Failed to create product', 500, productError.message);
     }
     
-    // Skipping image upload and record insertion for this test case.
-    const imageRecords: ImageRecord[] = [];
+    // 7. Insert image records
+    if (imageRecords.length > 0) {
+      const { error: imageError } = await adminClient
+        .from('product_images')
+        .insert(imageRecords);
+      
+      if (imageError) {
+        console.error('Image record insertion error:', imageError);
+        // Clean up on image record insertion failure
+        await cleanupFailedUpload(adminClient, productId, uploadedImageUrls);
+        return createErrorResponse('Failed to save image records', 500, imageError.message);
+      }
+    }
     
-    // 10. Update product status to 'listed'
-    const { error: updateError } = await adminClient!
+    // 8. Update product status to 'listed'
+    const { error: updateError } = await adminClient
       .from('products')
       .update({ status: 'listed' })
       .eq('id', productId);
@@ -307,7 +348,7 @@ async function handleCreateProduct(req: Request): Promise<Response> {
       // Don't fail the entire request because of this error
     }
     
-    // 11. Return success response
+    // 9. Return success response
     return createSuccessResponse({
       success: true,
       product: {

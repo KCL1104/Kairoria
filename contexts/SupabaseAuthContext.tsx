@@ -171,6 +171,7 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
       setProfile(null)
     } finally {
       setIsProfileLoading(false)
+      setIsLoading(false) // Set loading to false after profile fetch is complete
     }
   }, [supabase, createProfileIfNotExistsInternal])
 
@@ -187,10 +188,8 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
       await fetchProfileInternal(session.user.id);
     } else {
       setProfile(null);
+      setIsLoading(false); // Set loading to false if no session
     }
-
-    // Set loading to false only after session and profile are handled
-    setIsLoading(false);
   }, [fetchProfileInternal]);
 
   // Initialize auth state
