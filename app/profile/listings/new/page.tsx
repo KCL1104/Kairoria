@@ -19,6 +19,7 @@ import { ArrowLeft, Loader2, Upload, X, ImageIcon } from 'lucide-react'
 import Link from 'next/link'
 import { Alert, AlertDescription, AlertTitle } from '../../../../components/ui/alert'
 import { AlertCircle } from 'lucide-react'
+import { LocationAutocomplete } from '../../../../components/ui/location-autocomplete'
 import { createClient } from '../../../../lib/supabase/client'
 
 // REASON: The product condition enum was updated to match the new API contract.
@@ -34,6 +35,8 @@ const PRODUCT_CONDITIONS = [
 // This includes coercing string form inputs into numbers for numeric fields,
 // updating enums, and changing currency validation to a 3-character string.
 const productSchema = z.object({
+  lat: z.number().optional(),
+  lng: z.number().optional(),
   title: z.string().min(1, 'Title is required').max(255, 'Title must be less than 255 characters'),
   description: z.string().min(1, 'Description is required'),
   category_id: z.coerce.number({ required_error: 'Category is required' }).int().positive('Category must be a valid selection'),
@@ -86,6 +89,7 @@ export default function NewListingPage() {
   const [images, setImages] = useState<UploadedImage[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [location, setLocation] = useState<{ address: string; lat?: number; lng?: number } | null>(null);
 
   const {
     register,
@@ -103,6 +107,8 @@ export default function NewListingPage() {
       description: '',
       brand: '',
       location: '',
+      lat: undefined,
+      lng: undefined,
       currency: 'usdc',
     }
   })
@@ -217,6 +223,17 @@ export default function NewListingPage() {
       return;
     }
     
+    if (!location || !location.lat || !location.lng) {
+      setError("A valid location with coordinates is required.");
+      toast({
+        variant: 'destructive',
+        title: 'Invalid Location',
+        description: 'Please select a valid location from the suggestions.',
+      });
+      setIsSubmitting(false);
+      return;
+    }
+
     if (images.length === 0) {
       setError("At least one image is required.");
       toast({
@@ -240,6 +257,8 @@ export default function NewListingPage() {
       const productData = {
         ...validatedData,
         id: productId,
+        lat: location.lat,
+        lng: location.lng,
       }
 
       // Create FormData to include both product data and images
@@ -399,7 +418,18 @@ export default function NewListingPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="location">Location *</Label>
-                <Input id="location" {...register('location')} placeholder="e.g., San Francisco, CA" />
+                <LocationAutocomplete
+                  onLocationSelect={(selected) => {
+                    setValue('location', selected.address, { shouldValidate: true });
+                    setValue('lat', selected.lat, { shouldValidate: true });
+                    setValue('lng', selected.lng, { shouldValidate: true });
+                    setLocation(selected);
+                  }}
+                  onChange={(value) => {
+                    setValue('location', value, { shouldValidate: true });
+                  }}
+                  error={errors.location?.message}
+                />
                 {errors.location && <p className="text-sm text-destructive">{errors.location.message}</p>}
               </div>
             </div>

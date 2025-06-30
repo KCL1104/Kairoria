@@ -8,7 +8,8 @@ import { cn } from '../../lib/utils'
 
 interface LocationAutocompleteProps {
   value?: string
-  onChange: (value: string) => void
+  onChange?: (value: string) => void
+  onLocationSelect?: (location: { address: string; lat: number; lng: number }) => void
   placeholder?: string
   className?: string
   disabled?: boolean
@@ -201,11 +202,38 @@ export function LocationAutocomplete({
     }, 300)
   }
 
-  const handlePlaceSelect = (suggestion: PlaceSuggestion) => {
+  const handlePlaceSelect = async (suggestion: PlaceSuggestion) => {
     setInputValue(suggestion.description)
-    onChange(suggestion.description)
+    onChange?.(suggestion.description)
     setIsOpen(false)
     setSuggestions([])
+
+    // Get coordinates for the selected place
+    if (geocoder.current && onLocationSelect) {
+      try {
+        const result = await new Promise<google.maps.GeocoderResult[]>((resolve, reject) => {
+          geocoder.current!.geocode(
+            { placeId: suggestion.place_id },
+            (results, status) => {
+              if (status === 'OK' && results && results[0]) {
+                resolve(results)
+              } else {
+                reject(new Error(`Geocoding failed: ${status}`))
+              }
+            }
+          )
+        })
+
+        const location = result[0].geometry.location
+        onLocationSelect({
+          address: suggestion.description,
+          lat: location.lat(),
+          lng: location.lng()
+        })
+      } catch (error) {
+        console.error('Error getting coordinates:', error)
+      }
+    }
     
     // Create a new session token for the next search session
     createNewSessionToken()
@@ -233,7 +261,14 @@ export function LocationAutocomplete({
           if (status === 'OK' && results && results[0]) {
             const address = results[0].formatted_address
             setInputValue(address)
-            onChange(address)
+            onChange?.(address)
+            if (onLocationSelect) {
+              onLocationSelect({
+                address,
+                lat: latitude,
+                lng: longitude
+              })
+            }
           } else {
             alert('Unable to retrieve your location address.')
           }
