@@ -176,18 +176,33 @@ async function uploadImages(
   client: SupabaseClient,
   files: File[],
   productId: string
-): Promise<ImageRecord[]> {
-  const uploadPromises = files.map(async (file, index) => {
-    const imageUrl = await uploadImage(client, file, productId, index);
-    return {
-      product_id: productId,
-      image_url: imageUrl,
-      display_order: index,
-      is_cover: index === 0
-    };
+): Promise<{ successfulRecords: ImageRecord[]; errors: any[] }> {
+  const uploadPromises = files.map((file, index) =>
+    uploadImage(client, file, productId, index)
+  );
+
+  const results = await Promise.allSettled(uploadPromises);
+
+  const successfulRecords: ImageRecord[] = [];
+  const errors: any[] = [];
+
+  results.forEach((result, index) => {
+    if (result.status === 'fulfilled') {
+      successfulRecords.push({
+        product_id: productId,
+        image_url: result.value,
+        display_order: index,
+        is_cover: index === 0,
+      });
+    } else {
+      errors.push({
+        reason: result.reason.message,
+        fileName: files[index].name
+      });
+    }
   });
-  
-  return Promise.all(uploadPromises);
+
+  return { successfulRecords, errors };
 }
 
 /**
@@ -277,14 +292,21 @@ async function handleCreateProduct(req: Request): Promise<Response> {
     }
 
     // 4. Upload images to storage
-    let imageRecords: ImageRecord[] = [];
-    try {
-      imageRecords = await uploadImages(adminClient, imageFiles, productId);
-      uploadedImageUrls = imageRecords.map(record => record.image_url);
-    } catch (error) {
-      console.error('Image upload error:', error);
-      // No need to clean up DB here, just return error
-      return createErrorResponse('Failed to upload images', 500, error.message);
+    const { successfulRecords, errors } = await uploadImages(adminClient, imageFiles, productId);
+    const imageRecords = successfulRecords;
+    uploadedImageUrls = imageRecords.map(record => record.image_url);
+
+    if (errors.length > 0) {
+      console.error('Partial image upload failed. Cleaning up storage.', { errors });
+      // Clean up successfully uploaded files before exiting
+      if (uploadedImageUrls.length > 0) {
+        await cleanupStorage(adminClient, productId, uploadedImageUrls);
+      }
+      return createErrorResponse(
+        'Some images failed to upload. The operation has been reverted.',
+        500,
+        { failedUploads: errors }
+      );
     }
 
     // 5. Call the database function to create product and images in a transaction
