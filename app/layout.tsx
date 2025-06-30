@@ -4,7 +4,6 @@ import { Inter } from 'next/font/google'
 import { ThemeProvider } from '@/components/theme-provider'
 import { SupabaseAuthProvider } from '@/contexts/SupabaseAuthContext'
 import { SolanaWalletProvider } from '@/contexts/SolanaWalletProvider'
-import { AuthInitializer } from '@/components/auth/AuthInitializer'
 
 
 import { Toaster } from '@/components/ui/toaster'
@@ -39,12 +38,10 @@ export default function RootLayout({
         >
           <SolanaWalletProvider>
             <SupabaseAuthProvider>
-              <AuthInitializer>
-                <Navbar />
-                <main className="flex-1">{children}</main>
-                <Footer />
-                <Toaster />
-              </AuthInitializer>
+              <Navbar />
+              <main className="flex-1">{children}</main>
+              <Footer />
+              <Toaster />
             </SupabaseAuthProvider>
           </SolanaWalletProvider>
         </ThemeProvider>
