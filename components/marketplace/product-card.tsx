@@ -73,7 +73,7 @@ export function ProductCard({
       <CardFooter className="p-4 pt-0 flex items-center justify-between">
         <div>
           <span className="font-semibold text-lg">${price}</span>
-          <span className="text-muted-foreground text-sm">/{period}</span>
+          <span className="text-muted-foreground text-sm">/{period} (USDC)</span>
         </div>
         <Button size="sm" disabled={!isAvailable}>
           {isAvailable ? "Rent Now" : "Unavailable"}

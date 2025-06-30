@@ -46,10 +46,10 @@ CREATE TABLE IF NOT EXISTS products (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     title TEXT NOT NULL,
     description TEXT NOT NULL,
-    price_per_day DECIMAL(12,2) NOT NULL, -- Changed from BIGINT to DECIMAL for consistency
-    price_per_hour DECIMAL(12,2), -- Changed from BIGINT to DECIMAL for consistency
+    price_per_day DECIMAL(18,6) NOT NULL, -- USDC smallest units with 6 decimal places
+    price_per_hour DECIMAL(18,6), -- USDC smallest units with 6 decimal places
     daily_cap_hours INTEGER, -- Max hours per day for hourly pricing
-    security_deposit DECIMAL(12,2) NOT NULL DEFAULT 0, -- Changed from BIGINT to DECIMAL for consistency
+    security_deposit DECIMAL(18,6) NOT NULL DEFAULT 0, -- USDC smallest units with 6 decimal places
     category_id INTEGER REFERENCES categories(id) NOT NULL,
     brand TEXT,
     condition TEXT NOT NULL CHECK (condition IN ('new', 'like_new', 'good', 'used')),
@@ -81,7 +81,7 @@ CREATE TABLE IF NOT EXISTS bookings (
     owner_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
     start_date TIMESTAMP WITH TIME ZONE NOT NULL,
     end_date TIMESTAMP WITH TIME ZONE NOT NULL,
-    total_price DECIMAL(12,2) NOT NULL, -- Ensured consistency with DECIMAL(12,2)
+    total_price DECIMAL(18,6) NOT NULL, -- USDC smallest units with 6 decimal places
     status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'confirmed', 'completed', 'cancelled')),
     payment_intent_id TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,

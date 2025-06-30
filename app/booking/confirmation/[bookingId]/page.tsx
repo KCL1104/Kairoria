@@ -21,6 +21,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '@/contexts/SupabaseAuthContext'
 import { supabase } from '@/lib/supabase-client'
+import { convertFromStorageAmount } from '@/lib/data'
 
 interface BookingDetails {
   id: string
@@ -300,7 +301,7 @@ export default function BookingConfirmationPage() {
               <CardContent className="space-y-4">
                 <div className="flex justify-between items-center">
                   <span>Total Amount</span>
-                  <span className="font-semibold">{booking.total_price} USDC</span>
+                  <span className="font-semibold">${convertFromStorageAmount(booking.total_price).toFixed(2)} USDC</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span>Payment Method</span>

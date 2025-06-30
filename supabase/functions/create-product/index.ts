@@ -33,7 +33,7 @@ const ProductDataSchema = z.object({
   brand: z.string().optional().nullable(),
   condition: z.enum(['new', 'like_new', 'good', 'fair', 'poor']),
   location: z.string().min(1, 'Location cannot be empty'),
-  currency: z.enum(['usdc']),
+  currency: z.enum(['usdc', 'usdt']),
   price_per_hour: z.coerce.number().positive().optional().nullable(),
   price_per_day: z.coerce.number().positive('Daily price must be greater than 0'),
   daily_cap_hours: z.coerce.number().int().positive().optional().nullable(),
@@ -43,6 +43,13 @@ const ProductDataSchema = z.object({
 type ProductData = z.infer<typeof ProductDataSchema>;
 
 // ===== Helper Functions =====
+
+/**
+ * Converts USD price to USDC storage units (multiply by 1,000,000)
+ */
+function convertToUSDCStorageUnits(price: number): number {
+  return Math.round(price * 1_000_000);
+}
 
 /**
  * Creates an admin client (using the Service Role Key)
@@ -305,14 +312,19 @@ async function handleCreateProduct(req: Request): Promise<Response> {
       return createErrorResponse('Failed to upload images', 500, error.message);
     }
     
-    // 6. Insert product data
+    // 6. Convert prices to USDC storage units and insert product data
+    const productDataWithUSDC = {
+      ...productData,
+      price_per_day: convertToUSDCStorageUnits(productData.price_per_day),
+      price_per_hour: productData.price_per_hour ? convertToUSDCStorageUnits(productData.price_per_hour) : null,
+      security_deposit: convertToUSDCStorageUnits(productData.security_deposit),
+      owner_id: user.id,
+      status: 'pending'
+    };
+    
     const { data: product, error: productError } = await adminClient
       .from('products')
-      .insert({
-        ...productData,
-        owner_id: user.id,
-        status: 'pending'
-      })
+      .insert(productDataWithUSDC)
       .select()
       .single();
     

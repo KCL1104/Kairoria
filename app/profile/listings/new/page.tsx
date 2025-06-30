@@ -20,6 +20,8 @@ import Link from 'next/link'
 import { Alert, AlertDescription, AlertTitle } from '../../../../components/ui/alert'
 import { AlertCircle } from 'lucide-react'
 import { createClient } from '../../../../lib/supabase/client'
+import { LocationAutocomplete } from '../../../../components/ui/location-autocomplete'
+import { Loader } from '@googlemaps/js-api-loader'
 
 // REASON: The product condition enum was updated to match the new API contract.
 const PRODUCT_CONDITIONS = [
@@ -86,6 +88,7 @@ export default function NewListingPage() {
   const [images, setImages] = useState<UploadedImage[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [isGoogleMapsLoaded, setIsGoogleMapsLoaded] = useState(false)
 
   const {
     register,
@@ -93,6 +96,7 @@ export default function NewListingPage() {
     formState: { errors },
     setValue,
     control,
+    watch,
     // REASON: Added `setError` from react-hook-form to programmatically set field-specific errors
     // received from the backend API upon validation failure.
     setError: setFormError,
@@ -107,6 +111,9 @@ export default function NewListingPage() {
     }
   })
 
+  // Watch the location field value
+  const locationValue = watch('location')
+
   // Authentication check
   useEffect(() => {
     if (!isLoading && !user) {
@@ -118,6 +125,32 @@ export default function NewListingPage() {
       router.push('/auth/login')
     }
   }, [isLoading, user, toast, router])
+
+  // Load Google Maps API
+  useEffect(() => {
+    const loadGoogleMaps = async () => {
+      const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+      if (!apiKey) {
+        console.warn('Google Maps API key not found')
+        return
+      }
+
+      try {
+        const loader = new Loader({
+          apiKey,
+          version: 'weekly',
+          libraries: ['places']
+        })
+        
+        await loader.load()
+        setIsGoogleMapsLoaded(true)
+      } catch (error) {
+        console.error('Error loading Google Maps:', error)
+      }
+    }
+
+    loadGoogleMaps()
+  }, [])
 
   // Fetch categories
   useEffect(() => {
@@ -399,8 +432,18 @@ export default function NewListingPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="location">Location *</Label>
-                <Input id="location" {...register('location')} placeholder="e.g., San Francisco, CA" />
-                {errors.location && <p className="text-sm text-destructive">{errors.location.message}</p>}
+                <LocationAutocomplete
+                  value={locationValue || ''}
+                  onChange={(value) => {
+                    setValue('location', value, { shouldValidate: true })
+                  }}
+                  placeholder="e.g., San Francisco, CA"
+                  error={errors.location?.message}
+                  disabled={!isGoogleMapsLoaded}
+                />
+                {!isGoogleMapsLoaded && (
+                  <p className="text-xs text-muted-foreground">Loading location services...</p>
+                )}
               </div>
             </div>
           </CardContent>
@@ -413,19 +456,19 @@ export default function NewListingPage() {
           <CardContent className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <Label htmlFor="price_per_day">Price Per Day *</Label>
+                <Label htmlFor="price_per_day">Price Per Day (USD in USDC) *</Label>
                 <Input id="price_per_day" type="number" step="0.01" {...register('price_per_day')} placeholder="e.g., 50.00" />
                 {errors.price_per_day && <p className="text-sm text-destructive">{errors.price_per_day.message}</p>}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="price_per_hour">Price Per Hour</Label>
+                <Label htmlFor="price_per_hour">Price Per Hour (USD in USDC)</Label>
                 <Input id="price_per_hour" type="number" step="0.01" {...register('price_per_hour')} placeholder="e.g., 10.00" />
                 {errors.price_per_hour && <p className="text-sm text-destructive">{errors.price_per_hour.message}</p>}
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <Label htmlFor="security_deposit">Security Deposit</Label>
+                <Label htmlFor="security_deposit">Security Deposit (USD in USDC)</Label>
                 <Input id="security_deposit" type="number" step="0.01" {...register('security_deposit')} placeholder="e.g., 100.00" />
                 {errors.security_deposit && <p className="text-sm text-destructive">{errors.security_deposit.message}</p>}
               </div>

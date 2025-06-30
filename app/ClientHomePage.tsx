@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Link from "next/link"
-import { Search, Sliders, Map, ArrowRight, Loader2, CheckCircle, Zap } from "lucide-react"
+import { Search, Sliders, Map, ArrowRight, Loader2, CheckCircle, Zap, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast"
 import { useSearchParams } from "next/navigation"
 import { ProductCard } from "@/components/marketplace/product-card"
 import { Product, Profile, getCategoryIcon, ProductImage, convertFromStorageAmount } from '@/lib/data'
+import { fetchProducts } from '@/lib/supabase-client'
 
 type ProductWithRelations = Product & {
   categories: { id: number; name: string }
@@ -27,6 +28,7 @@ export default function ClientHomePage({ initialProducts, initialCategories }: C
   const [products, setProducts] = useState<ProductWithRelations[]>(initialProducts)
   const [categories, setCategories] = useState<string[]>(initialCategories)
   const [isLoading, setIsLoading] = useState(false) // Data is initially loaded by server
+  const [isExecutingQuery, setIsExecutingQuery] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
   const { toast } = useToast()
   const searchParams = useSearchParams()
@@ -49,6 +51,41 @@ export default function ClientHomePage({ initialProducts, initialCategories }: C
       }
     }
   }, [searchParams, toast])
+
+  // Execute product query function
+  const executeProductQuery = useCallback(async () => {
+    setIsExecutingQuery(true)
+    
+    try {
+      console.log('🔍 Executing product query from ClientHomePage...')
+      
+      const queryOptions = {
+        limit: 12,
+        category: selectedCategory === 'all' ? undefined : selectedCategory
+      }
+      
+      const fetchedProducts = await fetchProducts(queryOptions)
+      
+      setProducts(fetchedProducts)
+      
+      toast({
+        title: "Product query executed",
+        description: `Found ${fetchedProducts.length} products`,
+        variant: "success"
+      })
+      
+      console.log('✅ Product query completed successfully:', fetchedProducts.length, 'products')
+    } catch (error) {
+      console.error('❌ Product query failed:', error)
+      toast({
+        title: "Query failed",
+        description: "Failed to execute product query",
+        variant: "destructive"
+      })
+    } finally {
+      setIsExecutingQuery(false)
+    }
+  }, [selectedCategory, toast])
 
   // Check for sign-out success on mount
   useEffect(() => {
@@ -161,6 +198,16 @@ export default function ClientHomePage({ initialProducts, initialCategories }: C
             <h1 className="text-2xl font-bold">Available Items</h1>
             
             <div className="flex items-center gap-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={executeProductQuery}
+                disabled={isExecutingQuery}
+                className="flex items-center gap-2"
+              >
+                <RefreshCw className={`h-4 w-4 ${isExecutingQuery ? 'animate-spin' : ''}`} />
+                {isExecutingQuery ? 'Executing Query...' : 'Execute Product Query'}
+              </Button>
               <Badge variant="outline">Sort: Recommended</Badge>
             </div>
           </div>

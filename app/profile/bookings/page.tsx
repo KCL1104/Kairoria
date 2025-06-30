@@ -23,6 +23,7 @@ import {
 import { useAuth } from '@/contexts/SupabaseAuthContext'
 import { useConnection, useWallet } from '@solana/wallet-adapter-react'
 import { supabase } from '@/lib/supabase-client'
+import { convertFromStorageAmount } from '@/lib/data'
 import {
   getKairoriaProgram,
   createCancelAsRenterCreatedInstruction,
@@ -265,7 +266,7 @@ export default function UserBookingsPage() {
             {formatDate(booking.start_date)} - {formatDate(booking.end_date)}
           </div>
           <div className="flex items-center text-sm font-medium">
-            <span>Total: {booking.total_price} USDC</span>
+            <span>Total: ${convertFromStorageAmount(booking.total_price).toFixed(2)} USDC</span>
           </div>
         </div>
 

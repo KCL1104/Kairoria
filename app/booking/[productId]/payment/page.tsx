@@ -12,6 +12,7 @@ import { useConnection, useWallet } from '@solana/wallet-adapter-react'
 import WalletConnectButton from '@/components/wallet/WalletConnectButton'
 import { useAuth } from '@/contexts/SupabaseAuthContext'
 import { supabase } from '@/lib/supabase-client'
+import { convertFromStorageAmount } from '@/lib/data'
 import { 
   getKairoriaProgram,
   createRentalTransactionInstruction,
@@ -340,7 +341,7 @@ export default function BookingPaymentPage() {
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
                   <span>Rental Cost</span>
-                  <span className="font-medium">{bookingData.total_price} {bookingData.currency}</span>
+                  <span className="font-medium">${convertFromStorageAmount(bookingData.total_price).toFixed(2)} {bookingData.currency}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span>Platform Fee</span>
@@ -349,7 +350,7 @@ export default function BookingPaymentPage() {
                 <Separator />
                 <div className="flex justify-between items-center text-lg font-bold">
                   <span>Total</span>
-                  <span>{bookingData.total_price} {bookingData.currency}</span>
+                  <span>${convertFromStorageAmount(bookingData.total_price).toFixed(2)} {bookingData.currency}</span>
                 </div>
               </div>
             </CardContent>
@@ -391,7 +392,7 @@ export default function BookingPaymentPage() {
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
                         <span>Amount:</span>
-                        <span className="font-medium">{bookingData.total_price} {bookingData.currency}</span>
+                        <span className="font-medium">${convertFromStorageAmount(bookingData.total_price).toFixed(2)} {bookingData.currency}</span>
                       </div>
                       <div className="flex justify-between">
                         <span>Network:</span>
@@ -418,7 +419,7 @@ export default function BookingPaymentPage() {
                     ) : expired ? (
                       'Booking Expired'
                     ) : (
-                      `Pay ${bookingData.total_price} ${bookingData.currency}`
+                      `Pay $${convertFromStorageAmount(bookingData.total_price).toFixed(2)} ${bookingData.currency}`
                     )}
                   </Button>
 

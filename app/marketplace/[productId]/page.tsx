@@ -212,12 +212,12 @@ export default function ProductPage() {
               <div className="space-y-2">
                 <div>
                   <span className="text-2xl font-bold">${pricePerDay.toFixed(2)}</span>
-                  <span className="text-muted-foreground">/day</span>
+                  <span className="text-muted-foreground">/day (USDC)</span>
                 </div>
                 {pricePerHour && (
                   <div>
                     <span className="text-lg font-semibold">${pricePerHour.toFixed(2)}</span>
-                    <span className="text-muted-foreground">/hour</span>
+                    <span className="text-muted-foreground">/hour (USDC)</span>
                   </div>
                 )}
                 {product.daily_cap_hours && (
@@ -227,7 +227,7 @@ export default function ProductPage() {
                 )}
                 {securityDeposit > 0 && (
                   <p className="text-sm text-muted-foreground">
-                    Security deposit: ${securityDeposit.toFixed(2)}
+                    Security deposit: ${securityDeposit.toFixed(2)} (USDC)
                   </p>
                 )}
               </div>

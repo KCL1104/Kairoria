@@ -173,7 +173,7 @@ export async function POST(request: NextRequest) {
       booking_id: booking.id,
       product_id: parseInt(product_id),
       owner_wallet: product.profiles.solana_address,
-      total_amount_usdc: Math.floor(parseFloat(total_price) * 1000000), // Convert to USDC minor units (6 decimals)
+      total_amount_usdc: Math.floor(parseFloat(total_price)), // total_price is already in USDC storage units
       rental_start: Math.floor(startDate.getTime() / 1000), // Unix timestamp
       rental_end: Math.floor(endDate.getTime() / 1000), // Unix timestamp
     }

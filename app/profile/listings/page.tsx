@@ -183,7 +183,7 @@ export default function ProfileListingsPage() {
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Price per day:</span>
                         <span className="font-medium">
-                          ${convertFromStorageAmount(product.price_per_day)}/day
+                          ${convertFromStorageAmount(product.price_per_day)}/day (USDC)
                         </span>
                       </div>
                       <div className="flex justify-between text-sm">
