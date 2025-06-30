@@ -11,6 +11,7 @@ interface AuthContextType {
   user: User | null
   session: Session | null
   isLoading: boolean
+  isInitialized: boolean;
   // Legacy auth methods - consider using UnifiedLoginForm component or /api/auth/unified-login endpoint
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: any }>
   signIn: (email: string, password: string) => Promise<{ error: any }>
@@ -32,6 +33,7 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isInitialized, setIsInitialized] = useState(false);
   const [isProfileLoading, setIsProfileLoading] = useState(false)
   const router = useRouter()
   
@@ -256,6 +258,8 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
         // Ensure loading is false on error
         setProfile(null)
         setIsLoading(false)
+      } finally {
+        setIsInitialized(true);
       }
     }
 
@@ -535,6 +539,7 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
     user,
     session,
     isLoading,
+    isInitialized,
     isProfileLoading,
     signUp,
     signIn,
@@ -556,8 +561,8 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
         const data = await response.json()
 
         if (!response.ok) {
-          logAuthEvent('email_confirmation_error', { 
-            email, 
+          logAuthEvent('email_confirmation_error', {
+            email,
             error: data.message || 'Failed to send confirmation email'
           })
           return { error: new Error(data.message || 'Failed to send confirmation email') }
@@ -566,8 +571,8 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
         logAuthEvent('email_confirmation_sent', { email })
         return { error: null }
       } catch (error) {
-        logAuthEvent('email_confirmation_exception', { 
-          email, 
+        logAuthEvent('email_confirmation_exception', {
+          email,
           error: error instanceof Error ? error.message : String(error)
         })
         return { error: error instanceof Error ? error : new Error('Failed to send confirmation email') }
