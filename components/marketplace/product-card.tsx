@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { convertFromStorageAmount } from "@/lib/data"
 import { MapPin, Star } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
@@ -72,7 +73,7 @@ export function ProductCard({
       </CardContent>
       <CardFooter className="p-4 pt-0 flex items-center justify-between">
         <div>
-          <span className="font-semibold text-lg">${price}</span>
+                    <span className="font-semibold text-lg">${convertFromStorageAmount(price)}</span>
           <span className="text-muted-foreground text-sm">/{period} (USDC)</span>
         </div>
         <Button size="sm" disabled={!isAvailable}>

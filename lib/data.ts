@@ -159,13 +159,12 @@ export const SUPPORTED_CURRENCIES = [
 // Note: These are kept for backward compatibility but may not be needed with DECIMAL fields
 const STORAGE_DECIMALS = 6 // 6 decimal places
 
-export function convertToStorageAmount(decimalAmount: number): string {
-  return Math.floor(decimalAmount * Math.pow(10, STORAGE_DECIMALS)).toString()
+export function convertToStorageAmount(amount: number): string {
+  return (amount * 10 ** STORAGE_DECIMALS).toString();
 }
 
-export function convertFromStorageAmount(storageAmount: string | number): number {
-  const amount = typeof storageAmount === 'string' ? parseInt(storageAmount) : storageAmount
-  return amount / Math.pow(10, STORAGE_DECIMALS)
+export function convertFromStorageAmount(amount: number): number {
+  return parseInt(amount.toString(), 10) / 10 ** STORAGE_DECIMALS;
 }
 
 // Categories for filtering

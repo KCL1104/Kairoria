@@ -7,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import { useAuth } from '../../../../contexts/SupabaseAuthContext'
 import { supabase } from '../../../../lib/supabase-client'
-import { getCategoryIcon } from '../../../../lib/data'
+import { getCategoryIcon, convertToStorageAmount } from '../../../../lib/data'
 import { Button } from '../../../../components/ui/button'
 import { Input } from '../../../../components/ui/input'
 import { Textarea } from '../../../../components/ui/textarea'
@@ -259,6 +259,9 @@ export default function NewListingPage() {
         id: productId,
         lat: location.lat,
         lng: location.lng,
+        price_per_day: parseInt(convertToStorageAmount(validatedData.price_per_day), 10),
+        price_per_hour: validatedData.price_per_hour ? parseInt(convertToStorageAmount(validatedData.price_per_hour), 10) : undefined,
+        security_deposit: validatedData.security_deposit ? parseInt(convertToStorageAmount(validatedData.security_deposit), 10) : undefined,
       }
 
       // Create FormData to include both product data and images
