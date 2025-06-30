@@ -25,9 +25,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function ProductPage({ params }: Props) {
   const supabase = await createClient();
   const resolvedParams = await params;
-  const productId = parseInt(resolvedParams.productId as string, 10);
+  const productId = resolvedParams.productId as string;
 
-  if (isNaN(productId)) {
+  if (!productId) {
     notFound();
   }
 

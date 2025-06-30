@@ -164,7 +164,13 @@ export function convertToStorageAmount(amount: number): string {
 }
 
 export function convertFromStorageAmount(amount: number): number {
-  return parseInt(amount.toString(), 10) / 10 ** STORAGE_DECIMALS;
+  // Check if the amount is already in the correct format (not scaled)
+  // If the amount is less than 1000, it's likely already in the correct format
+  if (amount < 1000) {
+    return amount;
+  }
+  // Otherwise, convert from storage format (scaled by 10^6)
+  return amount / (10 ** STORAGE_DECIMALS);
 }
 
 // Categories for filtering

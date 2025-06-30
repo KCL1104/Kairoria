@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { MapPin, Navigation, Loader2 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { supabase } from '@/lib/supabase'
+import { convertFromStorageAmount } from '@/lib/data'
 
 // Google Maps types
 type GoogleMap = google.maps.Map
@@ -116,7 +117,7 @@ function MapComponent({ center, zoom, products, userLocation }: MapComponentProp
               <div class="p-2 max-w-xs">
                 <h3 class="font-semibold text-sm">${product.title}</h3>
                 <p class="text-xs text-gray-600 mt-1">${product.description.substring(0, 100)}...</p>
-                <p class="text-xs font-medium mt-2">$${product.price_per_day}/day</p>
+                <p class="text-xs font-medium mt-2">$${convertFromStorageAmount(product.price_per_day)}/day</p>
                 <p class="text-xs text-gray-500">${product.location}</p>
               </div>
             `

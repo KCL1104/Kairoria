@@ -73,7 +73,7 @@ export function ProductCard({
       </CardContent>
       <CardFooter className="p-4 pt-0 flex items-center justify-between">
         <div>
-                    <span className="font-semibold text-lg">${convertFromStorageAmount(price)}</span>
+                    <span className="font-semibold text-lg">${convertFromStorageAmount(price).toFixed(2)}</span>
           <span className="text-muted-foreground text-sm">/{period} (USDC)</span>
         </div>
         <Button size="sm" disabled={!isAvailable}>

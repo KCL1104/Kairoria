@@ -260,8 +260,8 @@ export default function NewListingPage() {
         lat: location.lat,
         lng: location.lng,
         price_per_day: parseInt(convertToStorageAmount(validatedData.price_per_day), 10),
-        price_per_hour: validatedData.price_per_hour ? parseInt(convertToStorageAmount(validatedData.price_per_hour), 10) : undefined,
-        security_deposit: validatedData.security_deposit ? parseInt(convertToStorageAmount(validatedData.security_deposit), 10) : undefined,
+        price_per_hour: validatedData.price_per_hour ? parseInt(convertToStorageAmount(validatedData.price_per_hour), 10) : null,
+        security_deposit: parseInt(convertToStorageAmount(validatedData.security_deposit), 10),
       }
 
       // Create FormData to include both product data and images
