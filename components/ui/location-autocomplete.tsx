@@ -30,10 +30,11 @@ interface PlaceSuggestion {
 export function LocationAutocomplete({
   value = '',
   onChange,
+  onLocationSelect,
   placeholder = 'Enter location...',
   className,
   disabled = false,
-  error
+  error,
 }: LocationAutocompleteProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([])
@@ -189,8 +190,8 @@ export function LocationAutocomplete({
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value
     setInputValue(newValue)
-    onChange(newValue)
-    
+    onChange?.(newValue)
+
     // Clear previous debounce timer
     if (debounceTimer.current) {
       clearTimeout(debounceTimer.current)
@@ -377,5 +378,3 @@ export function LocationAutocomplete({
     </div>
   )
 }
-
-export default LocationAutocomplete
