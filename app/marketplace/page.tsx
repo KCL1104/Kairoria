@@ -8,8 +8,18 @@ import { DateFilter } from "@/components/marketplace/date-filter"
 import { SearchInput } from "@/components/marketplace/search-input"
 import { MapButton } from "@/components/marketplace/map-button"
 import { ProductGrid } from "@/components/marketplace/product-grid"
+import { fetchProducts } from "@/lib/supabase-client"
 
-export default function MarketplacePage() {
+export default async function MarketplacePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+}) {
+  const resolvedSearchParams = await searchParams
+  const page = parseInt(resolvedSearchParams.page as string) || 1
+  const limit = parseInt(resolvedSearchParams.limit as string) || 12
+  const { products, count } = await fetchProducts({ page, limit });
+
   return (
     <div className="container py-8">
       <h1 className="text-3xl font-bold mb-6">Marketplace</h1>
@@ -58,7 +68,7 @@ export default function MarketplacePage() {
           </div>
           
           {/* Product Grid */}
-          <ProductGrid />
+          <ProductGrid products={products || []} count={count} page={page} limit={limit} />
         </div>
       </div>
     </div>

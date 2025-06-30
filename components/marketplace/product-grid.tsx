@@ -1,10 +1,10 @@
 "use client"
 
-import { useState, useEffect } from 'react'
 import { ProductCard } from "@/components/marketplace/product-card"
-import { fetchProducts } from '@/lib/supabase-client'
 import { Product, ProductImage, Category, Profile, convertFromStorageAmount } from '@/lib/data'
-import { Loader2 } from 'lucide-react'
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
+import { usePathname, useSearchParams } from 'next/navigation'
 
 type ProductWithRelations = Product & {
   categories: { id: number; name: string }
@@ -12,66 +12,30 @@ type ProductWithRelations = Product & {
   product_images: ProductImage[]
 }
 
-export function ProductGrid() {
-  const [products, setProducts] = useState<ProductWithRelations[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+interface ProductGridProps {
+  products: ProductWithRelations[]
+  count: number
+  page: number
+  limit: number
+}
 
-  useEffect(() => {
-    const loadProducts = async () => {
-      try {
-        setIsLoading(true)
-        console.log('ProductGrid: Loading products...')
-        
-        // Set timeout to prevent infinite loading
-        const timeout = setTimeout(() => {
-          console.warn('ProductGrid: Loading timeout reached')
-          setIsLoading(false)
-          setError('Loading timeout - please try again')
-        }, 35000) // 35 seconds timeout (slightly longer than fetch timeout)
-        
-        const data = await fetchProducts({ limit: 50 })
-        clearTimeout(timeout)
-        
-        console.log('ProductGrid: Products loaded:', data)
-        setProducts(data || [])
-        setError(null)
-      } catch (err) {
-        console.error('ProductGrid: Error fetching products:', err)
-        setError('Failed to load products')
-        setProducts([])
-      } finally {
-        setIsLoading(false)
-      }
-    }
+export function ProductGrid({ products, count, page, limit }: ProductGridProps) {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
-    loadProducts()
-  }, [])
+  const totalPages = Math.ceil(count / limit)
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p className="text-muted-foreground">Loading products...</p>
-        </div>
-      </div>
-    )
-  }
+  const createPageURL = (pageNumber: number | string) => {
+    const params = new URLSearchParams(searchParams);
+    params.set('page', pageNumber.toString());
+    return `${pathname}?${params.toString()}`;
+  };
 
-  if (error) {
-    return (
-      <div className="text-center py-12">
-        <p className="text-destructive">{error}</p>
-      </div>
-    )
-  }
-
-  if (products.length === 0) {
+  if (!products || products.length === 0) {
     return (
       <div className="text-center py-12">
         <h3 className="text-lg font-semibold mb-2">No products found</h3>
-        <p className="text-muted-foreground">Be the first to list an item!</p>
+        <p className="text-muted-foreground">Try adjusting your filters or be the first to list an item!</p>
       </div>
     )
   }
@@ -81,7 +45,7 @@ export function ProductGrid() {
       {/* Results count and sorting */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
         <p className="text-muted-foreground mb-2 sm:mb-0">
-          Showing <span className="font-medium text-foreground">{products.length}</span> results
+          Showing <span className="font-medium text-foreground">{products.length}</span> of <span className="font-medium text-foreground">{count}</span> results
         </p>
         <select className="p-2 text-sm border rounded-md">
           <option value="relevance">Sort by: Relevance</option>
@@ -98,7 +62,7 @@ export function ProductGrid() {
           const coverImage = product.product_images?.find(img => img.is_cover) || product.product_images?.[0]
           
           return (
-            <ProductCard 
+            <ProductCard
               key={product.id}
               id={product.id}
               title={product.title}
@@ -113,6 +77,19 @@ export function ProductGrid() {
             />
           )
         })}
+      </div>
+
+      {/* Pagination */}
+      <div className="flex justify-center items-center space-x-4 mt-8">
+        <Button asChild variant="outline" disabled={page <= 1}>
+          <Link href={createPageURL(page - 1)}>Previous</Link>
+        </Button>
+        <span className="text-sm text-muted-foreground">
+          Page {page} of {totalPages}
+        </span>
+        <Button asChild variant="outline" disabled={page >= totalPages}>
+          <Link href={createPageURL(page + 1)}>Next</Link>
+        </Button>
       </div>
     </div>
   )

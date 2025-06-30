@@ -12,7 +12,7 @@ import { AUTH_COOKIE_OPTIONS, isTokenTooLong, isValidJWT } from './auth-utils'
  * Create a Supabase server client with secure cookie handling
  * @param response Optional NextResponse object for API routes to set cookies
  */
-export async function createSecureServerClient(response?: any) {
+export async function createSecureServerClient(response?: NextResponse) {
   const cookieStore = await cookies()
   
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_DATABASE_URL

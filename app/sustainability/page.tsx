@@ -1,4 +1,5 @@
 import { Metadata } from 'next'
+import Link from 'next/link'
 
 export const metadata: Metadata = {
   title: 'Sustainability | Kairoria',
@@ -130,22 +131,22 @@ export default function SustainabilityPage() {
               Every rental makes a difference. Start sharing today and be part of the solution.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <a 
+              <Link 
                 href="/marketplace" 
                 className="bg-primary text-primary-foreground px-6 py-3 rounded-lg hover:bg-primary/90 transition-colors"
               >
                 Browse Rentals
-              </a>
-              <a 
+              </Link>
+              <Link 
                 href="/profile/listings/new" 
                 className="border border-primary text-primary px-6 py-3 rounded-lg hover:bg-primary/10 transition-colors"
               >
                 List an Item
-              </a>
+              </Link>
             </div>
           </section>
         </div>
       </div>
     </div>
   )
-} 
+}

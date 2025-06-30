@@ -1,8 +1,9 @@
 import { createServerClient } from '@supabase/ssr'
+import { Provider, SupabaseClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
-import { AUTH_COOKIE_OPTIONS, logAuthEvent } from '@/lib/auth-utils'
-import { createSecureServerClient } from '@/lib/auth-server'
+import { AUTH_COOKIE_OPTIONS, logAuthEvent } from '../../../../lib/auth-utils'
+import { createSecureServerClient } from '../../../../lib/auth-server'
 
 /**
  * Unified login API endpoint
@@ -60,7 +61,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    let authResult
+    let authResult: any
     let loginMethod = ''
 
     // Handle different authentication methods based on login type
@@ -73,14 +74,14 @@ export async function POST(request: NextRequest) {
       case 'oauth':
         // OAuth requires special handling since it redirects
         const oauthResult = await handleOAuthLogin(supabase, credentials, request)
-        if (oauthResult.data?.url) {
+        if ('data' in oauthResult && oauthResult.data?.url) {
           // Return redirect URL for OAuth
           return NextResponse.json({
             success: true,
             message: 'OAuth redirect initiated',
-            redirectUrl: oauthResult.data.url
+            redirectUrl: oauthResult.data.url,
           })
-        } else if (oauthResult.error) {
+        } else {
           authResult = oauthResult
           loginMethod = 'oauth'
         }
@@ -98,10 +99,9 @@ export async function POST(request: NextRequest) {
     }
 
     if (authResult.error) {
-      logAuthEvent('unified_login_failed', { 
-        error: authResult.error.message, 
-        loginMethod,
-        email: credentials.email 
+      logAuthEvent('unified_login_failed', {
+        error: authResult.error.message,
+        loginMethod
       })
       return NextResponse.json(
         { 
@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (!authResult.data?.user || !authResult.data?.session) {
+    if (!authResult.data || !authResult.data.user || !authResult.data.session) {
       logAuthEvent('unified_login_failed', { 
         error: 'No user or session returned', 
         loginMethod 
@@ -132,25 +132,19 @@ export async function POST(request: NextRequest) {
     // Update response content
     response = NextResponse.json({
       success: true,
-      message: 'Login successful',
+      message: 'Authentication successful',
       loginMethod,
       user: {
         id: authResult.data.user.id,
         email: authResult.data.user.email,
         name: userProfile?.full_name || authResult.data.user.user_metadata?.full_name || '',
         profile: userProfile
-      },
-      session: {
-        access_token: authResult.data.session.access_token,
-        refresh_token: authResult.data.session.refresh_token,
-        expires_at: authResult.data.session.expires_at
       }
     })
 
-    logAuthEvent('unified_login_successful', { 
-      userId: authResult.data.user.id, 
-      email: authResult.data.user.email,
-      loginMethod 
+    logAuthEvent('unified_login_successful', {
+      userId: authResult.data.user.id,
+      loginMethod
     })
     
     return response
@@ -170,7 +164,7 @@ export async function POST(request: NextRequest) {
 /**
  * Handle password login
  */
-async function handlePasswordLogin(supabase: any, credentials: { email?: string; password?: string }) {
+async function handlePasswordLogin(supabase: SupabaseClient, credentials: { email?: string; password?: string }) {
   const { email, password } = credentials
 
   if (!email || !password) {
@@ -201,7 +195,7 @@ async function handlePasswordLogin(supabase: any, credentials: { email?: string;
 /**
  * Handle OAuth login
  */
-async function handleOAuthLogin(supabase: any, credentials: { provider?: string; redirectTo?: string }, request: NextRequest) {
+async function handleOAuthLogin(supabase: SupabaseClient, credentials: { provider?: string; redirectTo?: string }, request: NextRequest) {
   const { provider, redirectTo } = credentials
 
   if (!provider) {
@@ -238,7 +232,7 @@ async function handleOAuthLogin(supabase: any, credentials: { provider?: string;
     }
 
     return await supabase.auth.signInWithOAuth({
-      provider,
+      provider: provider as Provider,
       options: {
         redirectTo: finalRedirectTo,
         queryParams: {
@@ -257,7 +251,7 @@ async function handleOAuthLogin(supabase: any, credentials: { provider?: string;
 /**
  * Get user profile data
  */
-async function fetchUserProfile(supabase: any, userId: string) {
+async function fetchUserProfile(supabase: SupabaseClient, userId: string) {
   if (!supabase || !supabase.from) {
     return null
   }

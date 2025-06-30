@@ -55,10 +55,9 @@ export async function POST(request: NextRequest) {
 
     if (checkError && checkError.code !== 'PGRST116') {
       // Error other than "not found"
-      console.error('Profile check error:', checkError)
-      logAuthEvent('profile_initialization_check_error', { 
-        error: checkError.message, 
-        userId: user.id 
+      logAuthEvent('profile_initialization_check_error', {
+        error: checkError.message,
+        userId: user.id
       })
       return NextResponse.json(
         { 
@@ -99,10 +98,9 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (createError) {
-      console.error('Profile creation error:', createError)
-      logAuthEvent('profile_initialization_create_error', { 
-        error: createError.message, 
-        userId: user.id 
+      logAuthEvent('profile_initialization_create_error', {
+        error: createError.message,
+        userId: user.id
       })
       return NextResponse.json(
         { 
@@ -121,15 +119,13 @@ export async function POST(request: NextRequest) {
       created: true
     })
 
-    logAuthEvent('profile_initialization_successful', { 
-      userId: user.id, 
-      email: user.email
+    logAuthEvent('profile_initialization_successful', {
+      userId: user.id
     })
     
     return response
 
   } catch (error) {
-    console.error('Profile initialization error:', error)
     logAuthEvent('profile_initialization_error', { error: String(error) })
     return NextResponse.json(
       { 
@@ -182,7 +178,6 @@ export async function GET(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error('Profile check error:', error)
     return NextResponse.json(
       { 
         success: false, 

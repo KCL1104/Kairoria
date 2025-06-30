@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { Input } from './input'
 import { Button } from './button'
 import { MapPin, Loader2 } from 'lucide-react'
@@ -15,14 +15,16 @@ interface LocationAutocompleteProps {
   error?: string
 }
 
-interface PlacePrediction {
-  place_id: string
-  description: string
+interface PlaceSuggestion {
+  place_id: string;
+  description: string;
   structured_formatting: {
-    main_text: string
-    secondary_text: string
-  }
+    main_text: string;
+    secondary_text: string;
+  };
 }
+
+
 
 export function LocationAutocomplete({
   value = '',
@@ -33,27 +35,27 @@ export function LocationAutocomplete({
   error
 }: LocationAutocompleteProps) {
   const [isOpen, setIsOpen] = useState(false)
-  const [predictions, setPredictions] = useState<PlacePrediction[]>([])
+  const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [inputValue, setInputValue] = useState(value)
   const [isGettingCurrentLocation, setIsGettingCurrentLocation] = useState(false)
+  const [sessionToken, setSessionToken] = useState<google.maps.places.AutocompleteSessionToken | null>(null)
+  const latestRequestId = useRef<string>('')
   
   const inputRef = useRef<HTMLInputElement>(null)
-  const autocompleteService = useRef<google.maps.places.AutocompleteService | null>(null)
-  const placesService = useRef<google.maps.places.PlacesService | null>(null)
   const geocoder = useRef<google.maps.Geocoder | null>(null)
+  const debounceTimer = useRef<NodeJS.Timeout | null>(null)
 
-  // Initialize Google Maps services
+  // Initialize Google Maps services and session token
   useEffect(() => {
     const initializeServices = async () => {
       if (typeof window !== 'undefined' && window.google?.maps) {
-        autocompleteService.current = new window.google.maps.places.AutocompleteService()
-        
-        // Create a dummy div for PlacesService
-        const dummyDiv = document.createElement('div')
-        placesService.current = new window.google.maps.places.PlacesService(dummyDiv)
-        
         geocoder.current = new window.google.maps.Geocoder()
+        
+        // Create a new session token for this autocomplete session
+        if (window.google.maps.places?.AutocompleteSessionToken) {
+          setSessionToken(new window.google.maps.places.AutocompleteSessionToken())
+        }
       }
     }
 
@@ -73,57 +75,140 @@ export function LocationAutocomplete({
     }
   }, [])
 
+  // Create a new session token when component mounts or after place selection
+  const createNewSessionToken = useCallback(() => {
+    if (window.google?.maps?.places?.AutocompleteSessionToken) {
+      setSessionToken(new window.google.maps.places.AutocompleteSessionToken())
+    }
+  }, [])
+
   // Update input value when prop changes
   useEffect(() => {
     setInputValue(value)
   }, [value])
 
-  const searchPlaces = async (query: string) => {
-    if (!autocompleteService.current || query.length < 2) {
-      setPredictions([])
+  const searchPlaces = useCallback(async (query: string) => {
+    if (!window.google?.maps?.places || query.length < 2) {
+      setSuggestions([])
       setIsOpen(false)
       return
     }
 
     setIsLoading(true)
+    const currentRequestId = Date.now().toString()
+    latestRequestId.current = currentRequestId
     
     try {
       const request = {
         input: query,
-        types: ['geocode'], // Focus on addresses and places
-      }
+        includedPrimaryTypes: ['geocode' as const],
+        languageCode: 'en',
+        sessionToken: sessionToken ?? undefined,
+      };
 
-      autocompleteService.current.getPlacePredictions(request, (predictions, status) => {
-        setIsLoading(false)
-        
-        if (status === window.google.maps.places.PlacesServiceStatus.OK && predictions) {
-          setPredictions(predictions)
-          setIsOpen(true)
-        } else {
-          setPredictions([])
-          setIsOpen(false)
-        }
-      })
-    } catch (error) {
-      console.error('Error fetching place predictions:', error)
+      // Use the new AutocompleteSuggestion API
+      const { suggestions: autocompleteSuggestions } = await window.google.maps.places.AutocompleteSuggestion.fetchAutocompleteSuggestions(request)
+      
+      // Check if this is still the latest request
+      if (currentRequestId !== latestRequestId.current) {
+        return
+      }
+      
       setIsLoading(false)
-      setPredictions([])
+      
+      if (autocompleteSuggestions && autocompleteSuggestions.length > 0) {
+        // Filter out null predictions and transform the new API response to match our interface
+        const transformedSuggestions: PlaceSuggestion[] = autocompleteSuggestions
+          .filter(suggestion => suggestion.placePrediction)
+          .map(suggestion => {
+            const prediction = suggestion.placePrediction!;
+            const predictionWithFormat = prediction as any;
+            return {
+              place_id: prediction.placeId,
+              description: prediction.text.text,
+              structured_formatting: {
+                main_text: predictionWithFormat.structuredFormat?.mainText?.text ?? '',
+                secondary_text: predictionWithFormat.structuredFormat?.secondaryText?.text ?? '',
+              },
+            };
+          });
+
+        setSuggestions(transformedSuggestions)
+        setIsOpen(true)
+      } else {
+        setSuggestions([])
+        setIsOpen(false)
+      }
+    } catch (error) {
+      console.error('Error fetching place suggestions:', error)
+      setIsLoading(false)
+      setSuggestions([])
       setIsOpen(false)
+      
+      // Fallback to legacy API if new API fails
+      if (window.google?.maps?.places?.AutocompleteService) {
+        try {
+          const autocompleteService = new window.google.maps.places.AutocompleteService()
+          const legacyRequest = {
+            input: query,
+            types: ['geocode'],
+            language: 'en'
+          }
+          
+          autocompleteService.getPlacePredictions(legacyRequest, (predictions, status) => {
+            if (currentRequestId !== latestRequestId.current) {
+              return
+            }
+            
+            setIsLoading(false)
+            
+            if (status === window.google.maps.places.PlacesServiceStatus.OK && predictions) {
+              const transformedPredictions: PlaceSuggestion[] = predictions.map(prediction => ({
+                place_id: prediction.place_id,
+                description: prediction.description,
+                structured_formatting: {
+                  main_text: prediction.structured_formatting.main_text,
+                  secondary_text: prediction.structured_formatting.secondary_text
+                }
+              }))
+              setSuggestions(transformedPredictions)
+              setIsOpen(true)
+            } else {
+              setSuggestions([])
+              setIsOpen(false)
+            }
+          })
+        } catch (legacyError) {
+          console.error('Fallback to legacy API also failed:', legacyError)
+        }
+      }
     }
-  }
+  }, [sessionToken])
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value
     setInputValue(newValue)
     onChange(newValue)
-    searchPlaces(newValue)
+    
+    // Clear previous debounce timer
+    if (debounceTimer.current) {
+      clearTimeout(debounceTimer.current)
+    }
+    
+    // Debounce search to avoid excessive API calls
+    debounceTimer.current = setTimeout(() => {
+      searchPlaces(newValue)
+    }, 300)
   }
 
-  const handlePlaceSelect = (prediction: PlacePrediction) => {
-    setInputValue(prediction.description)
-    onChange(prediction.description)
+  const handlePlaceSelect = (suggestion: PlaceSuggestion) => {
+    setInputValue(suggestion.description)
+    onChange(suggestion.description)
     setIsOpen(false)
-    setPredictions([])
+    setSuggestions([])
+    
+    // Create a new session token for the next search session
+    createNewSessionToken()
   }
 
   const getCurrentLocation = () => {
@@ -139,7 +224,10 @@ export function LocationAutocomplete({
         const { latitude, longitude } = position.coords
         const latLng = new window.google.maps.LatLng(latitude, longitude)
 
-        geocoder.current!.geocode({ location: latLng }, (results, status) => {
+        geocoder.current!.geocode({ 
+          location: latLng,
+          language: 'en' // Force English language for geocoding
+        }, (results, status) => {
           setIsGettingCurrentLocation(false)
           
           if (status === 'OK' && results && results[0]) {
@@ -172,10 +260,19 @@ export function LocationAutocomplete({
   }
 
   const handleInputFocus = () => {
-    if (predictions.length > 0) {
+    if (suggestions.length > 0) {
       setIsOpen(true)
     }
   }
+
+  // Cleanup debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimer.current) {
+        clearTimeout(debounceTimer.current)
+      }
+    }
+  }, [])
 
   return (
     <div className="relative">
@@ -217,21 +314,21 @@ export function LocationAutocomplete({
         </Button>
       </div>
 
-      {/* Predictions dropdown */}
-      {isOpen && predictions.length > 0 && (
+      {/* Suggestions dropdown */}
+      {isOpen && suggestions.length > 0 && (
         <div className="absolute z-50 w-full mt-1 bg-background border border-border rounded-md shadow-lg max-h-60 overflow-auto">
-          {predictions.map((prediction) => (
+          {suggestions.map((suggestion) => (
             <button
-              key={prediction.place_id}
+              key={suggestion.place_id}
               type="button"
               className="w-full px-3 py-2 text-left hover:bg-muted focus:bg-muted focus:outline-none border-b border-border last:border-b-0"
-              onClick={() => handlePlaceSelect(prediction)}
+              onClick={() => handlePlaceSelect(suggestion)}
             >
               <div className="font-medium text-sm">
-                {prediction.structured_formatting.main_text}
+                {suggestion.structured_formatting.main_text}
               </div>
               <div className="text-xs text-muted-foreground">
-                {prediction.structured_formatting.secondary_text}
+                {suggestion.structured_formatting.secondary_text}
               </div>
             </button>
           ))}

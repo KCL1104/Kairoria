@@ -55,9 +55,8 @@ export async function POST(request: NextRequest) {
       .limit(1)
 
     if (fetchError) {
-      console.error('Error checking categories:', fetchError)
       return NextResponse.json(
-        { error: 'Failed to check existing categories' },
+        { error: `Error checking categories: ${fetchError.message}` },
         { status: 500 }
       )
     }
@@ -78,9 +77,8 @@ export async function POST(request: NextRequest) {
       .select()
 
     if (insertError) {
-      console.error('Error inserting categories:', insertError)
       return NextResponse.json(
-        { error: 'Failed to insert categories' },
+        { error: `Error inserting categories: ${insertError.message}` },
         { status: 500 }
       )
     }
@@ -92,9 +90,8 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error('Categories seed error:', error)
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: `Categories seed error: ${error instanceof Error ? error.message : 'Unknown error'}` },
       { status: 500 }
     )
   }

@@ -66,15 +66,15 @@ export default function ClientHomePage({ initialProducts, initialCategories }: C
       
       const fetchedProducts = await fetchProducts(queryOptions)
       
-      setProducts(fetchedProducts)
+      setProducts(fetchedProducts.products)
       
       toast({
         title: "Product query executed",
-        description: `Found ${fetchedProducts.length} products`,
+        description: `Found ${fetchedProducts.products.length} products`,
         variant: "success"
       })
       
-      console.log('✅ Product query completed successfully:', fetchedProducts.length, 'products')
+      console.log('✅ Product query completed successfully:', fetchedProducts.products.length, 'products')
     } catch (error) {
       console.error('❌ Product query failed:', error)
       toast({

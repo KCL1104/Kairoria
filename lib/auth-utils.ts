@@ -15,7 +15,7 @@ export const AUTH_COOKIE_OPTIONS = {
 /**
  * Log authentication events for security monitoring
  */
-export function logAuthEvent(event: string, details: Record<string, any> = {}) {
+export function logAuthEvent(event: string, details: Record<string, unknown> = {}) {
   // In production, this could send to a logging service
   console.log(`🔐 AUTH EVENT [${new Date().toISOString()}]: ${event}`, {
     ...details,
@@ -29,22 +29,33 @@ export function logAuthEvent(event: string, details: Record<string, any> = {}) {
 }
 
 /**
+ * Defines the structure of a user profile
+ */
+export interface Profile {
+  full_name?: string;
+  phone?: string;
+  location?: string;
+  is_email_verified?: boolean;
+  is_phone_verified?: boolean;
+}
+
+/**
  * Check if a user profile is fully registered
  */
-export function isProfileComplete(profile: any): boolean {
+export function isProfileComplete(profile: Profile | null | undefined): boolean {
   return !!(
-    profile?.full_name && 
+    profile?.full_name &&
     profile?.phone &&
     profile?.location &&
     profile?.is_email_verified === true &&
     profile?.is_phone_verified === true
-  )
+  );
 }
 
 /**
  * Get missing profile fields for better error reporting
  */
-export function getMissingProfileFields(profile: any): string[] {
+export function getMissingProfileFields(profile: Profile | null | undefined): string[] {
   const missingFields = []
   
   if (!profile?.full_name) missingFields.push('full_name')

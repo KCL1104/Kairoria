@@ -116,9 +116,8 @@ export async function PATCH(request: NextRequest) {
       .select()
 
     if (error) {
-      console.error('Error updating profile:', error)
       return NextResponse.json(
-        { success: false, message: 'Failed to update profile' },
+        { success: false, message: `Error updating profile: ${error.message}` },
         { status: 500 }
       )
     }
@@ -130,9 +129,8 @@ export async function PATCH(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error('Profile update error:', error)
     return NextResponse.json(
-      { success: false, message: 'Internal server error' },
+      { success: false, message: `Profile update error: ${error instanceof Error ? error.message : 'Unknown error'}` },
       { status: 500 }
     )
   }

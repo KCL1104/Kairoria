@@ -45,13 +45,6 @@ type ProductData = z.infer<typeof ProductDataSchema>;
 // ===== Helper Functions =====
 
 /**
- * Converts USD price to USDC storage units (multiply by 1,000,000)
- */
-function convertToUSDCStorageUnits(price: number): number {
-  return Math.round(price * 1_000_000);
-}
-
-/**
  * Creates an admin client (using the Service Role Key)
  */
 function createAdminClient(): SupabaseClient {
@@ -198,192 +191,142 @@ async function uploadImages(
 }
 
 /**
- * Cleans up a failed upload
+ * Cleans up uploaded images from storage in case of failure.
  */
-async function cleanupFailedUpload(
+async function cleanupStorage(
   client: SupabaseClient,
   productId: string,
   imageUrls: string[]
 ): Promise<void> {
+  if (imageUrls.length === 0) return;
+
   try {
-    // Delete uploaded images
-    if (imageUrls.length > 0) {
-      const filePaths = imageUrls.map(url => {
-        const parts = url.split('/');
-        const fileName = parts[parts.length - 1];
-        return `${productId}/${fileName}`;
-      });
-      
-      await client.storage
-        .from(CONFIG.STORAGE_BUCKET)
-        .remove(filePaths);
+    const filePaths = imageUrls.map(url => {
+      const urlParts = url.split('/');
+      const fileNameWithTimestamp = urlParts[urlParts.length - 1];
+      return `${productId}/${fileNameWithTimestamp}`;
+    });
+
+    const { error } = await client.storage
+      .from(CONFIG.STORAGE_BUCKET)
+      .remove(filePaths);
+
+    if (error) {
+      console.error('Storage cleanup error:', error);
     }
-    
-    // Delete product record
-    await client
-      .from('products')
-      .delete()
-      .eq('id', productId);
   } catch (error) {
-    console.error('Error during failed upload cleanup:', error);
+    console.error('Exception during storage cleanup:', error);
   }
 }
+
 
 // ===== Main Handler Function =====
 async function handleCreateProduct(req: Request): Promise<Response> {
   let adminClient: SupabaseClient | null = null;
   let uploadedImageUrls: string[] = [];
   let productId: string | null = null;
-  
+
   try {
-    // 1. Authenticate user using the Admin client
+    // 1. Create Admin Client
+    adminClient = createAdminClient();
+
+    // 2. Authenticate user
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       return createErrorResponse('Missing Authorization header', 401);
     }
     const jwt = authHeader.replace('Bearer ', '');
-
-    // Use the admin client for all operations, including auth
-    adminClient = createAdminClient();
-
     const { data: { user }, error: userError } = await adminClient.auth.getUser(jwt);
 
-    if (userError) {
-      console.error('Admin client auth error:', userError);
-      return createErrorResponse('Authentication failed', 401, userError.message);
+    if (userError || !user) {
+      return createErrorResponse('Authentication failed', 401, userError?.message);
     }
 
-    if (!user) {
-      return createErrorResponse('Unauthorized: Could not verify user', 401);
-    }
-    
-    // 3. Parse FormData to extract product data and images
-    let formData: FormData;
-    let rawProductData: any;
-    let imageFiles: File[] = [];
-    
+    // 3. Parse and Validate FormData
+    let productData: ProductData;
+    let imageFiles: File[];
+
     try {
-      formData = await req.formData();
-      
-      // Extract product data from FormData
+      const formData = await req.formData();
       const productDataString = formData.get('productData');
       if (!productDataString || typeof productDataString !== 'string') {
         return createErrorResponse('Missing productData in FormData', 400);
       }
       
-      rawProductData = JSON.parse(productDataString);
-      
-      // Extract image files from FormData
+      const rawProductData = JSON.parse(productDataString);
+      const productDataResult = ProductDataSchema.safeParse(rawProductData);
+      if (!productDataResult.success) {
+        return createErrorResponse('Product data validation failed', 400, productDataResult.error.flatten().fieldErrors);
+      }
+      productData = productDataResult.data;
+      productId = productData.id;
+
+      if (!productId) {
+        return createErrorResponse('Product ID is missing from product data.', 400);
+      }
+
       const images = formData.getAll('images');
       imageFiles = images.filter((file): file is File => file instanceof File);
       
+      const imageValidation = validateImageFiles(imageFiles);
+      if (!imageValidation.isValid) {
+        return createErrorResponse(imageValidation.error!, 400);
+      }
     } catch (error) {
       return createErrorResponse('Invalid FormData in request body', 400, error.message);
     }
-    
-    // Validate with Zod
-    const productDataResult = ProductDataSchema.safeParse(rawProductData);
-    if (!productDataResult.success) {
-      return createErrorResponse('Product data validation failed', 400,
-        productDataResult.error.flatten().fieldErrors
-      );
-    }
-    
-    const productData = productDataResult.data;
-    productId = productData.id;
 
-    if (!productId) {
-      return createErrorResponse('Product ID is missing from product data.', 400);
-    }
-    
-    // 4. Validate image files
-    const imageValidation = validateImageFiles(imageFiles);
-    if (!imageValidation.isValid) {
-      return createErrorResponse(imageValidation.error!, 400);
-    }
-    
-    // 5. Upload images to storage
+    // 4. Upload images to storage
     let imageRecords: ImageRecord[] = [];
     try {
       imageRecords = await uploadImages(adminClient, imageFiles, productId);
       uploadedImageUrls = imageRecords.map(record => record.image_url);
     } catch (error) {
       console.error('Image upload error:', error);
+      // No need to clean up DB here, just return error
       return createErrorResponse('Failed to upload images', 500, error.message);
     }
-    
-    // 6. Convert prices to USDC storage units and insert product data
-    const productDataWithUSDC = {
-      ...productData,
-      price_per_day: convertToUSDCStorageUnits(productData.price_per_day),
-      price_per_hour: productData.price_per_hour ? convertToUSDCStorageUnits(productData.price_per_hour) : null,
-      security_deposit: convertToUSDCStorageUnits(productData.security_deposit),
-      owner_id: user.id,
-      status: 'pending'
+
+    // 5. Call the database function to create product and images in a transaction
+    const rpcParams = {
+      product_data: productData,
+      image_data: imageRecords,
+      owner_id: user.id
     };
-    
-    const { data: product, error: productError } = await adminClient
-      .from('products')
-      .insert(productDataWithUSDC)
-      .select()
-      .single();
-    
-    if (productError) {
-      console.error('Product insertion error:', productError);
-      // Clean up uploaded images on product insertion failure
-      await cleanupFailedUpload(adminClient, productId, uploadedImageUrls);
-      return createErrorResponse('Failed to create product', 500, productError.message);
+
+    const { data: newProductId, error: rpcError } = await adminClient.rpc(
+      'create_product_with_images',
+      rpcParams
+    );
+
+    if (rpcError) {
+      console.error('RPC (create_product_with_images) error:', rpcError);
+      // If the DB transaction fails, we need to clean up the uploaded images
+      await cleanupStorage(adminClient, productId, uploadedImageUrls);
+      return createErrorResponse('Failed to create product in database', 500, rpcError.message);
     }
-    
-    // 7. Insert image records
-    if (imageRecords.length > 0) {
-      const { error: imageError } = await adminClient
-        .from('product_images')
-        .insert(imageRecords);
-      
-      if (imageError) {
-        console.error('Image record insertion error:', imageError);
-        // Clean up on image record insertion failure
-        await cleanupFailedUpload(adminClient, productId, uploadedImageUrls);
-        return createErrorResponse('Failed to save image records', 500, imageError.message);
-      }
-    }
-    
-    // 8. Update product status to 'listed'
-    const { error: updateError } = await adminClient
-      .from('products')
-      .update({ status: 'listed' })
-      .eq('id', productId);
-    
-    if (updateError) {
-      console.error('Product status update error:', updateError);
-      // Don't fail the entire request because of this error
-    }
-    
-    // 9. Return success response
+
+    // 6. Return success response
     return createSuccessResponse({
       success: true,
       product: {
-        id: product.id,
-        title: product.title,
-        status: updateError ? 'pending' : 'listed',
+        id: newProductId,
+        title: productData.title,
+        status: 'listed', // Status is set to 'listed' within the transaction
         images: imageRecords.length
       },
       message: 'Product created successfully'
     }, 201);
-    
+
   } catch (error) {
-    console.error('Unexpected error:', error);
-    
-    // Attempt to clean up
+    console.error('Unexpected error in handleCreateProduct:', error);
+
+    // Attempt to clean up any uploaded images if an unexpected error occurred
     if (adminClient && productId && uploadedImageUrls.length > 0) {
-      await cleanupFailedUpload(adminClient, productId, uploadedImageUrls);
+      await cleanupStorage(adminClient, productId, uploadedImageUrls);
     }
-    
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...CONFIG.CORS_HEADERS, 'Content-Type': 'application/json' },
-    })
+
+    return createErrorResponse(error.message, 500);
   }
 }
 

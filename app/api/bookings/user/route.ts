@@ -3,7 +3,6 @@ import { createServerClient } from '@supabase/ssr'
 
 // Get user's bookings (as renter and as owner)
 export async function GET(request: NextRequest) {
-  console.log('User bookings API called')
   
   try {
     // Get Supabase configuration
@@ -101,9 +100,8 @@ export async function GET(request: NextRequest) {
       .range(offset, offset + limit - 1)
 
     if (bookingsError) {
-      console.error('Bookings fetch error:', bookingsError)
       return NextResponse.json(
-        { error: 'Failed to fetch bookings' },
+        { error: `Bookings fetch error: ${bookingsError.message}` },
         { status: 500 }
       )
     }
@@ -128,7 +126,7 @@ export async function GET(request: NextRequest) {
     const { count, error: countError } = await countQuery
 
     if (countError) {
-      console.error('Bookings count error:', countError)
+      // This error is not critical, so we can just ignore it
     }
 
     // Separate bookings by role for easier frontend handling
@@ -151,9 +149,8 @@ export async function GET(request: NextRequest) {
     )
 
   } catch (error) {
-    console.error('User bookings fetch error:', error)
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: `User bookings fetch error: ${error instanceof Error ? error.message : 'Unknown error'}` },
       { status: 500 }
     )
   }

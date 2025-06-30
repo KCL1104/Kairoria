@@ -10,8 +10,8 @@ export async function GET() {
     
     // Mock user data
     const users = [
-      { id: '1', name: 'John Doe', email: 'john@example.com', role: 'user' },
-      { id: '2', name: 'Jane Smith', email: 'jane@example.com', role: 'admin' },
+      { id: '1', name: 'John Doe', role: 'user' },
+      { id: '2', name: 'Jane Smith', role: 'admin' },
     ];
 
     return NextResponse.json(
@@ -26,9 +26,8 @@ export async function GET() {
       }
     );
   } catch (error) {
-    console.error('Error fetching users:', error);
     return NextResponse.json(
-      { success: false, message: 'Error fetching users' },
+      { success: false, message: `Error fetching users: ${error instanceof Error ? error.message : 'Unknown error'}` },
       { 
         status: 500,
         headers: {
@@ -54,7 +53,6 @@ export async function POST(request: Request) {
         user: {
           id: 'new-user-id',
           name: 'New User',
-          email: 'newuser@example.com',
           role: 'user'
         }
       },
@@ -65,9 +63,8 @@ export async function POST(request: Request) {
       }
     );
   } catch (error) {
-    console.error('Error creating user:', error);
     return NextResponse.json(
-      { success: false, message: 'Error creating user' },
+      { success: false, message: `Error creating user: ${error instanceof Error ? error.message : 'Unknown error'}` },
       { 
         status: 500,
         headers: {

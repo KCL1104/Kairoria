@@ -6,7 +6,6 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
-  console.log('Booking cancellation API called for booking:', id)
   
   try {
     // Get Supabase configuration
@@ -100,14 +99,12 @@ export async function POST(
       .single()
 
     if (updateError) {
-      console.error('Booking update error:', updateError)
       return NextResponse.json(
-        { error: 'Failed to cancel booking' },
+        { error: `Booking update error: ${updateError.message}` },
         { status: 500 }
       )
     }
 
-    console.log('Booking cancelled successfully:', id)
     return NextResponse.json(
       {
         message: 'Booking cancelled successfully',
@@ -118,9 +115,8 @@ export async function POST(
     )
 
   } catch (error) {
-    console.error('Booking cancellation error:', error)
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: `Booking cancellation error: ${error instanceof Error ? error.message : 'Unknown error'}` },
       { status: 500 }
     )
   }

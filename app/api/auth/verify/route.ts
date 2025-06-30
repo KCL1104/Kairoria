@@ -37,9 +37,7 @@ export async function GET(request: Request) {
     );
   } catch (error) {
     // Log error in development only
-    if (process.env.NODE_ENV === 'development') {
-      console.error('Email verification error:', error);
-    }
+    // No need to log here, as it's a client-side error
     return NextResponse.json(
       { success: false, message: 'Invalid or expired verification token' },
       { 

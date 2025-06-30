@@ -5,7 +5,6 @@ export async function POST(
   request: NextRequest,
   { params }: any
 ) {
-  console.log('Booking completion API called for booking:', params.id)
   
   try {
     // Get Supabase configuration
@@ -119,7 +118,6 @@ export async function POST(
       }
     }
 
-    console.log('Booking completion instructions generated:', booking.id)
     return NextResponse.json(
       {
         message: 'Booking completion instructions generated',
@@ -130,9 +128,8 @@ export async function POST(
     )
 
   } catch (error) {
-    console.error('Booking completion error:', error)
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: `Booking completion error: ${error instanceof Error ? error.message : 'Unknown error'}` },
       { status: 500 }
     )
   }
@@ -143,7 +140,6 @@ export async function PATCH(
   request: NextRequest,
   { params }: any
 ) {
-  console.log('Booking completion confirmation API called for booking:', params.id)
   
   try {
     // Get Supabase configuration
@@ -215,14 +211,12 @@ export async function PATCH(
       .single()
 
     if (updateError) {
-      console.error('Booking completion update error:', updateError)
       return NextResponse.json(
-        { error: 'Failed to complete booking' },
+        { error: `Booking completion update error: ${updateError.message}` },
         { status: 500 }
       )
     }
 
-    console.log('Booking completed successfully:', params.id)
     return NextResponse.json(
       {
         message: 'Booking completed successfully',
@@ -233,9 +227,8 @@ export async function PATCH(
     )
 
   } catch (error) {
-    console.error('Booking completion confirmation error:', error)
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: `Booking completion confirmation error: ${error instanceof Error ? error.message : 'Unknown error'}` },
       { status: 500 }
     )
   }

@@ -7,7 +7,6 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
-  console.log('Booking details API called for booking:', id)
   
   try {
     // Get Supabase configuration
@@ -105,9 +104,8 @@ export async function GET(
     )
 
   } catch (error) {
-    console.error('Booking details fetch error:', error)
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: `Booking details fetch error: ${error instanceof Error ? error.message : 'Unknown error'}` },
       { status: 500 }
     )
   }
@@ -119,7 +117,6 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
-  console.log('Booking cancellation API called for booking:', id)
   
   try {
     // Get Supabase configuration
@@ -242,14 +239,12 @@ export async function DELETE(
       .single()
 
     if (cancelError) {
-      console.error('Booking cancellation error:', cancelError)
       return NextResponse.json(
-        { error: 'Failed to cancel booking' },
+        { error: `Booking cancellation error: ${cancelError.message}` },
         { status: 500 }
       )
     }
 
-    console.log('Booking cancelled successfully:', id)
     return NextResponse.json(
       {
         message: 'Booking cancelled successfully',
@@ -259,9 +254,8 @@ export async function DELETE(
     )
 
   } catch (error) {
-    console.error('Booking cancellation error:', error)
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: `Booking cancellation error: ${error instanceof Error ? error.message : 'Unknown error'}` },
       { status: 500 }
     )
   }

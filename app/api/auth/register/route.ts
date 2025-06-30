@@ -80,9 +80,8 @@ export async function POST(request: NextRequest) {
     })
 
     if (authError) {
-      logAuthEvent('unified_register_failed', { 
-        error: authError.message, 
-        email 
+      logAuthEvent('unified_register_failed', {
+        error: authError.message
       })
       return NextResponse.json(
         { 
@@ -94,9 +93,8 @@ export async function POST(request: NextRequest) {
     }
 
     if (!authData?.user) {
-      logAuthEvent('unified_register_failed', { 
-        error: 'No user returned', 
-        email 
+      logAuthEvent('unified_register_failed', {
+        error: 'No user returned'
       })
       return NextResponse.json(
         { 
@@ -122,10 +120,9 @@ export async function POST(request: NextRequest) {
       })
 
     if (profileError) {
-      console.error('Profile creation error:', profileError)
-      logAuthEvent('profile_creation_error', { 
-        error: profileError.message, 
-        userId: authData.user.id 
+      logAuthEvent('profile_creation_error', {
+        error: profileError.message,
+        userId: authData.user.id
       })
       // Don't fail registration if profile creation fails - it can be retried later
     }
@@ -133,30 +130,23 @@ export async function POST(request: NextRequest) {
     // Update response content
     response = NextResponse.json({
       success: true,
-      message: 'Registration successful',
+      message: 'Authentication successful',
       user: {
         id: authData.user.id,
         email: authData.user.email,
         name: fullName,
         needsEmailVerification: !authData.user.email_confirmed_at
-      },
-      session: authData.session ? {
-        access_token: authData.session.access_token,
-        refresh_token: authData.session.refresh_token,
-        expires_at: authData.session.expires_at
-      } : null
+      }
     })
 
-    logAuthEvent('unified_register_successful', { 
-      userId: authData.user.id, 
-      email: authData.user.email,
+    logAuthEvent('unified_register_successful', {
+      userId: authData.user.id,
       needsEmailVerification: !authData.user.email_confirmed_at
     })
     
     return response
 
   } catch (error) {
-    console.error('Unified registration error:', error)
     logAuthEvent('unified_register_error', { error: String(error) })
     return NextResponse.json(
       { 

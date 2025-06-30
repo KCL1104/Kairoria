@@ -1,14 +1,14 @@
 "use client";
 
-import React, { useState } from 'react'
+import React from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Loader } from 'lucide-react'
 import useUnifiedAuth from '@/hooks/use-unified-auth'
-import { useAuth } from '@/contexts/SupabaseAuthContext'
 import Link from 'next/link'
+import { useAuthForm } from '@/hooks/useAuthForm'
 
 interface UnifiedLoginFormProps {
   onSuccess?: (user: any) => void
@@ -25,145 +25,38 @@ interface UnifiedLoginFormProps {
  * Unified login form component
  * Supports email/password and Google OAuth authentication
  */
-export function UnifiedLoginForm({ 
-  onSuccess, 
-  onError, 
+export function UnifiedLoginForm({
+  onSuccess,
+  onError,
   redirectTo = '/',
   className = '',
   mode = 'login',
   showRegisterLink = false,
   showLoginLink = false,
-  showGoogleAuth = false
+  showGoogleAuth = false,
 }: UnifiedLoginFormProps) {
   const {
-    isLoading: unifiedLoading,
-    error: unifiedError,
-    loginWithPassword,
-    loginWithGoogle,
-    clearError
-  } = useUnifiedAuth()
+    formData,
+    isLoading,
+    error,
+    handleInputChange,
+    handleSubmit,
+  } = useAuthForm({ mode, onSuccess, onError });
 
-  // Get signUp from Supabase auth context
-  const { signUp } = useAuth()
-
-  // Local state for registration
-  const [localLoading, setLocalLoading] = useState(false)
-  const [localError, setLocalError] = useState<string | null>(null)
-
-  // Combined loading and error states
-  const isLoading = unifiedLoading || localLoading
-  const error = unifiedError || localError
-
-  // Clear error function that handles both states
-  const clearAllErrors = () => {
-    clearError()
-    setLocalError(null)
-  }
-
-  // Form state
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-    confirmPassword: '',
-    fullName: ''
-  })
-
-  // Handle form input changes
-  const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }))
-    if (error) clearAllErrors()
-  }
-
-  // Handle email/password login or registration
-  const handlePasswordSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    clearAllErrors()
-    
-    if (!formData.email || !formData.password) {
-      const errorMsg = 'Please enter both email and password'
-      setLocalError(errorMsg)
-      onError?.(errorMsg)
-      return
-    }
-
-    if (mode === 'register') {
-      // Registration mode
-      if (!formData.fullName) {
-        const errorMsg = 'Please enter your full name'
-        setLocalError(errorMsg)
-        onError?.(errorMsg)
-        return
-      }
-
-      if (formData.password !== formData.confirmPassword) {
-        const errorMsg = 'Passwords do not match'
-        setLocalError(errorMsg)
-        onError?.(errorMsg)
-        return
-      }
-
-      if (formData.password.length < 6) {
-        const errorMsg = 'Password must be at least 6 characters long'
-        setLocalError(errorMsg)
-        onError?.(errorMsg)
-        return
-      }
-
-      setLocalLoading(true)
-      try {
-        // Use unified registration API
-        const response = await fetch('/api/auth/register', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            email: formData.email,
-            password: formData.password,
-            fullName: formData.fullName
-          })
-        })
-
-        const result = await response.json()
-        
-        if (!result.success) {
-          setLocalError(result.message)
-          onError?.(result.message)
-        } else {
-          onSuccess?.({
-            user: result.user,
-            needsEmailVerification: result.user.needsEmailVerification
-          })
-        }
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Registration failed'
-        setLocalError(errorMessage)
-        onError?.(errorMessage)
-      } finally {
-        setLocalLoading(false)
-      }
-    } else {
-      // Login mode
-      const result = await loginWithPassword(formData.email, formData.password)
-      
-      if (result.success && result.user) {
-        onSuccess?.(result.user)
-      } else {
-        onError?.(result.message)
-      }
-    }
-  }
+  const { isLoading: isGoogleLoading, loginWithGoogle } = useUnifiedAuth();
 
   // Handle Google OAuth login
   const handleGoogleLogin = async () => {
     try {
-      await loginWithGoogle() // Updated to use new signature without parameters
-      // OAuth flow will redirect, so success handling will happen after redirect
+      await loginWithGoogle(); // OAuth flow will redirect
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Google login failed'
-      onError?.(errorMessage)
+      const errorMessage =
+        err instanceof Error ? err.message : 'Google login failed';
+      onError?.(errorMessage);
     }
-  }
+  };
+
+  const isAnyLoading = isLoading || isGoogleLoading;
 
   return (
     <div className={`w-full space-y-6 ${className}`}>
@@ -174,7 +67,7 @@ export function UnifiedLoginForm({
       )}
 
       {/* Email/Password Login/Register Form */}
-      <form onSubmit={handlePasswordSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-4">
         {mode === 'register' && (
           <div className="space-y-2">
             <Label htmlFor="fullName">Full Name</Label>
@@ -228,7 +121,7 @@ export function UnifiedLoginForm({
           </div>
         )}
         
-        <Button type="submit" className="w-full" disabled={isLoading}>
+        <Button type="submit" className="w-full" disabled={isAnyLoading}>
           {isLoading ? (
             <>
               <Loader className="mr-2 h-4 w-4 animate-spin" />
@@ -253,13 +146,13 @@ export function UnifiedLoginForm({
             </div>
           </div>
 
-          <Button 
-            onClick={handleGoogleLogin} 
-            className="w-full" 
+          <Button
+            onClick={handleGoogleLogin}
+            className="w-full"
             variant="outline"
-            disabled={isLoading}
+            disabled={isAnyLoading}
           >
-            {isLoading ? (
+            {isGoogleLoading ? (
               <>
                 <Loader className="mr-2 h-4 w-4 animate-spin" />
                 Connecting...

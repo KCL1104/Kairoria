@@ -1,58 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@supabase/ssr'
+import { requireAuth } from '../../../../lib/supabase/auth'
+import { createClient } from '../../../../lib/supabase/server'
+import { z } from 'zod'
 import { Connection, PublicKey, SystemProgram } from '@solana/web3.js'
-import { getKairoriaProgram, createRentalTransactionInstruction } from '@/lib/solana-booking'
+import { getKairoriaProgram, createRentalTransactionInstruction } from '../../../../lib/solana-booking'
 import { AnchorProvider } from '@coral-xyz/anchor'
 
+const createBookingSchema = z.object({
+  product_id: z.number().int().positive(),
+  start_date: z.string().datetime(),
+  end_date: z.string().datetime(),
+  total_price: z.number().positive(),
+  renter_wallet_address: z.string().min(32).max(44),
+}).refine((data) => new Date(data.start_date) < new Date(data.end_date), {
+  message: "End date must be after start date",
+  path: ["end_date"],
+});
+
 export async function POST(request: NextRequest) {
-  console.log('Booking create API called')
-  
-  try {
-    // Get Supabase configuration
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_DATABASE_URL
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-    
-    if (!supabaseUrl || !supabaseAnonKey) {
-      return NextResponse.json(
-        { error: 'Supabase configuration missing' },
-        { status: 500 }
-      )
-    }
+  const { user, error: authError } = await requireAuth()
 
-    // Create Supabase client
-    const authHeader = request.headers.get('Authorization')
-    if (!authHeader) {
-      return NextResponse.json(
-        { error: 'Authorization header missing' },
-        { status: 401 }
-      )
-    }
-
-    const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
-      cookies: {
-        get(name: string) {
-          return request.headers.get('cookie')?.split(`${name}=`)[1]?.split(';')[0]
-        },
-        set(name: string, value: string, options: any) {},
-        remove(name: string, options: any) {},
-      },
-      global: {
-        headers: {
-          Authorization: authHeader,
-        },
-      },
+  if (authError) {
+    return authError
+  }
+  if (!user) {
+    return new NextResponse(JSON.stringify({ message: 'Unauthorized' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' },
     })
+  }
 
-    // Get the current user
-    const { data: { user }, error: userError } = await supabase.auth.getUser()
-    
-    if (userError || !user) {
-      return NextResponse.json(
-        { error: 'User not authenticated' },
-        { status: 401 }
-      )
-    }
-
+  try {
+    const supabase = await createClient()
     // Get user's profile with Solana address
     const { data: renterProfile, error: renterProfileError } = await supabase
       .from('profiles')
@@ -67,33 +46,28 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Parse request body
+    // Parse and validate request body
     const body = await request.json()
+    const validationResult = createBookingSchema.safeParse(body)
+
+    if (!validationResult.success) {
+      return NextResponse.json(
+        { error: 'Invalid request data', details: validationResult.error.flatten() },
+        { status: 400 }
+      )
+    }
+
     const {
       product_id,
       start_date,
       end_date,
       total_price,
       renter_wallet_address,
-    } = body
+    } = validationResult.data
 
-    // Validate required fields
-    if (!product_id || !start_date || !end_date || !total_price || !renter_wallet_address) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      )
-    }
-
-    // Validate dates
+    // Dates are already validated to be in correct format and range by Zod
     const startDate = new Date(start_date)
     const endDate = new Date(end_date)
-    if (startDate >= endDate) {
-      return NextResponse.json(
-        { error: 'Invalid date range' },
-        { status: 400 }
-      )
-    }
 
     // Get product details and owner's Solana address
     const { data: product, error: productError } = await supabase
@@ -125,7 +99,7 @@ export async function POST(request: NextRequest) {
       .select('*')
       .eq('product_id', product_id)
       .in('status', ['pending', 'confirmed'])
-      .or(`start_date.lte.${end_date},end_date.gte.${start_date}`)
+      .or(`start_date.lte.${endDate.toISOString()},end_date.gte.${startDate.toISOString()}`)
 
     if (bookingCheckError) {
       return NextResponse.json(
@@ -143,13 +117,13 @@ export async function POST(request: NextRequest) {
 
     // Create booking record
     const bookingData = {
-      product_id: parseInt(product_id),
+      product_id,
       renter_id: user.id,
       owner_id: product.owner_id,
       start_date,
       end_date,
-      total_price: parseFloat(total_price),
-      status: 'pending',
+      total_price,
+      status: 'pending' as const,
       payment_intent_id: null, // Will be updated when Solana transaction is created
     }
 
@@ -160,9 +134,8 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (bookingError) {
-      console.error('Booking creation error:', bookingError)
       return NextResponse.json(
-        { error: 'Failed to create booking' },
+        { error: `Booking creation error: ${bookingError.message}` },
         { status: 500 }
       )
     }
@@ -171,14 +144,13 @@ export async function POST(request: NextRequest) {
     // Instead, we'll return the necessary data for the frontend to construct the transaction.
     const instructionData = {
       booking_id: booking.id,
-      product_id: parseInt(product_id),
+      product_id: product_id,
       owner_wallet: product.profiles.solana_address,
-      total_amount_usdc: Math.floor(parseFloat(total_price)), // total_price is already in USDC storage units
+      total_amount_usdc: Math.floor(total_price), // total_price is already in USDC storage units
       rental_start: Math.floor(startDate.getTime() / 1000), // Unix timestamp
       rental_end: Math.floor(endDate.getTime() / 1000), // Unix timestamp
     }
 
-    console.log('Booking created successfully:', booking.id)
     return NextResponse.json(
       {
         message: 'Booking created successfully',
@@ -187,11 +159,9 @@ export async function POST(request: NextRequest) {
       },
       { status: 201 }
     )
-
   } catch (error) {
-    console.error('Booking creation error:', error)
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: `Booking creation error: ${error instanceof Error ? error.message : 'Unknown error'}` },
       { status: 500 }
     )
   }

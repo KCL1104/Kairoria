@@ -23,7 +23,7 @@ async function HomePageContent() {
   ]);
 
   const categories = categoriesResult.status === 'fulfilled' ? categoriesResult.value : [];
-  const products = productsResult.status === 'fulfilled' ? productsResult.value : [];
+  const products = productsResult.status === 'fulfilled' ? productsResult.value.products : [];
 
   return (
     <ClientHomePage initialCategories={categories} initialProducts={products} />

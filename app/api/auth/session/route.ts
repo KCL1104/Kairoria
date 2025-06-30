@@ -60,7 +60,6 @@ export async function GET(request: NextRequest) {
     )
     
   } catch (error) {
-    console.error('Session API error:', error)
     logAuthEvent('session_api_error', { error: String(error) })
     
     return NextResponse.json(
@@ -123,7 +122,6 @@ export async function POST(request: NextRequest) {
     )
     
   } catch (error) {
-    console.error('Session refresh API error:', error)
     logAuthEvent('session_refresh_api_error', { error: String(error) })
     
     return NextResponse.json(

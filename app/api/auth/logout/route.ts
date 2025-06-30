@@ -75,9 +75,6 @@ export async function DELETE(request: Request) {
     
   } catch (error) {
     // Log error in development only
-    if (process.env.NODE_ENV === 'development') {
-      console.error('Logout error:', error);
-    }
     logAuthEvent('logout_error', { error: String(error) })
     return NextResponse.json(
       { success: false, message: 'Error processing logout' },

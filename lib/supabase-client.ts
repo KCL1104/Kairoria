@@ -40,22 +40,27 @@ if (!supabase && typeof window !== 'undefined') {
 // Product-related functions
 export async function fetchProducts(options?: {
   limit?: number
-  offset?: number
+  page?: number
   category?: string
   search?: string
-}, retryCount = 0): Promise<(Product & {
+}, retryCount = 0): Promise<{ products: (Product & {
   categories: { id: number; name: string }
   owner: Profile
   product_images: ProductImage[]
-})[]> {
+})[], count: number }> {
   if (!supabase) {
     console.error('Supabase client not available')
-    return []
+    return { products: [], count: 0 }
   }
 
   console.log('Fetching products with options:', options, `(attempt ${retryCount + 1})`)
 
   try {
+    const page = options?.page || 1;
+    const limit = options?.limit || 10;
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+
     let query = supabase
       .from('products')
       .select(`
@@ -63,9 +68,10 @@ export async function fetchProducts(options?: {
         categories(id, name),
         owner:profiles!owner_id(id, full_name, avatar_url),
         product_images(id, image_url, display_order, is_cover)
-      `)
+      `, { count: 'exact' })
       .eq('status', 'listed')
       .order('created_at', { ascending: false })
+      .range(from, to)
 
     if (options?.category) {
       query = query.eq('category_id', options.category)
@@ -73,14 +79,6 @@ export async function fetchProducts(options?: {
 
     if (options?.search) {
       query = query.or(`title.ilike.%${options.search}%, description.ilike.%${options.search}%`)
-    }
-
-    if (options?.limit) {
-      query = query.limit(options.limit)
-    }
-
-    if (options?.offset) {
-      query = query.range(options.offset, options.offset + (options.limit || 10) - 1)
     }
 
     console.log('Executing product query...')
@@ -94,7 +92,7 @@ export async function fetchProducts(options?: {
     // Apply abort signal to the query
     query = query.abortSignal(controller.signal)
     
-    const { data, error } = await query
+    const { data, error, count } = await query
     clearTimeout(timeoutId)
 
     if (error) {
@@ -112,15 +110,18 @@ export async function fetchProducts(options?: {
         return fetchProducts(options, retryCount + 1)
       }
       
-      return []
+      throw new Error(`Failed to fetch products: ${error.message}`)
     }
     
     console.log('Products fetched successfully:', data?.length || 0, 'items')
-    return (data || []) as (Product & {
-      categories: { id: number; name: string }
-      owner: Profile
-      product_images: ProductImage[]
-    })[]
+    return {
+      products: (data || []) as (Product & {
+        categories: { id: number; name: string }
+        owner: Profile
+        product_images: ProductImage[]
+      })[],
+      count: count || 0
+    }
   } catch (error: any) {
     console.error('Unexpected error in fetchProducts:', error)
     
@@ -131,7 +132,8 @@ export async function fetchProducts(options?: {
       return fetchProducts(options, retryCount + 1)
     }
     
-    return []
+    // Re-throw the error to be handled by the caller
+    throw error
   }
 }
 
@@ -184,7 +186,8 @@ export async function fetchUniqueCategories() {
 
     if (!response.ok) {
       console.error('Categories API response not ok:', response.status, response.statusText)
-      return [] // Return empty array instead of throwing
+      // Throw an error with detailed response information
+      throw new Error(`Failed to fetch categories: ${response.status} ${response.statusText}`)
     }
 
     const data = await response.json()
@@ -195,8 +198,8 @@ export async function fetchUniqueCategories() {
     return categoryNames
   } catch (error) {
     console.error('Error fetching categories:', error)
-    // Return empty array instead of throwing to prevent loading hang
-    return []
+    // Re-throw the error so it can be caught by React Query or other data fetching libraries
+    throw error
   }
 }
 

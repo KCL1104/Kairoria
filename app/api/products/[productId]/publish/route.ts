@@ -94,7 +94,6 @@ export async function PUT(
     }
 
     // DEMO MODE: Skip ownership and image checks for demo
-    console.log('DEMO MODE: Skipping product ownership and image verification for product:', productId)
 
     // Update the product status to 'listed'
     const { data: updatedProduct, error: updateError } = await supabase
@@ -108,9 +107,8 @@ export async function PUT(
       .single()
 
     if (updateError) {
-      console.error('Product update error:', updateError)
       return NextResponse.json(
-        { error: 'Failed to publish product' },
+        { error: `Product update error: ${updateError.message}` },
         { 
           status: 500,
           headers: {
@@ -134,9 +132,8 @@ export async function PUT(
     )
 
   } catch (error) {
-    console.error('Product publish error:', error)
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: `Product publish error: ${error instanceof Error ? error.message : 'Unknown error'}` },
       { 
         status: 500,
         headers: {

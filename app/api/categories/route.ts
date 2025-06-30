@@ -40,9 +40,8 @@ export async function GET(request: NextRequest) {
       .order('name')
 
     if (error) {
-      console.error('Categories fetch error:', error)
       return NextResponse.json(
-        { error: 'Failed to fetch categories' },
+        { error: `Categories fetch error: ${error.message}` },
         { 
           status: 500,
           headers: {
@@ -64,9 +63,8 @@ export async function GET(request: NextRequest) {
     )
 
   } catch (error) {
-    console.error('Categories API error:', error)
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: `Categories API error: ${error instanceof Error ? error.message : 'Unknown error'}` },
       { 
         status: 500,
         headers: {
